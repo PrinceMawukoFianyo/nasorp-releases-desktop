@@ -1,10 +1,6 @@
 import Iframe from "react-iframe";
-import PlainFeatures from "@/components/frontend/features";
-import TabbedFeatures from "@/components/frontend/tabbed-features";
 import TechStackGrid from "@/components/frontend/Techstack";
 import { GridBackground } from "@/components/reusable-ui/grid-background";
-import ProjectComparison from "@/components/reusable-ui/project-comparison";
-import RadialFeature from "@/components/reusable-ui/radial-features";
 import ReUsableHero from "@/components/reusable-ui/reusable-hero";
 import {
   Award,
@@ -19,12 +15,14 @@ import {
 } from "lucide-react";
 import React from "react";
 import Showcase from "@/components/frontend/showcase";
-import PricingCard from "@/components/frontend/single-tier-pricing";
-import FAQ from "@/components/frontend/FAQ";
-import CustomizationCard from "@/components/frontend/customisation-card";
 import Image from "next/image";
 import { BorderBeam } from "@/components/magicui/border-beam";
-import FeatureTabs from "@/components/frontend/SmoothTabs";
+import InventoryComparison from "@/components/reusable-ui/project-comparison";
+import InventoryFeatureTabs from "@/components/frontend/SmoothTabs";
+import HardwareStoreShowcase from "@/components/frontend/single-tier-pricing";
+import HardwarePlumbingFAQ from "@/components/frontend/FAQ";
+import HardwarePlumbingGrid from "@/components/frontend/Techstack";
+import ProjectShowcase from "@/components/frontend/showcase";
 
 export default async function page() {
   const currentUsers = 300;
@@ -33,24 +31,24 @@ export default async function page() {
       <ReUsableHero
         theme="light"
         announcement={{
-          text: "Introducing Hubstack Advanced - Launch Your app in days",
+          text: "New Stock: Steel Rect Pipes, Round Pipes & Premium Building Materials",
         }}
         title={
           <>
-            The Ultimate Next.js Agency
-            <br />& Fullstack SaaS Starter Kit
+            Premium Building Materials
+            <br />& Plumbing Supply Store
           </>
         }
-        mobileTitle="Ultimate Next.js Agency & SaaS Kit"
-        subtitle="You will get a premium Next.js 15 starter kit with a complete agency website, user & admin dashboards, full authentication system, blog platform, documentation system, and project showcase features - everything you need to launch your digital agency or SaaS product in days instead of months."
+        mobileTitle="Premium Building & Plumbing Supplies"
+        subtitle="Your one-stop shop for quality steel rect pipes, round metal pipes, reducers, fittings, and complete building materials. From plumbing essentials to decorative hardware, we supply contractors, builders, and homeowners with everything needed for residential and commercial construction projects."
         buttons={[
           {
-            label: "Get the Kit Now",
-            href: "https://gmukejohnbaptist.gumroad.com/l/hubstack-simple-auth",
+            label: "Browse Our Catalog",
+            href: "/register",
             primary: true,
           },
           {
-            label: "View Demo",
+            label: "View demo",
             href: "/#demo",
           },
         ]}
@@ -65,7 +63,7 @@ export default async function page() {
       />
       <GridBackground>
         <div className="px-8 py-16 ">
-          <TechStackGrid />
+          <HardwarePlumbingGrid />
         </div>
       </GridBackground>
       <div className="py-16 max-w-6xl mx-auto px-8">
@@ -73,16 +71,16 @@ export default async function page() {
           <BorderBeam />
           <Image
             src="/images/dash-2.webp"
-            alt="This is the dashbaord Image"
+            alt="Building Materials Inventory Dashboard"
             width={1775}
             height={1109}
             className="w-full h-full rounded-lg object-cover  border shadow-2xl"
           />
         </div>
       </div>
-      <ProjectComparison />
+      <InventoryComparison />
       <GridBackground className="">
-        <FeatureTabs />
+        <InventoryFeatureTabs />
       </GridBackground>
 
       <div id="demo" className="py-16 max-w-6xl mx-auto relative">
@@ -94,16 +92,13 @@ export default async function page() {
           position="relative"
         />
         <div className="pb-16">
-          <Showcase />
+          <ProjectShowcase />
         </div>
         <div className="py-8">
-          <PricingCard />
-        </div>
-        <div className="py">
-          <CustomizationCard theme="light" />
+          <HardwareStoreShowcase />
         </div>
       </div>
-      <FAQ />
+      <HardwarePlumbingFAQ />
     </section>
   );
 }

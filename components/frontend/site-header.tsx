@@ -29,6 +29,14 @@ import {
   Database,
   BarChart,
   Lock,
+  Bell,
+  Building2,
+  MapPin,
+  Package,
+  Shield,
+  ShoppingCart,
+  TrendingUp,
+  Truck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ChevronDown } from "lucide-react";
@@ -40,66 +48,87 @@ import { getInitials } from "@/lib/generateInitials";
 
 const features = [
   {
-    icon: Users,
-    title: "Advanced Authentication",
+    icon: Package,
+    title: "Product Catalog Management",
     description:
-      "Secure and flexible authentication system with role-based access control and multi-provider support.",
-    href: "/features/authentication",
+      "Comprehensive product creation and management with SKU tracking, categorization, pricing, and minimum stock level settings.",
+    href: "/features/product-catalog",
   },
   {
-    icon: Layout,
-    title: "Dynamic Dashboard",
+    icon: TrendingUp,
+    title: "Real-time Inventory Tracking",
     description:
-      "Beautifully designed, responsive dashboard with data visualization and management tools.",
-    href: "/features/dashboard",
+      "Monitor stock levels in real-time with automated low stock alerts, inventory history, and quantity tracking across all locations.",
+    href: "/features/inventory-tracking",
   },
   {
-    icon: FileText,
-    title: "Reusable Form Components",
+    icon: MapPin,
+    title: "Multi-location Management",
     description:
-      "Streamline your workflows with reusable and customizable form components.",
-    href: "/features/forms",
-  },
-  {
-    icon: BarChart2,
-    title: "Advanced Data Tables",
-    description:
-      "Manage and display data effortlessly with customizable and powerful data tables.",
-    href: "/features/data-tables",
-  },
-  {
-    icon: CloudUpload,
-    title: "Image Upload",
-    description:
-      "Effortless image uploads powered by UploadThing, supporting both single and multiple file uploads.",
-    href: "/features/image-upload",
+      "Track inventory across multiple store locations with seamless stock transfer capabilities and location-specific reporting.",
+    href: "/features/multi-location",
   },
   {
     icon: Edit3,
-    title: "Rich Text Editor",
+    title: "Stock Adjustments & History",
     description:
-      "Seamlessly create and edit rich content using an integrated Quill editor.",
-    href: "/features/rich-text-editor",
+      "Record inventory changes with reason codes for damage, loss, or corrections. Maintain complete adjustment history.",
+    href: "/features/stock-adjustments",
   },
   {
-    icon: Lock,
-    title: "Secure Authentication",
+    icon: ShoppingCart,
+    title: "Sales Order Processing",
     description:
-      "Role-based authentication system with customizable access control.",
-    href: "/features/secure-authentication",
+      "Create and fulfill customer orders with order status tracking, customer management, and automated invoice generation.",
+    href: "/features/sales-orders",
   },
   {
-    icon: Database,
-    title: "Prisma ORM",
+    icon: Users,
+    title: "Customer Management",
     description:
-      "Leverage Prisma ORM for robust and scalable database management in TypeScript.",
-    href: "/features/prisma-orm",
+      "Maintain customer database with contact information, addresses, and categorization for retail vs. wholesale clients.",
+    href: "/features/customer-management",
+  },
+  {
+    icon: Truck,
+    title: "Purchase Order System",
+    description:
+      "Create and track supplier orders with receiving functionality, purchase order status tracking, and supplier management.",
+    href: "/features/purchase-orders",
+  },
+  {
+    icon: Building2,
+    title: "Supplier Management",
+    description:
+      "Comprehensive supplier database with product-supplier relationships and vendor performance tracking.",
+    href: "/features/supplier-management",
+  },
+  {
+    icon: BarChart2,
+    title: "Essential Reporting",
+    description:
+      "Generate critical reports including inventory levels, low stock alerts, sales summaries, and purchase order status.",
+    href: "/features/reporting",
+  },
+  {
+    icon: Shield,
+    title: "Role-based Access Control",
+    description:
+      "Secure user management with admin and standard user roles, customizable permissions, and audit trails.",
+    href: "/features/user-management",
+  },
+  {
+    icon: Bell,
+    title: "Smart Notifications",
+    description:
+      "Automated alerts for low stock levels, order updates, and critical inventory events to keep operations running smoothly.",
+    href: "/features/notifications",
   },
   {
     icon: BarChart,
-    title: "Analytics Integration",
+    title: "Inventory Analytics",
     description:
-      "Track performance with integrated analytics from PostHog and Vercel for actionable insights.",
+      "Track inventory performance with turnover rates, stock movement analysis, and demand forecasting insights.",
     href: "/features/analytics",
   },
 ];

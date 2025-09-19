@@ -3,178 +3,295 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  RocketIcon,
   StarIcon,
-  HeartIcon,
-  TimerIcon,
-  MessageCircleIcon,
+  ShoppingCartIcon,
+  Package,
+  Wrench,
+  Building,
+  Zap,
 } from "lucide-react";
 
-const PricingCard = ({ theme = "light" }) => {
+const HardwareStoreShowcase = ({ theme = "light" }) => {
   const isDark = theme === "dark";
-  const price = 100.0;
-  const originalPrice = 300.0;
+  
+  const products = [
+    {
+      id: 1,
+      name: "Steel Rect Pipe 2x4 inch",
+      description: "Heavy duty rectangular steel pipe for construction",
+      image: "🔧",
+      price: 45.50,
+      originalPrice: 68.25,
+      discount: 33,
+      rating: 4.8,
+      sold: 156,
+      category: "Steel Pipes",
+      icon: Package,
+    },
+    {
+      id: 2,
+      name: "PVC Pipe Fittings Set",
+      description: "Complete set of PVC elbows, tees, and reducers",
+      image: "🔩",
+      price: 28.75,
+      originalPrice: 42.30,
+      discount: 32,
+      rating: 4.6,
+      sold: 89,
+      category: "Plumbing",
+      icon: Wrench,
+    },
+    {
+      id: 3,
+      name: "Round Metal Pipe 3 inch",
+      description: "Galvanized round pipe for plumbing applications",
+      image: "⚙️",
+      price: 52.80,
+      originalPrice: 75.40,
+      discount: 30,
+      rating: 4.9,
+      sold: 203,
+      category: "Metal Pipes",
+      icon: Building,
+    },
+    {
+      id: 4,
+      name: "Pipe Reducer Kit",
+      description: "Assorted reducers for different pipe sizes",
+      image: "🔌",
+      price: 19.95,
+      originalPrice: 29.90,
+      discount: 33,
+      rating: 4.5,
+      sold: 67,
+      category: "Fittings",
+      icon: Zap,
+    },
+    {
+      id: 5,
+      name: "Building Hardware Set",
+      description: "Essential bolts, screws, and fasteners",
+      image: "🏗️",
+      price: 35.60,
+      originalPrice: 48.75,
+      discount: 27,
+      rating: 4.7,
+      sold: 124,
+      category: "Hardware",
+      icon: Building,
+    },
+    {
+      id: 6,
+      name: "Decorative Pipe Covers",
+      description: "Stylish covers for exposed pipes and fittings",
+      image: "✨",
+      price: 22.40,
+      originalPrice: 31.20,
+      discount: 28,
+      rating: 4.4,
+      sold: 45,
+      category: "Decorative",
+      icon: Package,
+    },
+  ];
+
   return (
     <div
-      id="pricing"
-      className={`w-full grid grid-cols-12 max-w-5xl ${isDark ? "bg-slate-900" : "bg-white"} mx-auto rounded-xl overflow-hidden shadow-sm`}
+      id="products"
+      className={`w-full max-w-7xl mx-auto p-8 ${isDark ? "bg-slate-900" : "bg-white"}`}
     >
-      <div className="col-span-full md:col-span-7  p-8 md:p-12 relative overflow-hidden">
-        {/* Gradient overlay */}
-        <div
-          className={`absolute inset-0 ${isDark ? "bg-gradient-to-br from-blue-900/20 to-purple-900/20" : "bg-gradient-to-br from-blue-50 to-purple-50"}`}
-        />
-
-        <div className="space-y-8 relative z-10">
-          {/* Header Text */}
-          <div className="space-y-3">
-            <h2
-              className={`text-5xl font-extrabold tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}
-            >
-              One-time purchase.
-            </h2>
-            <h2 className="text-5xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-amber-300 to-amber-500">
-              Unlimited projects.
-            </h2>
-          </div>
-          {/* Description */}
-          <p
-            className={`text-xl leading-relaxed ${isDark ? "text-slate-300" : "text-slate-600"}`}
-          >
-            HubStack is a one-time purchase with no recurring fees. You get
-            access to the repository and can use it for as many projects as you
-            want.
-          </p>
-          {/* Upselling */}
-          <div className="p-4 bg-gradient-to-r from-amber-100 to-amber-50 rounded-xl border border-amber-200/50">
-            <span className="text-amber-700 font-medium ">
-              <span className="text-xl">🎉</span> Looking for the advanced
-              version checkout{" "}
-              <a className="font-bold underline" href="#">
-                Hubstack Advanced here
-              </a>
-            </span>
-          </div>
+      {/* Header Section */}
+      <div className="text-center mb-12">
+        <h2
+          className={`text-4xl md:text-5xl font-extrabold tracking-tight mb-4 ${
+            isDark ? "text-white" : "text-slate-900"
+          }`}
+        >
+          Featured Building Materials
+        </h2>
+        <p
+          className={`text-xl leading-relaxed max-w-3xl mx-auto ${
+            isDark ? "text-slate-300" : "text-slate-600"
+          }`}
+        >
+          Quality steel pipes, plumbing fittings, and building materials at unbeatable prices.
+          Professional-grade supplies for contractors and DIY enthusiasts.
+        </p>
+        
+        {/* Category Badges */}
+        <div className="flex flex-wrap justify-center gap-3 mt-6">
+          <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">
+            Bundle Deals Available
+          </Badge>
+          <Badge className="bg-red-100 text-red-800 hover:bg-red-200">
+            Limited Time Offers
+          </Badge>
+          <Badge className="bg-green-100 text-green-800 hover:bg-green-200">
+            In Stock Now
+          </Badge>
         </div>
       </div>
 
-      {/* Pricing Section */}
-      <Card
-        className={`col-span-full md:col-span-5 ${isDark ? "bg-slate-800/50 border-slate-700" : "bg-slate-50 border-slate-200"} backdrop-blur-sm`}
-      >
-        <CardHeader>
-          <div className="space-y-3">
-            <h3
-              className={`text-2xl font-bold ${isDark ? "text-slate-200" : "text-slate-800"}`}
-            >
-              Lifetime access
-            </h3>
-            <p
-              className={`text-sm font-medium ${isDark ? "text-slate-400" : "text-slate-500"}`}
-            >
-              for one developer
-            </p>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <span
-                  className={`text-xl line-through ${isDark ? "text-slate-500" : "text-slate-400"}`}
-                >
-                  ${originalPrice}
-                </span>
-              </div>
-              <div className="flex items-baseline gap-2">
-                <span
-                  className={`text-6xl font-black tracking-tight ${isDark ? "text-amber-300" : "text-amber-600"}`}
-                >
-                  ${price}
-                </span>
-              </div>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-8">
-          {/* Discount Badge
-          <div className="flex items-center gap-2 p-4 bg-gradient-to-r from-amber-100 to-amber-50 rounded-xl border border-amber-200/50">
-            <span className="text-amber-700 font-medium flex items-center gap-2">
-              <span className="text-xl">🎉</span> Get $50 off with code
-              NEWYEAR50
-            </span>
-          </div> */}
-
-          {/* Features List */}
-          <div className="space-y-6">
-            <div className="flex gap-4">
-              <StarIcon className="w-6 h-6 text-blue-500" />
-              <div className="space-y-1">
-                <p
-                  className={`font-bold text-lg ${isDark ? "text-slate-200" : "text-slate-800"}`}
-                >
-                  All features included
-                </p>
-                <p
-                  className={`text-sm ${isDark ? "text-slate-400" : "text-slate-500"}`}
-                >
-                  Authentication, billing, user management, and more.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <HeartIcon className="w-6 h-6 text-pink-500" />
-              <div className="space-y-1">
-                <p
-                  className={`font-bold text-lg ${isDark ? "text-slate-200" : "text-slate-800"}`}
-                >
-                  Lifetime updates
-                </p>
-                <p
-                  className={`text-sm ${isDark ? "text-slate-400" : "text-slate-500"}`}
-                >
-                  Last update to codebase: 14 days ago
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <RocketIcon className="w-6 h-6 text-purple-500" />
-              <div>
-                <p
-                  className={`font-bold text-lg ${isDark ? "text-slate-200" : "text-slate-800"}`}
-                >
-                  Saves you 99+ hours
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <MessageCircleIcon className="w-6 h-6 text-green-500" />
-              <div>
-                <p
-                  className={`font-bold text-lg ${isDark ? "text-slate-200" : "text-slate-800"}`}
-                >
-                  Exclusive discord server for support
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* CTA Button */}
-          <Button
-            className={`w-full h-14 text-lg font-bold tracking-wide
-              ${
+      {/* Products Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+        {products.map((product) => {
+          const Icon = product.icon;
+          const savings = product.originalPrice - product.price;
+          
+          return (
+            <Card
+              key={product.id}
+              className={`group hover:shadow-2xl transition-all duration-300 overflow-hidden border-2 hover:border-blue-200 ${
                 isDark
-                  ? "bg-gradient-to-r from-amber-300 to-amber-400 text-slate-900 hover:from-amber-400 hover:to-amber-500"
-                  : "bg-gradient-to-r from-amber-500 to-amber-600 text-white hover:from-amber-600 hover:to-amber-700"
-              } shadow-lg hover:shadow-xl transition-all duration-200`}
+                  ? "bg-slate-800/50 border-slate-700"
+                  : "bg-white border-slate-200"
+              }`}
+            >
+              <CardHeader className="pb-4">
+                <div className="flex items-start justify-between mb-3">
+                  <div
+                    className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${
+                      isDark ? "bg-slate-700" : "bg-slate-50"
+                    }`}
+                  >
+                    {product.image}
+                  </div>
+                  <Badge className="bg-red-500 text-white text-sm font-bold px-2 py-1">
+                    -{product.discount}%
+                  </Badge>
+                </div>
+                
+                <div>
+                  <Badge variant="outline" className="mb-2 text-xs">
+                    {product.category}
+                  </Badge>
+                  <h3
+                    className={`text-lg font-bold mb-2 line-clamp-2 ${
+                      isDark ? "text-slate-200" : "text-slate-800"
+                    }`}
+                  >
+                    {product.name}
+                  </h3>
+                  <p
+                    className={`text-sm line-clamp-2 ${
+                      isDark ? "text-slate-400" : "text-slate-500"
+                    }`}
+                  >
+                    {product.description}
+                  </p>
+                </div>
+              </CardHeader>
+              
+              <CardContent className="pt-0">
+                {/* Price Section */}
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`text-2xl font-black ${
+                        isDark ? "text-emerald-400" : "text-emerald-600"
+                      }`}
+                    >
+                      GHS{product.price}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`text-sm line-through ${
+                        isDark ? "text-slate-500" : "text-slate-400"
+                      }`}
+                    >
+                      GHS{product.originalPrice}
+                    </span>
+                    <span className="text-sm font-semibold text-emerald-600">
+                      You save GHS{savings.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Rating and Sales */}
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-1">
+                    <StarIcon className="w-4 h-4 fill-amber-400 text-amber-400" />
+                    <span
+                      className={`text-sm font-medium ${
+                        isDark ? "text-slate-300" : "text-slate-700"
+                      }`}
+                    >
+                      {product.rating}
+                    </span>
+                  </div>
+                  <span
+                    className={`text-sm ${
+                      isDark ? "text-slate-400" : "text-slate-500"
+                    }`}
+                  >
+                    {product.sold} sold
+                  </span>
+                </div>
+
+                {/* Add to Cart Button */}
+                <Button
+                  className={`w-full h-12 text-base font-semibold group-hover:scale-105 transition-transform duration-200 ${
+                    isDark
+                      ? "bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+                      : "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+                  } text-white shadow-lg hover:shadow-xl`}
+                >
+                  <ShoppingCartIcon className="w-5 h-5 mr-2" />
+                  Add to Cart
+                </Button>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Bottom CTA Section */}
+      <div
+        className={`text-center p-8 rounded-2xl ${
+          isDark
+            ? "bg-gradient-to-r from-slate-800 to-slate-700"
+            : "bg-gradient-to-r from-blue-50 to-emerald-50"
+        }`}
+      >
+        <h3
+          className={`text-2xl font-bold mb-4 ${
+            isDark ? "text-white" : "text-slate-900"
+          }`}
+        >
+          Need Bulk Orders or Custom Solutions?
+        </h3>
+        <p
+          className={`text-lg mb-6 ${
+            isDark ? "text-slate-300" : "text-slate-600"
+          }`}
+        >
+          Contact our team for contractor pricing, bulk discounts, and custom building material solutions.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <Button
+            className={`px-8 py-3 text-lg font-semibold ${
+              isDark
+                ? "bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800"
+                : "bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700"
+            } text-white shadow-lg hover:shadow-xl transition-all duration-200`}
           >
-            <a href="https://gmukejohnbaptist.gumroad.com/l/hubstack-simple-auth">
-              Buy HubStack for Next.js →
-            </a>
+            Request Bulk Quote
           </Button>
-        </CardContent>
-      </Card>
+          <Button
+            variant="outline"
+            className={`px-8 py-3 text-lg font-semibold border-2 ${
+              isDark
+                ? "border-slate-500 text-slate-300 hover:bg-slate-700"
+                : "border-slate-300 text-slate-700 hover:bg-slate-50"
+            } transition-all duration-200`}
+          >
+            Browse All Products
+          </Button>
+        </div>
+      </div>
     </div>
   );
 };
 
-export default PricingCard;
+export default HardwareStoreShowcase;

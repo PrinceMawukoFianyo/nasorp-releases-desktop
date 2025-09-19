@@ -26,60 +26,25 @@ const HubStackLogo = ({
         className={`w-full h-auto`}
         style={{ maxWidth: width, maxHeight: height }}
       >
-        {/* Background for dark theme */}
-        {/* {isDark && <rect width="400" height="120" fill={colors.background} />} */}
-
-        {/* Gradient definition */}
-        <defs>
-          <linearGradient
-            id={`gradient-${theme}`}
-            x1="0%"
-            y1="0%"
-            x2="100%"
-            y2="0%"
-          >
-            <stop
-              offset="0%"
-              style={{ stopColor: colors.gradientStart, stopOpacity: 1 }}
-            />
-            <stop
-              offset="100%"
-              style={{ stopColor: colors.gradientEnd, stopOpacity: 1 }}
-            />
-          </linearGradient>
-        </defs>
-
-        {/* Code Symbol Group */}
-        <g transform="translate(30, 25)">
-          {/* Outer hexagon */}
-          <path
-            d="M50 0 L85 20 L85 60 L50 80 L15 60 L15 20 Z"
-            fill={`url(#gradient-${theme})`}
-            stroke="#ffffff"
-            strokeWidth="2"
-          />
-
-          {/* Code brackets */}
-          <path
-            d="M35 30 L45 40 L35 50 M65 30 L55 40 L65 50"
-            fill="none"
-            stroke="#ffffff"
-            strokeWidth="3"
-            strokeLinecap="round"
-          />
-        </g>
+         <image
+          href="/logo.svg"    // Put your logo file in the public/ folder
+          x="35"                   // Horizontal position
+          y="20"                   // Vertical position  
+          width="80"               // Logo width
+          height="80"              // Logo height
+        />
 
         {/* Text */}
         <text
-          x="120"
+          x="116"
           y="70"
           fontFamily="Arial, sans-serif"
           fontWeight="bold"
-          fontSize="48"
+          fontSize="40"
           fill={colors.textPrimary}
         >
-          Hub
-          <tspan fill={colors.textSecondary}>Stack</tspan>
+          AFK
+          <tspan fill={colors.textSecondary}>BERIMAH</tspan>
         </text>
 
         {/* Tagline */}
@@ -90,7 +55,7 @@ const HubStackLogo = ({
           fontSize="14"
           fill={colors.tagline}
         >
-          Premium Developer Toolkit
+          Quality Hardware & Tools
         </text>
       </svg>
     </div>
@@ -98,3 +63,4 @@ const HubStackLogo = ({
 };
 
 export default HubStackLogo;
+

@@ -1,6 +1,6 @@
 export const siteConfig = {
-  name: "Hubstack Starter kit",
-  shortName: "HSK",
+  name: "Mr.Elvis Inventory",
+  shortName: "EI",
   description:
     "Providing exceptional healthcare services with compassion and expertise since 2008. Our commitment to excellence has made us a trusted healthcare provider in the region.",
 
