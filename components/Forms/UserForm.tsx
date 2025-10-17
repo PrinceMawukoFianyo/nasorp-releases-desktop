@@ -29,6 +29,7 @@ import PasswordInput from "../FormInputs/PasswordInput";
 import TextInput from "../FormInputs/TextInput";
 import FormSelectInput from "../FormInputs/FormSelectInput";
 import ImageInput from "../FormInputs/ImageInput";
+import { OrgData } from "./RegisterForm";
 type UserFormProps = {
   editingId?: string | undefined;
   initialData?: User | undefined | null;
@@ -98,7 +99,14 @@ export default function UserForm({
         //route
         router.push("/dashboard/users");
       } else {
-        await createUser(data);
+        const orgData: OrgData ={
+                name: "", 
+                slug: "",
+                country: ``,
+                currency: "",
+                timezone: "", 
+              };
+        await createUser(data, orgData);
         setLoading(false);
         // Toast
         toast.success("Successfully Created!");

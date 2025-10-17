@@ -1,21 +1,12 @@
 import { getDashboardOverview } from "@/actions/analytics";
-import { getAllSavings } from "@/actions/savings";
 import DashboardMain from "@/components/dashboard/DashboardMain";
-import OverViewCard from "@/components/OverViewCard";
-import { DashboardWelcome } from "@/components/WelcomeBanner";
-import { authOptions } from "@/config/auth";
 import { getAuthenticatedUser } from "@/config/useAuth";
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
-import { object } from "zod";
+
 
 export default async function Dashboard() {
   const analytics = (await getDashboardOverview()) || [];
-  const session = await getServerSession(authOptions);
   const user = await getAuthenticatedUser(); 
-  console.log(session?. user)
-  console.log("Org ID=>",user.orgId)
-  console.log("Org Name=>",user.orgName)
+
   return (
     <main>
       {<div className="space-y-6">

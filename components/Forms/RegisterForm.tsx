@@ -50,7 +50,7 @@ export default function RegisterForm() {
         country: `${country?. label}-${country?.code}`,
         currency: country?.value,
         timezone: country?.timezone, 
-      }
+      };
     try {
       const res = await createUser(data,orgData);
       if (res.status === 409) {
