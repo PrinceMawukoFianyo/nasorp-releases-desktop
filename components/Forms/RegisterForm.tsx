@@ -1,23 +1,36 @@
 "use client";
-import { Headset, Loader2, Lock, Mail, User } from "lucide-react";
+import { Currency, Headset, Loader2, Lock, Mail, User, Warehouse, WarehouseIcon } from "lucide-react";
 import React, { useState } from "react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { UserProps } from "@/types/types";
-import toast from "react-hot-toast";
+import {toast} from "sonner";
 import { useRouter } from "next/navigation";
 import TextInput from "../FormInputs/TextInput";
 import PasswordInput from "../FormInputs/PasswordInput";
 import SubmitButton from "../FormInputs/SubmitButton";
 import { createUser } from "@/actions/users";
 import CustomCarousel from "../frontend/custom-carousel";
-import { Button } from "../ui/button";
-import { signIn } from "next-auth/react";
-import { FaGithub, FaGoogle } from "react-icons/fa";
+import FormSelectInput from "../FormInputs/FormSelectInput";
 import Logo from "../global/Logo";
+import countries from "@/countries";
+import { generateSlug } from "@/lib/generateSlug";
+export type OrgData={
+    name: string;
+    slug: string;
+    country: string;
+    currency: string | undefined;
+    timezone: string | undefined;
+}
 export default function RegisterForm() {
   const [loading, setLoading] = useState(false);
   const [emailErr, setEmailErr] = useState<string | null>(null);
+  const initialCountryCode = "GH";
+  const initialCountry = countries.find(
+    (item) => item.code === initialCountryCode
+  );
+  const [selectedCountry, setSelectedCountry] =
+    useState<any>(initialCountry);
   const {
     handleSubmit,
     register,
@@ -30,15 +43,25 @@ export default function RegisterForm() {
     data.name = `${data.firstName} ${data.lastName}`;
     data.image =
       "https://utfs.io/f/59b606d1-9148-4f50-ae1c-e9d02322e834-2558r.png";
+      const country = countries.find((country)=>country.value === selectedCountry.value)
+      const orgData: OrgData ={
+        name: data.orgName, 
+        slug: generateSlug(data.orgName),
+        country: `${country?. label}-${country?.code}`,
+        currency: country?.value,
+        timezone: country?.timezone, 
+      }
     try {
-      const res = await createUser(data);
+      const res = await createUser(data,orgData);
       if (res.status === 409) {
         setLoading(false);
         setEmailErr(res.error);
       } else if (res.status === 200) {
         setLoading(false);
-        toast.success("Account Created successfully");
-        router.push("/");
+        toast.success("Account Created successfully", {
+          description: "Your account has been created, Pending Verification"
+        });
+        router.push(`/verify/${res.data?.id}?email=${res.data?.email}`);
       } else {
         setLoading(false);
         toast.error("Something went wrong");
@@ -53,18 +76,34 @@ export default function RegisterForm() {
     <div className="w-full lg:grid h-screen lg:min-h-[600px] lg:grid-cols-2 relative ">
       <div className="flex items-center justify-center py-12">
         <div className="mx-auto grid  gap-6 mt-10 md:mt-0">
-          <div className="absolute left-1/3 top-14 md:top-5 md:left-5">
+          {/*<div className="absolute left-1/3 top-14 md:top-5 md:left-5">
             <Logo />
-          </div>
-          <div className="grid gap-2 text-center mt-10 md:mt-0">
+          </div>*/}
+          <div className="grid gap-2  mt-10 md:mt-0">
             <h1 className="text-3xl font-bold">Create an account</h1>
             <p className="text-muted-foreground text-sm">
-              Create your <span className="text-blue-600">Next Admin</span>{" "}
+              Create your <span className="text-blue-600">Business Inventory</span>{" "}
               Account today to get started
             </p>
           </div>
           <div className="">
             <form className="space-y-3" onSubmit={handleSubmit(onSubmit)}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <TextInput
+                  register={register}
+                  errors={errors}
+                  label="Organisation"
+                  name="orgName"
+                  icon={WarehouseIcon}
+                  placeholder="e.g. A.F.K Berimah Hardware Shop"
+                />
+                <FormSelectInput
+                  label="Countries"
+                  options={countries}
+                  option={selectedCountry}
+                  setOption={setSelectedCountry}
+                />
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <TextInput
                   register={register}
@@ -131,7 +170,7 @@ export default function RegisterForm() {
                 />
               </div>
             </form>
-            <div className="flex items-center py-4 justify-center space-x-1 text-slate-900">
+           {/* <div className="flex items-center py-4 justify-center space-x-1 text-slate-900">
               <div className="h-[1px] w-full bg-slate-200"></div>
               <div className="uppercase">Or</div>
               <div className="h-[1px] w-full bg-slate-200"></div>
@@ -154,7 +193,7 @@ export default function RegisterForm() {
                 <FaGithub className="mr-2 w-6 h-6 text-slate-900 dark:text-white" />
                 Login with Github
               </Button>
-            </div>
+            </div>*/}
             <p className="mt-6 text-sm text-gray-500">
               Already Registered ?{" "}
               <Link

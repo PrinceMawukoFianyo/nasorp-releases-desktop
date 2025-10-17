@@ -8,6 +8,9 @@ import { PasswordProps } from "@/components/Forms/ChangePasswordForm";
 import { Resend } from "resend";
 import { generateToken } from "@/lib/token";
 import { z } from "zod";
+import { OrgData } from "@/components/Forms/RegisterForm";
+import { generateOTP } from "@/lib/generateOTP";
+import VerifyEmail from "@/components/email-templates/verify-email";
 // import { generateNumericToken } from "@/lib/token";
 const resend = new Resend(process.env.RESEND_API_KEY);
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
@@ -32,7 +35,7 @@ const UpdateUserSchema = z.object({
   image: z.string().optional(),
 });
 type UpdateUserInput = z.infer<typeof UpdateUserSchema>;
-export async function createUser(data: UserProps) {
+export async function createUser(data: UserProps, orgData: OrgData) {
   const { email, password, firstName, lastName, name, phone, image } = data;
 
   try {
@@ -63,6 +66,23 @@ export async function createUser(data: UserProps) {
         };
       }
 
+      // Create organisation
+      const existingOrganisation = await tx.organisation.findUnique({
+        where: { slug: orgData.slug }
+      });
+      
+      if (existingOrganisation) {
+        return {
+          error: `Organisation Name ${orgData.name} is already taken`,
+          status: 409,
+          data: null,
+        };
+      }
+
+      const org = await tx.organisation.create({
+        data: orgData,
+      });
+
       // Find or create default role
       let defaultRole = await tx.role.findFirst({
         where: { roleName: DEFAULT_USER_ROLE.roleName },
@@ -77,16 +97,22 @@ export async function createUser(data: UserProps) {
 
       // Hash password
       const hashedPassword = await bcrypt.hash(password, 10);
+     
+      // Generate a 6-digit token
+      const token = generateOTP();
 
       // Create user with role
-      const newUser = await tx.user.create({
+      const newUser = await tx.user.create({ 
         data: {
           email,
           password: hashedPassword,
           firstName,
           lastName,
           name,
+          orgId: org.id,
+          orgName: org.name,
           phone,
+          token,
           image,
           roles: {
             connect: {
@@ -95,14 +121,33 @@ export async function createUser(data: UserProps) {
           },
         },
         include: {
-          roles: true, // Include roles in the response
+          roles: true,
         },
       });
 
+      // Send the verification email
+      const verificationCode = newUser.token ?? "";
+      const { data: emailData, error: emailError } = await resend.emails.send({
+        from: "Business Inventory <mawukofianyo@gmail.com>",
+        to: email,
+        subject: "Verify your Account",
+        react: VerifyEmail({ verificationCode }),
+      });
+
+      if (emailError) {
+        console.log(emailError);
+        return {
+          error: `Something went wrong, Please try again`,
+          status: 500,
+          data: null,
+        };
+      }
+
+      console.log(emailData);
       return {
         error: null,
         status: 200,
-        data: newUser,
+        data: { id: newUser.id, email: newUser.email },
       };
     });
   } catch (error) {
@@ -378,5 +423,35 @@ export async function updateUser(userId: string, data: UpdateUserInput) {
     return {
       error: "Something went wrong",
     };
+  }
+}
+
+export async function verifyOTP(userId: string, otp: string) {
+  try {
+    const user = await db.user.findUnique({
+      where: {
+        id: userId,
+      },
+    })
+    if(user?.token !==otp){
+      return {
+        status: 403,
+      };
+    }
+    const update = await db.user.update({
+      where: {
+        id: userId,
+      },
+      data: {
+        isVerfied: true,
+      },
+    });
+    return {
+      status: 200,
+    };
+  }catch (error){
+    return {
+        status: 403,
+      };
   }
 }

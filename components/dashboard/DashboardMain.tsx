@@ -37,11 +37,11 @@ import {
 const metrics = [
   {
     title: "Total Sales",
-    value: "$120,784.02",
+    value: "GH₵120,784.02",
     change: {
       value: "12.3%",
       trend: "up" as const,
-      today: "+$1,453.89 today",
+      today: "+GH₵1,453.89 today",
     },
     color: "bg-blue-500",
   },
@@ -82,23 +82,23 @@ const recentActivity = [
     customer: "Sarah Johnson",
     email: "sarah.j@example.com",
     status: "Completed",
-    amount: "$234.50",
+    amount: "GH₵234.50",
     date: "5 min ago",
     avatar: "/placeholder.svg?height=40&width=40",
   },
   {
-    customer: "Michael Chen",
+    customer: "Alima Musah",
     email: "m.chen@example.com",
     status: "Pending",
-    amount: "$129.99",
+    amount: "GH₵129.99",
     date: "10 min ago",
     avatar: "/placeholder.svg?height=40&width=40",
   },
   {
-    customer: "Emma Wilson",
+    customer: "Emma Berimah",
     email: "emma.w@example.com",
     status: "Processing",
-    amount: "$549.00",
+    amount: "GH₵549.00",
     date: "15 min ago",
     avatar: "/placeholder.svg?height=40&width=40",
   },
@@ -108,26 +108,26 @@ const topProducts = [
   {
     name: "Wireless Earbuds Pro",
     sales: 1234,
-    revenue: "$45,678",
+    revenue: "GH₵45,678",
     image: "/placeholder.svg?height=40&width=40",
   },
   {
     name: "Smart Watch Elite",
     sales: 987,
-    revenue: "$39,480",
+    revenue: "GH₵39,480",
     image: "/placeholder.svg?height=40&width=40",
   },
   {
     name: "Premium Laptop Stand",
     sales: 865,
-    revenue: "$25,950",
+    revenue: "GH₵25,950",
     image: "/placeholder.svg?height=40&width=40",
   },
 ];
 const bigCards = [
   {
     title: "Total Sales",
-    value: "$120,784.02",
+    value: "GH₵120,784.02",
     change: "+12.3%",
     trend: "up",
     icon: ShoppingCart,

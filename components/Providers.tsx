@@ -6,7 +6,7 @@ import React, { ReactNode } from "react";
 import { Toaster } from "react-hot-toast";
 import { extractRouterConfig } from "uploadthing/server";
 
-export default function Providers({ children }: { children: ReactNode }) {
+export default function  Providers({ children }: { children: ReactNode }) {
   return (
     <SessionProvider>
       <NextSSRPlugin routerConfig={extractRouterConfig(ourFileRouter)} />

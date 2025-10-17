@@ -46,6 +46,12 @@ export const authOptions: NextAuthOptions = {
         const defaultRole = await db.role.findFirst({
           where: { roleName: "user" },
         });
+        const org = await db.organisation.create({
+        data: {
+          name: "Default Organization",
+          slug: "default-organization",
+        },
+      });
 
         return {
           id: profile.id.toString(),
@@ -55,6 +61,8 @@ export const authOptions: NextAuthOptions = {
           phone: "",
           image: profile.avatar_url,
           email: profile.email,
+          orgId: org.id,
+          orgName: org.name,
           roles: defaultRole ? [defaultRole] : [],
           permissions: defaultRole ? defaultRole.permissions : [], // Include permissions from default role
         };
@@ -68,6 +76,12 @@ export const authOptions: NextAuthOptions = {
         const defaultRole = await db.role.findFirst({
           where: { roleName: "user" },
         });
+        const org = await db.organisation.create({
+        data: {
+          name: "Default Organization",
+          slug: "default-organization",
+        },
+      });
 
         return {
           id: profile.sub,
@@ -77,6 +91,8 @@ export const authOptions: NextAuthOptions = {
           phone: "",
           image: profile.picture,
           email: profile.email,
+          orgId: org.id,
+          orgName: org.name,
           roles: defaultRole ? [defaultRole] : [],
           permissions: defaultRole ? defaultRole.permissions : [], // Include permissions from default role
         };
@@ -99,7 +115,8 @@ export const authOptions: NextAuthOptions = {
           const existingUser = await db.user.findUnique({
             where: { email: credentials.email },
             include: {
-              roles: true, // Include roles relation
+              roles: true,
+              organisation:true, 
             },
           });
 
@@ -114,7 +131,9 @@ export const authOptions: NextAuthOptions = {
               existingUser.password
             );
           }
-
+          if (!existingUser.isVerfied) {
+            throw { error: "User Not Verified", status: 401 };
+          }
           if (!passwordMatch) {
             throw { error: "Password Incorrect", status: 401 };
           }
@@ -136,6 +155,8 @@ export const authOptions: NextAuthOptions = {
             image: existingUser.image,
             email: existingUser.email,
             roles: existingUser.roles,
+            orgId: existingUser.orgId,
+            orgName: existingUser.orgName,
             permissions: uniquePermissions,
           };
         } catch (error) {
@@ -187,6 +208,8 @@ export const authOptions: NextAuthOptions = {
         token.lastName = user.lastName;
         token.phone = user.phone;
         token.roles = user.roles;
+        token.orgId = user.orgId;
+        token.orgName = user.orgName;
         token.permissions = user.permissions;
       } else {
         // For subsequent requests, refresh roles and permissions
@@ -194,6 +217,8 @@ export const authOptions: NextAuthOptions = {
         if (userData) {
           token.roles = userData.roles;
           token.permissions = userData.permissions;
+          token.orgId = userData.orgId;
+          token.orgName = userData.orgName;
         }
       }
       return token;
@@ -209,6 +234,8 @@ export const authOptions: NextAuthOptions = {
         session.user.phone = token.phone;
         session.user.roles = token.roles;
         session.user.permissions = token.permissions;
+        session.user.orgId = token.orgId;
+        session.user.orgName = token.orgName;
       }
       return session;
     },

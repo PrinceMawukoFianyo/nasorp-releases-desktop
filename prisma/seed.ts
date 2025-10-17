@@ -71,6 +71,7 @@ const userPermissions = [
   "orders.read",
   "orders.create",
 ];
+
 async function cleanDatabase() {
   console.log("Cleaning up existing data...");
   try {
@@ -95,6 +96,8 @@ async function cleanDatabase() {
           });
         }
       }
+      // Delete all organization first (if you have them)
+      await tx.organisation.deleteMany({});
 
       // Delete all sessions first (if you have them)
       await tx.session.deleteMany({});
@@ -129,6 +132,15 @@ async function cleanDatabase() {
 async function seedDatabase() {
   try {
     console.log("Starting to seed new data...");
+
+    // Create organization
+    console.log("Creating organization...");
+    const org = await db.organisation.create({
+      data: {
+        name: "Default Organization",
+        slug: "default-organization",
+      },
+    });
 
     // Create admin role with all permissions
     console.log("Creating admin role...");
@@ -165,6 +177,8 @@ async function seedDatabase() {
         lastName: "Admin",
         phone: "1234567890",
         password: hashedAdminPassword,
+        orgName: org.name,
+        orgId: org.id,
         roles: {
           connect: { id: adminRole.id },
         },
@@ -184,6 +198,8 @@ async function seedDatabase() {
         lastName: "User",
         phone: "0987654321",
         password: hashedUserPassword,
+        orgName: org.name,
+        orgId: org.id,
         roles: {
           connect: { id: userRole.id },
         },
@@ -204,6 +220,7 @@ async function seedDatabase() {
     throw error;
   }
 }
+
 async function main() {
   console.log("Starting database seed process...");
 
