@@ -6,17 +6,22 @@ const carouselItems = [
   {
     image: "/images/slide-1.jpg",
     title: "Simple Monthly Savings,",
-    subtitle: "Join Ronix Savings Group",
+    subtitle: "Join AFK Berimah",
   },
   {
     image: "/images/slide-2.jpg",
     title: "Healthy Habits,",
-    subtitle: "Financial & Physical Wellness",
+    subtitle: "Hardware & Materials",
   },
   {
     image: "/images/slide-3.jpg",
     title: "End Year Celebration,",
     subtitle: "Reap Your Rewards in December",
+  },
+    {
+    image: "/images/slide-4.jpg",
+    title: "Plumber",
+    subtitle: "Rewards",
   },
 ];
 
