@@ -13,9 +13,20 @@ export type SavingProps = {
   userId: string;
   paymentDate: any;
 };
+export type InvitedUserProps = {
+  name: string;
+  orgId: string;
+  orgName: string;
+  roleId: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  image: string;
+  email: string;
+  password: string;
+};
 export type UserProps = {
   name: string;
-  orgName: string;
   firstName: string;
   lastName: string;
   phone: string;
@@ -37,6 +48,7 @@ export interface RoleFormData {
   displayName: string;
   description?: string;
   permissions: string[];
+  orgId: string;
 }
 
 export interface UserWithRoles extends User {

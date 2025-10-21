@@ -6,7 +6,11 @@ import { getAuthenticatedUser } from "@/config/useAuth";
 export default async function Dashboard() {
   const analytics = (await getDashboardOverview()) || [];
   const user = await getAuthenticatedUser(); 
-
+  const userPermissions= user.permissions;
+  const hasPermission = userPermissions.includes("dashboard.read")
+  if (!hasPermission){
+    return <p>Not Authorized</p>
+  }
   return (
     <main>
       {<div className="space-y-6">
@@ -29,3 +33,4 @@ export default async function Dashboard() {
     </main>
   );
 }
+

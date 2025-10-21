@@ -48,7 +48,7 @@ export default function PasswordInput({
             <div className="text-sm">
               <Link
                 href={forgotPasswordLink}
-                className="font-medium text-indigo-600 hover:text-indigo-500"
+                className="font-medium text-rose-600 hover:text-indigo-500"
               >
                 Forgot password?
               </Link>

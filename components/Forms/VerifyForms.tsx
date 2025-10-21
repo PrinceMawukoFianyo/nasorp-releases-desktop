@@ -33,25 +33,6 @@ const verifyOTPSchema = z.object({
 
 type VerifyOTPFormValues = z.infer<typeof verifyOTPSchema>;
 
-interface VerifyOTPResponse {
-  status: number;
-  error?: string;
-}
-
-// Function that would handle OTP verification (mock)
-// const verifyOTP = async (
-//   phone: string,
-//   otp: string
-// ): Promise<VerifyOTPResponse> => {
-//   // This would be replaced with your actual API call
-//   return { status: 200 };
-// };
-
-// Function that would handle resending OTP (mock)
-const resendOTP = async (phone: string): Promise<VerifyOTPResponse> => {
-  // This would be replaced with your actual API call
-  return { status: 200 };
-};
 
 export default function VerifyOTPForm({
   userId,
@@ -219,43 +200,6 @@ export default function VerifyOTPForm({
                   </div>
                 </form>
 
-                {/* <div className="mt-6 text-center">
-                  <p className="text-sm text-gray-500 mb-2">
-                    Didn't receive the code?
-                  </p>
-                  <Button
-                    variant="outline"
-                    onClick={handleResend}
-                    disabled={isResending || resendTimer > 0}
-                    className="text-sm"
-                  >
-                    {resendTimer > 0
-                      ? `Resend available in ${resendTimer}s`
-                      : "Resend code"}
-                  </Button>
-                </div> */}
-
-                <div className="mt-4 bg-blue-50 p-4 rounded-lg">
-                  <div className="flex items-start space-x-3">
-                    <PhoneCall className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                    <div className="text-sm text-blue-800">
-                      <p>
-                        If you didn't receive a verification code, please call
-                        <strong> +22549272251</strong> for assistance with
-                        onboarding.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* <p className="mt-6 text-sm text-center text-gray-500">
-                  <Link
-                    href="/login"
-                    className="font-semibold leading-6 text-indigo-600 hover:text-indigo-500"
-                  >
-                    Back to Login
-                  </Link>
-                </p> */}
               </div>
             </div>
           )}

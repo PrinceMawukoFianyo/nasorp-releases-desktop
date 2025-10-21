@@ -103,6 +103,7 @@ export async function createRole(data: RoleFormData) {
         roleName: createRoleName(data.displayName),
         description: data.description,
         permissions: data.permissions,
+        orgId:data.orgId,
       },
     });
 
@@ -208,12 +209,15 @@ export async function deleteRole(id: string) {
   }
 }
 
-export async function getRoles() {
+export async function getOrgRoles(orgId:string) {
   try {
     const roles = await db.role.findMany({
       orderBy: {
         createdAt: "desc",
       },
+      where: {
+        orgId,
+      }
     });
     return { success: true, data: roles };
   } catch (error) {

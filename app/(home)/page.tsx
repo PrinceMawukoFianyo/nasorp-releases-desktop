@@ -23,13 +23,15 @@ import HardwareStoreShowcase from "@/components/frontend/single-tier-pricing";
 import HardwarePlumbingFAQ from "@/components/frontend/FAQ";
 import HardwarePlumbingGrid from "@/components/frontend/Techstack";
 import ProjectShowcase from "@/components/frontend/showcase";
+import { getCurrentUsersCount } from "@/actions/users";
 
 export default async function page() {
-  const currentUsers = 300;
+  const currentUsers = await getCurrentUsersCount();
+  console.log(currentUsers)
   return (
     <section>
       <ReUsableHero
-        theme="light"
+        theme="dark"
         announcement={{
           text: "New Stock: Steel Rect Pipes, Round Pipes & Premium Building Materials",
         }}
@@ -57,9 +59,9 @@ export default async function page() {
           { icon: Layout, position: "right" }, // Changed to Layout for dashboard representation
           { icon: Rocket, position: "center" }, // Changed to Rocket for launch/speed representation
         ]}
-        backgroundStyle="neutral"
+        backgroundStyle="green"
         className="min-h-[70vh]"
-        userCount={currentUsers > 10 ? currentUsers : null}
+        userCount={currentUsers > 1 ? currentUsers : null}
       />
       <GridBackground>
         <div className="px-8 py-16 ">

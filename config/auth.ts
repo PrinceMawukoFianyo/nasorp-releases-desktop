@@ -116,7 +116,7 @@ export const authOptions: NextAuthOptions = {
             where: { email: credentials.email },
             include: {
               roles: true,
-              organisation:true, 
+              organisation: true, 
             },
           });
 
@@ -124,6 +124,7 @@ export const authOptions: NextAuthOptions = {
             throw { error: "No user found", status: 401 };
           }
 
+          // Check password first
           let passwordMatch: boolean = false;
           if (existingUser && existingUser.password) {
             passwordMatch = await compare(
@@ -131,12 +132,15 @@ export const authOptions: NextAuthOptions = {
               existingUser.password
             );
           }
-          if (!existingUser.isVerfied) {
-            throw { error: "User Not Verified", status: 401 };
-          }
+
           if (!passwordMatch) {
             throw { error: "Password Incorrect", status: 401 };
           }
+
+          // Check verification status after password
+          {/*if (!existingUser.isVerfied) {
+            throw { error: "User Not Verified", status: 401 };
+          }*/}
 
           // Get all permissions from user's roles
           const permissions = existingUser.roles.flatMap(
@@ -160,7 +164,8 @@ export const authOptions: NextAuthOptions = {
             permissions: uniquePermissions,
           };
         } catch (error) {
-          throw { error: "Something went wrong", status: 401 };
+          console.error("Auth error:", error);
+          throw error;
         }
       },
     }),

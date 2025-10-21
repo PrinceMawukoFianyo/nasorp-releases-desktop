@@ -18,8 +18,8 @@ export const siteConfig = {
     },
     address: {
       street: "P.O.Box 430337",
-      city: "Kasese",
-      country: "Uganda",
+      city: "Kumais",
+      country: "Ghana",
       coordinates: {
         latitude: "0.11111",
         longitude: "30.11111",

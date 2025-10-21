@@ -3,26 +3,26 @@ import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const carouselItems = [
-  {
-    image: "/images/slide-1.jpg",
-    title: "Simple Monthly Savings,",
-    subtitle: "Join AFK Berimah",
-  },
-  {
-    image: "/images/slide-2.jpg",
-    title: "Healthy Habits,",
-    subtitle: "Hardware & Materials",
-  },
-  {
-    image: "/images/slide-3.jpg",
-    title: "End Year Celebration,",
-    subtitle: "Reap Your Rewards in December",
-  },
-    {
-    image: "/images/slide-4.jpg",
-    title: "Plumber",
-    subtitle: "Rewards",
-  },
+ {
+  image: "/images/slide-1.jpg",
+  title: "Quality Hardware Solutions,",
+  subtitle: "Build Your Success with AFK Berimah",
+},
+{
+  image: "/images/slide-2.jpg",
+  title: "Premium Tools & Materials,",
+  subtitle: "Everything for Your Projects",
+},
+{
+  image: "/images/slide-3.jpg",
+  title: "Construction Grade Quality,",
+  subtitle: "Expert Materials for Every Job",
+},
+{
+  image: "/images/slide-4.jpg",
+  title: "Professional Grade Equipment,",
+  subtitle: "Trusted by Local Builders",
+},
 ];
 
 export default function CustomCarousel() {

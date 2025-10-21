@@ -44,69 +44,87 @@ enum UserRole {
 }
 
 model Role {
-  id          String   @id @default(cuid())
-  displayName String // Human-readable name (e.g., "Store Manager")
-  roleName    String   @unique // System name (e.g., "store_manager")
-  description String?
-  permissions String[] // Array of permission strings
-  users       User[]   @relation("UserRoles")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String        @id @default(cuid())
+  displayName  String // Human-readable name (e.g., "Store Manager")
+  roleName     String        @unique // System name (e.g., "store_manager")
+  description  String?
+  permissions  String[] // Array of permission strings
+  users        User[]        @relation("UserRoles")
+  organisation Organisation? @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId        String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
   @@index([roleName])
 }
 
 model User {
-  id            String     @id @default(cuid())
+  id            String        @id @default(cuid())
   name          String
   firstName     String
   lastName      String
-  phone         String     @unique
-  email         String     @unique
+  phone         String        @unique
+  email         String        @unique
   emailVerified DateTime?
   image         String?
   jobTitle      String?
-  roles         Role[]     @relation("UserRoles") // Updated to support multiple roles
+  roles         Role[]        @relation("UserRoles") // Updated to support multiple roles
   // role          UserRole  @default(USER)
   password      String?
-  status        Boolean    @default(true)
+  status        Boolean       @default(true)
   accounts      Account[]
   sessions      Session[]
   savings       Saving[]
   blogs         Blog[]
-  orgName       String? 
+  orgName       String?
   organisation  Organisation? @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  orgId         String  
+  orgId         String
   feedbacks     Feedback[]
   showcases     Showcase[]
-  isVerfied     Boolean    @default(false)
+  isVerfied     Boolean       @default(false)
   token         String?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
   roleId        String?
 }
 
 model Organisation {
-  id                  String    @id @default(cuid())
-  name                String
-  slug                String    @unique
-  industry            String?
-  country             String?
-  region              String?
-  address             String?
-  currency            String?
-  timezone            String?
-  inventoryStartDate  DateTime? @map("inventory_start_date")
-  fiscalYear          Int?      @map("fiscal_year")
-  
+  id                 String    @id @default(cuid())
+  name               String
+  slug               String    @unique
+  industry           String?
+  country            String?
+  region             String?
+  address            String?
+  currency           String?
+  timezone           String?
+  inventoryStartDate DateTime? @map("inventory_start_date")
+  fiscalYear         Int?      @map("fiscal_year")
+
   // Timestamps
-  createdAt           DateTime  @default(now()) @map("created_at")
-  updatedAt           DateTime  @updatedAt @map("updated_at")
-  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
   // Relations
-  users               User[]
-  
+  users   User[]
+  invites Invite[]
+  Role    Role[]
+
   @@map("organisations")
+}
+
+model Invite {
+  id           String        @id @default(cuid())
+  name         String?
+  email        String        @unique
+  organisation Organisation? @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId        String
+  status       Boolean       @default(false)
+  // Timestamps
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  @@map("Invites")
 }
 
 model Category {

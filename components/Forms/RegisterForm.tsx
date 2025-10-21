@@ -3,7 +3,7 @@ import { Currency, Headset, Loader2, Lock, Mail, User, Warehouse, WarehouseIcon 
 import React, { useState } from "react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
-import { UserProps } from "@/types/types";
+import {InvitedUserProps } from "@/types/types";
 import {toast} from "sonner";
 import { useRouter } from "next/navigation";
 import TextInput from "../FormInputs/TextInput";
@@ -36,9 +36,9 @@ export default function RegisterForm() {
     register,
     formState: { errors },
     reset,
-  } = useForm<UserProps>();
+  } = useForm<InvitedUserProps>();
   const router = useRouter();
-  async function onSubmit(data: UserProps) {
+  async function onSubmit(data: InvitedUserProps) {
     setLoading(true);
     data.name = `${data.firstName} ${data.lastName}`;
     data.image =
@@ -198,7 +198,7 @@ export default function RegisterForm() {
               Already Registered ?{" "}
               <Link
                 href="/login"
-                className="font-semibold leading-6 text-indigo-600 hover:text-indigo-500"
+                className="font-semibold leading-6 text-rose-600 hover:text-rose-500"
               >
                 Login
               </Link>

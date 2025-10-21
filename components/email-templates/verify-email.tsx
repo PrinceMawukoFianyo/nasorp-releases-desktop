@@ -27,9 +27,9 @@ export default function VerifyEmail({
           <Section style={coverSection}>
             <Section style={imageSection}>
               <Img
-                src={`public/AFKBerimah_logo.jpg`}
-                width="75"
-                height="45"
+                src={"https://3mkq65v2if.ufs.sh/f/nEsxSqMfLeqNug1Ds6iXAi0V4oKpMjE5ngydflZmc6e1FXhC"}
+                width="500"
+                height="150"
                 alt="AFKBerimah's Logo"
               />
             </Section>

@@ -2,14 +2,16 @@ import DataTable from "@/components/DataTableComponents/DataTable";
 import TableHeader from "@/components/dashboard/Tables/TableHeader";
 import React from "react";
 import { columns } from "./columns";
-import { getRoles } from "@/actions/roles";
+import { getOrgRoles } from "@/actions/roles";
+import { getAuthenticatedUser } from "@/config/useAuth";
 
 export default async function page() {
-  const res = await getRoles();
+  const user = await getAuthenticatedUser()
+  const res = await getOrgRoles(user.orgId);
   const roles = res.data || [];
   return (
     <div>
-      <TableHeader
+      <TableHeader  
         title="Roles"
         model="role"
         linkTitle="Add Role"

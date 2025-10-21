@@ -1,6 +1,5 @@
-"use client";
 import React from "react";
-import { Phone, Mail, MapPin, Clock, Wrench, Home } from "lucide-react";
+import { Phone, Mail, MapPin, Clock } from "lucide-react";
 
 export default function HardwarePlumbingFooter() {
   const navItems = [
@@ -68,10 +67,14 @@ export default function HardwarePlumbingFooter() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 lg:gap-12 mb-16">
             {/* Logo and Company Info */}
             <div className="lg:col-span-4">
-              <div className="flex items-center mb-6">
-                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-orange-500 rounded-lg flex items-center justify-center mr-3">
-                  
-                </div>
+              <div className="flex items-center mb-6 gap-3">
+                <img
+                  src="/AFKBerimah_logo-Photoroom.png"
+                  alt="AFK Berimah Logo"
+                  width="60"
+                  height="60"
+                  className="object-contain"
+                />
                 <div>
                   <h3 className="text-xl font-bold text-white">A.F.K</h3>
                   <p className="text-gray-400 text-sm">BERIMAH</p>
