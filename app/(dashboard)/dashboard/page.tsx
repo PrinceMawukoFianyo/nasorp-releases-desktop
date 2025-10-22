@@ -1,15 +1,39 @@
 import { getDashboardOverview } from "@/actions/analytics";
 import DashboardMain from "@/components/dashboard/DashboardMain";
 import { getAuthenticatedUser } from "@/config/useAuth";
+import DefaultUserDashboard from "../../../components/dashboard/Tables/DefaultUserDashboard";
+import { ISidebarLink, sidebarLinks } from "@/config/sidebar";
+import { Layers } from "lucide-react";
 
 
 export default async function Dashboard() {
   const analytics = (await getDashboardOverview()) || [];
   const user = await getAuthenticatedUser(); 
   const userPermissions= user.permissions;
-  const hasPermission = userPermissions.includes("dashboard.read")
-  if (!hasPermission){
-    return <p>Not Authorized</p>
+  //const hasPermission = 
+  // Helper function to check if user has permission
+  const hasPermission = (permission: string): boolean => {
+    return user.permissions?.includes(permission) ?? false;
+  };
+
+  // Filter sidebar links based on permissions
+  const filterSidebarLinks = (links: ISidebarLink[]): ISidebarLink[] => {
+    return links
+      .filter((link) => hasPermission(link.permission))
+      .map((link) => ({
+        ...link,
+        dropdownMenu: link.dropdownMenu?.filter((item) =>
+          hasPermission(item.permission)
+        ),
+      }))
+      .filter(
+        (link) =>
+          !link.dropdown || (link.dropdownMenu && link.dropdownMenu.length > 0)
+      );
+  };
+  const filteredLinks = filterSidebarLinks(sidebarLinks);
+  if (!userPermissions.includes("dashboard.read")){
+    return <DefaultUserDashboard navigationLinks = {filteredLinks} user={user}/>
   }
   return (
     <main>

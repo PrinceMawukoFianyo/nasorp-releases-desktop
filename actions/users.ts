@@ -94,12 +94,14 @@ export async function createUser(data: UserProps, orgData: OrgData) {
         data: orgData,
       });
 
-      // Find or create default role
-      let defaultRole = await tx.role.findFirst({
-        where: { roleName: DEFAULT_USER_ROLE.roleName },
+      // Find or create default role - FIX: Use findUnique and handle existing role
+      let defaultRole = await tx.role.findUnique({
+        where: { 
+          roleName: ADMIN_USER_ROLE.roleName,
+        },
       });
 
-      // Create default role if it doesn't exist
+      // Create default role only if it doesn't exist globally
       if (!defaultRole) {
         defaultRole = await tx.role.create({
           data: {

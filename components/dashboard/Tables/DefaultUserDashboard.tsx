@@ -1,50 +1,46 @@
 "use client"
 
+import type React from "react"
+
 import { useEffect, useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { 
-  ShoppingCart, 
-  Grid3x3, 
-  LogOut, 
-  Users, 
-  BarChart3, 
-  Download, 
-  Share2, 
-  Settings,
-  TrendingUp,
+import {
+  LogOut,
   Package,
-  Heart,
   Bell,
   Search,
   ChevronRight,
   Sparkles,
-  Clock
+  Clock,
 } from "lucide-react"
-//import { progress } from "@components/ui/progress";
+import { AuthenticatedUser } from "@/config/useAuth"
+import { ISidebarLink } from "@/config/sidebar"
 
-interface AuthenticatedUser {
-  name: string
-  email?: string
-  avatar?: string
-}
-
-export default function DefaultUserDashboard({user}: {user: AuthenticatedUser}) {
+export default function DefaultUserDashboard({
+  user,
+  navigationLinks,
+}: {
+  user: AuthenticatedUser
+  navigationLinks: ISidebarLink[]
+}) {
   const [greeting, setGreeting] = useState("")
   const [hour, setHour] = useState(0)
   const [currentTime, setCurrentTime] = useState("")
-  const userName = user.name
+  const userName = user.name || "User"
 
   useEffect(() => {
     const updateTime = () => {
       const now = new Date()
       const currentHour = now.getHours()
       setHour(currentHour)
-      setCurrentTime(now.toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      }))
+      setCurrentTime(
+        now.toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      )
 
       if (currentHour < 12) {
         setGreeting("Good Morning")
@@ -60,102 +56,24 @@ export default function DefaultUserDashboard({user}: {user: AuthenticatedUser}) 
     return () => clearInterval(interval)
   }, [])
 
-  const navigationLinks = [
-    {
-      title: "Categories",
-      description: "Browse all product categories",
-      icon: Grid3x3,
-      href: "/categories",
-      gradient: "from-rose-400 to-pink-500",
-      count: "24",
-    },
-    {
-      title: "Products",
-      description: "View all available products",
-      icon: ShoppingCart,
-      href: "/products",
-      gradient: "from-pink-400 to-rose-500",
-      count: "156",
-    },
-    {
-      title: "Customers",
-      description: "Manage customer information",
-      icon: Users,
-      href: "/customers",
-      gradient: "from-rose-500 to-red-500",
-      count: "89",
-    },
-    {
-      title: "Analytics",
-      description: "View sales and performance metrics",
-      icon: BarChart3,
-      href: "/analytics",
-      gradient: "from-pink-500 to-rose-600",
-      count: "New",
-    },
-  ]
-
   const quickStats = [
     {
       title: "Total Orders",
       value: "248",
-      change: "+12.5%",
+      change: "+0%",
       trend: "up",
       icon: Package,
       description: "This month",
     },
-    {
-      title: "Revenue",
-      value: "$12,456",
-      change: "+8.2%",
-      trend: "up",
-      icon: TrendingUp,
-      description: "Last 30 days",
-    },
-    {
-      title: "Saved Items",
-      value: "32",
-      change: "+4",
-      trend: "up",
-      icon: Heart,
-      description: "In wishlist",
-    },
-    {
-      title: "Active Deals",
-      value: "16",
-      change: "Live now",
-      trend: "neutral",
-      icon: Sparkles,
-      description: "Trending",
-    },
   ]
 
-  const recentActivity = [
-    { action: "New order placed", time: "2 min ago", type: "order" },
-    { action: "Customer feedback received", time: "15 min ago", type: "feedback" },
-    { action: "Product restocked", time: "1 hour ago", type: "inventory" },
-    { action: "Sale ended successfully", time: "3 hours ago", type: "sale" },
-  ]
-
-  const quickActions = [
-    {
-      title: "Download Report",
-      description: "Export analytics",
-      icon: Download,
-      action: () => console.log("Download report"),
-    },
-    {
-      title: "Share Dashboard",
-      description: "Send to team",
-      icon: Share2,
-      action: () => console.log("Share dashboard"),
-    },
-    {
-      title: "Settings",
-      description: "Configure preferences",
-      icon: Settings,
-      action: () => console.log("Open settings"),
-    },
+  const gradients = [
+    "from-rose-500 to-pink-600",
+    "from-purple-500 to-pink-500",
+    "from-blue-500 to-cyan-500",
+    "from-emerald-500 to-teal-500",
+    "from-orange-500 to-red-500",
+    "from-indigo-500 to-purple-500",
   ]
 
   return (
@@ -178,28 +96,28 @@ export default function DefaultUserDashboard({user}: {user: AuthenticatedUser}) 
               <span>Welcome back to your dashboard</span>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-3">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="icon"
-              className="relative border-rose-200 hover:bg-rose-50 dark:border-rose-800 dark:hover:bg-rose-950"
+              className="relative border-rose-200 hover:bg-rose-50 dark:border-rose-800 dark:hover:bg-rose-950 bg-transparent"
             >
               <Bell className="w-4 h-4 text-rose-600" />
               <span className="absolute -top-1 -right-1 w-2 h-2 bg-rose-500 rounded-full" />
             </Button>
-            
-            <Button 
-              variant="outline" 
+
+            <Button
+              variant="outline"
               size="icon"
-              className="border-rose-200 hover:bg-rose-50 dark:border-rose-800 dark:hover:bg-rose-950"
+              className="border-rose-200 hover:bg-rose-50 dark:border-rose-800 dark:hover:bg-rose-950 bg-transparent"
             >
               <Search className="w-4 h-4 text-rose-600" />
             </Button>
-            
-            <Button 
-              variant="outline" 
-              className="gap-2 border-rose-200 hover:bg-rose-50 dark:border-rose-800 dark:hover:bg-rose-950"
+
+            <Button
+              variant="outline"
+              className="gap-2 border-rose-200 hover:bg-rose-50 dark:border-rose-800 dark:hover:bg-rose-950 bg-transparent"
             >
               <LogOut className="w-4 h-4 text-rose-600" />
               <span className="hidden sm:inline text-rose-600">Sign Out</span>
@@ -211,7 +129,7 @@ export default function DefaultUserDashboard({user}: {user: AuthenticatedUser}) 
         <Card className="bg-gradient-to-r from-rose-500 via-pink-500 to-rose-600 border-0 text-white shadow-xl overflow-hidden relative">
           <div className="absolute right-0 top-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
           <div className="absolute left-0 bottom-0 w-48 h-48 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
-          
+
           <CardContent className="pt-8 pb-8 relative z-10">
             <div className="flex items-start justify-between">
               <div className="space-y-2 max-w-2xl">
@@ -226,29 +144,58 @@ export default function DefaultUserDashboard({user}: {user: AuthenticatedUser}) 
                       ? "Discover trending products and exclusive deals!"
                       : "Explore our special evening collections!"}
                 </h2>
-                <p className="text-white/80">
-                  Check out our latest arrivals and limited-time offers
-                </p>
+                <p className="text-white/80">Check out our latest arrivals and limited-time offers</p>
               </div>
-              <Button 
-                variant="secondary" 
-                className="bg-white text-rose-600 hover:bg-white/90 font-semibold gap-2"
-              >
+              <Button variant="secondary" className="bg-white text-rose-600 hover:bg-white/90 font-semibold gap-2">
                 Explore Now
                 <ChevronRight className="w-4 h-4" />
               </Button>
             </div>
           </CardContent>
         </Card>
-        {/* Main Navigation Cards */}
+
+        {/* Quick Stats Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {quickStats.map((stat) => {
+            const IconComponent = stat.icon
+            return (
+              <Card
+                key={stat.title}
+                className="hover:shadow-lg transition-all duration-300 border-rose-100 dark:border-rose-900/30 hover:scale-105"
+              >
+                <CardContent className="pt-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="p-3 bg-gradient-to-br from-rose-100 to-pink-100 dark:from-rose-900/30 dark:to-pink-900/30 rounded-xl">
+                      <IconComponent className="w-5 h-5 text-rose-600 dark:text-rose-400" />
+                    </div>
+                    {stat.trend === "up" && (
+                      <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-0 text-xs">
+                        {stat.change}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-2xl font-bold text-slate-900 dark:text-white">{stat.value}</p>
+                    <p className="text-sm font-medium text-slate-600 dark:text-slate-400">{stat.title}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-500">{stat.description}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+
+        {/* Main Navigation Cards - Grouped by Sidebar Links */}
         <div>
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Quick Access</h2>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {navigationLinks.map((link) => {
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {navigationLinks.map((link, index) => {
               const IconComponent = link.icon
+              const gradient = gradients[index % gradients.length]
+              
               return (
                 <Card
                   key={link.title}
@@ -256,62 +203,54 @@ export default function DefaultUserDashboard({user}: {user: AuthenticatedUser}) 
                 >
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between mb-4">
-                      <div className={`bg-gradient-to-br ${link.gradient} p-3 rounded-xl group-hover:scale-110 transition-transform shadow-lg`}>
+                      <div
+                        className={`bg-gradient-to-br ${gradient} p-3 rounded-xl group-hover:scale-110 transition-transform shadow-lg`}
+                      >
                         <IconComponent className="w-6 h-6 text-white" />
                       </div>
-                      <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 border-0">
-                        {link.count}
-                      </Badge>
+                      {link.dropdown && link.dropdownMenu && (
+                        <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 border-0">
+                          {link.dropdownMenu.length}
+                        </Badge>
+                      )}
                     </div>
-                    <CardTitle className="text-xl text-slate-900 dark:text-white group-hover:text-rose-600 transition-colors">
+                    <CardTitle className="text-xl text-slate-900 dark:text-white group-hover:text-rose-600 transition-colors mb-3">
                       {link.title}
                     </CardTitle>
-                    <CardDescription className="text-slate-600 dark:text-slate-400">
-                      {link.description}
-                    </CardDescription>
+                    
+                    {/* Dropdown Menu Items */}
+                    {link.dropdown && link.dropdownMenu && link.dropdownMenu.length > 0 && (
+                      <div className="space-y-2 mt-4">
+                        {link.dropdownMenu.map((menuItem) => (
+                          <a
+                            key={menuItem.title}
+                            href={menuItem.href}
+                            className="flex items-center justify-between p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors group/item"
+                          >
+                            <span className="text-sm text-slate-600 dark:text-slate-400 group-hover/item:text-rose-600 dark:group-hover/item:text-rose-400">
+                              {menuItem.title}
+                            </span>
+                            <ChevronRight className="w-4 h-4 text-slate-400 group-hover/item:text-rose-500 transition-colors" />
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {/* Direct Link (Non-dropdown) */}
+                    {!link.dropdown && link.href && (
+                      <a
+                        href={link.href}
+                        className="inline-flex items-center gap-1 text-sm text-slate-600 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 mt-2 transition-colors"
+                      >
+                        View details
+                        <ChevronRight className="w-4 h-4" />
+                      </a>
+                    )}
                   </CardHeader>
                 </Card>
               )
             })}
           </div>
-        </div>
-
-        {/* Activity & Actions Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Quick Actions */}
-          <Card className="border-rose-100 dark:border-rose-900/30">
-            <CardHeader>
-              <CardTitle className="text-slate-900 dark:text-white">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {quickActions.map((action) => {
-                const IconComponent = action.icon
-                return (
-                  <Button
-                    key={action.title}
-                    onClick={action.action}
-                    variant="outline"
-                    className="w-full justify-start h-auto p-4 hover:bg-rose-50 dark:hover:bg-rose-950/20 border-rose-200 dark:border-rose-900/30 hover:border-rose-300 group"
-                  >
-                    <div className="flex items-center gap-3 w-full">
-                      <div className="p-2 bg-rose-100 dark:bg-rose-900/30 rounded-lg group-hover:bg-rose-200 dark:group-hover:bg-rose-900/50 transition-colors">
-                        <IconComponent className="w-4 h-4 text-rose-600 dark:text-rose-400" />
-                      </div>
-                      <div className="flex-1 text-left">
-                        <p className="font-medium text-slate-900 dark:text-white text-sm">
-                          {action.title}
-                        </p>
-                        <p className="text-xs text-slate-500 dark:text-slate-500">
-                          {action.description}
-                        </p>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-rose-500 transition-colors" />
-                    </div>
-                  </Button>
-                )
-              })}
-            </CardContent>
-          </Card>
         </div>
       </div>
     </main>
