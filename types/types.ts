@@ -1,10 +1,11 @@
 import { Role, User } from "@prisma/client";
 
-export type CategoryProps = {
+export type  CategoryProps = {
   title: string;
   slug: string;
   imageUrl: string;
   description: string;
+
 };
 export type SavingProps = {
   amount: number;
@@ -74,3 +75,48 @@ export interface RoleResponse {
   createdAt: Date;
   updatedAt: Date;
 }
+
+export interface UnitResponse {
+  id: string;
+  name: string;
+  symbol: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+export interface TaxResponse {
+  id: string;
+  name: string;
+  rate: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface BriefItemResponse {
+  id: string;
+  name: string;
+  slug: string;
+  createdAt: Date;
+  thumbnail: string | null;
+}
+
+export interface BrandResponse {
+  id: string;
+  name: string;
+  slug: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type CategoryResponse = {
+  id: string;
+  title: string;
+  slug: string;
+  description: string | null;
+  imageUrl: string | null;
+  parentId: string | null;
+  orgId?: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+

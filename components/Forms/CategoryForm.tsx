@@ -54,7 +54,7 @@ export default function CategoryForm({
   const [imageUrl, setImageUrl] = useState(initialImage);
 
   async function saveCategory(data: CategoryProps) {
-    try {
+    /* try {
       setLoading(true);
       data.slug = generateSlug(data.title);
       data.imageUrl = imageUrl;
@@ -68,7 +68,7 @@ export default function CategoryForm({
         reset();
         //route
         router.push("/dashboard/categories");
-        setImageUrl("/placeholder.svg");
+        setImageUrl("/placeholder.png");
       } else {
         await createCategory(data);
         setLoading(false);
@@ -83,7 +83,7 @@ export default function CategoryForm({
     } catch (error) {
       setLoading(false);
       console.log(error);
-    }
+    } */
   }
   // async function handleDeleteAll() {
   // setLoading(true);
@@ -95,7 +95,6 @@ export default function CategoryForm({
   // }
   // }
   console.log(status);
-
   return (
     <form className="" onSubmit={handleSubmit(saveCategory)}>
       <FormHeader

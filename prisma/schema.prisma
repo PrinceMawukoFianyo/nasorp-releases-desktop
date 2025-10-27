@@ -37,18 +37,12 @@ model Session {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-enum UserRole {
-  USER
-  ADMIN
-  SERVICE_PROVIDER
-}
-
 model Role {
   id           String        @id @default(cuid())
-  displayName  String // Human-readable name (e.g., "Store Manager")
-  roleName     String        @unique // System name (e.g., "store_manager")
+  displayName  String
+  roleName     String        @unique
   description  String?
-  permissions  String[] // Array of permission strings
+  permissions  String[]
   users        User[]        @relation("UserRoles")
   organisation Organisation? @relation(fields: [orgId], references: [id], onDelete: Cascade)
   orgId        String
@@ -68,8 +62,7 @@ model User {
   emailVerified DateTime?
   image         String?
   jobTitle      String?
-  roles         Role[]        @relation("UserRoles") // Updated to support multiple roles
-  // role          UserRole  @default(USER)
+  roles         Role[]        @relation("UserRoles")
   password      String?
   status        Boolean       @default(true)
   accounts      Account[]
@@ -86,6 +79,189 @@ model User {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
   roleId        String?
+  Location      Location?     @relation(fields: [locationId], references: [id])
+  locationId    String?
+  locationName  String?
+}
+
+
+
+model Location {
+  id        String       @id @default(cuid())
+  name      String
+  type      LocationType
+  address   String?
+  phone     String?
+  organisation  Organisation? @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId         String
+  email     String?
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  users     User[]
+  // inventories   Inventory[]
+  // incomingTransfers Transfer[] @relation("ToLocation")
+  // outgoingTransfers Transfer[] @relation("FromLocation")
+  // purchaseOrders PurchaseOrder[] @relation("DeliveryLocation")
+  // salesOrders   SalesOrder[]   @relation("SalesLocation")
+}
+
+model Category {
+  id            String     @id @default(cuid())
+  title         String
+  slug          String     @unique
+  imageUrl      String?
+  description   String?
+  organisation  Organisation? @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId         String
+  parentId      String?
+  parent        Category?  @relation("SubCategories", fields: [parentId], references: [id])
+  subCategories Category[] @relation("SubCategories")
+  items         Item[]
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+}
+
+model Unit {
+  id        String   @id @default(cuid())
+  name      String
+  symbol    String
+  items     Item[]
+  organisation  Organisation? @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId         String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Brand {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  items     Item[]
+  organisation  Organisation? @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId         String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TaxRate {
+  id        String   @id @default(cuid())
+  name      String
+  rate      Float
+  items     Item[]
+  organisation  Organisation? @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId         String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Item {
+  id                String         @id @default(cuid())
+  name              String
+  sku               String         @unique
+  slug              String         @unique
+  barcode           String?        @unique
+  description       String?
+  dimensions        String?
+  weight            Float?
+  upc               String?
+  ean               String?
+  mpn               String?
+  isbn              String?
+  organisation  Organisation? @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId         String
+  imageUrl        String[]
+  thumbnail        String?
+  categoryId        String?
+  category          Category?      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  taxRateId         String?
+  tax               Float?         @default(0)
+  taxRate           TaxRate?       @relation(fields: [taxRateId], references: [id])
+  brandId           String?
+  brand             Brand?         @relation(fields: [brandId], references: [id])
+  unitId            String?
+  unit              Unit?          @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  unitOfMeasure     String?
+  costPrice         Float          @default(0)
+  sellingPrice      Float          @default(0)
+  minStockLevel     Int            @default(0)
+  maxStockLevel     Int?
+  isActive          Boolean        @default(true)
+  isSerialTracked   Boolean        @default(false)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  // inventories   Inventory[]
+  serialNumbers     SerialNumber[]
+  suppliers         Supplier[]     @relation("SupplierItems")
+  supplierRelations ItemSupplier[]
+  // purchaseOrderLines PurchaseOrderLine[]
+  // salesOrderLines SalesOrderLine[]
+  // transferLines  TransferLine[]
+  // adjustmentLines AdjustmentLine[]
+}
+
+model SerialNumber {
+  id              String       @id @default(cuid())
+  serialNumber    String       @unique
+  itemId          String
+  item            Item         @relation(fields: [itemId], references: [id])
+  status          SerialStatus @default(IN_STOCK)
+  locationId      String?
+  purchaseOrderId String?
+  salesOrderId    String?
+  notes           String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+enum SerialStatus {
+  IN_STOCK
+  SOLD
+  RESERVED
+  DAMAGED
+  RETURNED
+}
+
+model ItemSupplier {
+  id               String    @id @default(cuid())
+  itemId           String
+  item             Item      @relation(fields: [itemId], references: [id])
+  supplierId       String
+  supplier         Supplier  @relation(fields: [supplierId], references: [id])
+  isPreferred      Boolean   @default(false)
+  supplierSku      String?
+  leadTime         Int?
+  minOrderQty      Int?
+  unitCost         Decimal
+  lastPurchaseDate DateTime?
+  notes            String?
+
+  @@unique([itemId, supplierId])
+}
+
+enum LocationType {
+  WAREHOUSE
+  SHOP
+  VIRTUAL
+}
+
+model Supplier {
+  id                String         @id @default(cuid())
+  name              String
+  contactPerson     String?
+  email             String?
+  phone             String?
+  address           String?
+  taxId             String?
+  organisation Organisation? @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId        String
+  paymentTerms      Int?
+  notes             String?
+  isActive          Boolean        @default(true)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  items             Item[]         @relation("SupplierItems")
+  supplierRelations ItemSupplier[]
 }
 
 model Organisation {
@@ -100,15 +276,19 @@ model Organisation {
   timezone           String?
   inventoryStartDate DateTime? @map("inventory_start_date")
   fiscalYear         Int?      @map("fiscal_year")
-
-  // Timestamps
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  users   User[]
-  invites Invite[]
-  Role    Role[]
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+  units              Unit[]
+  users              User[]
+  categories         Category[]
+  invites            Invite[]
+  items              Item[]
+  Role               Role[]
+  locations          Location[]
+  brands             Brand[]
+  suppliers           Supplier[]
+  taxes           TaxRate[]
+  
 
   @@map("organisations")
 }
@@ -127,15 +307,7 @@ model Invite {
   @@map("Invites")
 }
 
-model Category {
-  id          String    @id @default(cuid())
-  title       String
-  slug        String    @unique
-  imageUrl    String?
-  description String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime? @updatedAt
-}
+
 
 model Saving {
   id          String    @id @default(cuid())
@@ -153,7 +325,7 @@ model Blog {
   id            String       @id @default(cuid())
   title         String
   slug          String       @unique
-  description   String?      @db.Text // Meta description for SEO
+  description   String?      @db.Text
   thumbnail     String?
   content       String?      @db.Text
   published     Boolean?     @default(false)
@@ -166,7 +338,7 @@ model Blog {
   category      BlogCategory @relation(fields: [categoryId], references: [id])
   categoryId    String
   categoryTitle String
-  readingTime   Int? // Estimated reading time in minutes
+  readingTime   Int?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 }
@@ -203,7 +375,7 @@ model Feedback {
   type      FeedbackType
   title     String
   content   String         @db.Text
-  status    FeedbackStatus @default(PENDING) // PENDING, IN_PROGRESS, COMPLETED, REJECTED
+  status    FeedbackStatus @default(PENDING)
   user      User           @relation(fields: [userId], references: [id])
   userId    String
   createdAt DateTime       @default(now())
@@ -231,7 +403,7 @@ model Showcase {
   projectUrl  String?
   githubUrl   String?
   imageUrl    String
-  technology  String[] // Technologies used
+  technology  String[]
   status      ShowcaseStatus @default(PENDING)
   user        User           @relation(fields: [userId], references: [id])
   userId      String

@@ -1,10 +1,11 @@
 "use server";
 
+import { CategoryFormProps } from "@/components/Forms/Inventory/CategoryFormModel";
 import { db } from "@/prisma/db";
 import { CategoryProps } from "@/types/types";
 import { revalidatePath } from "next/cache";
 
-export async function createCategory(data: CategoryProps) {
+export async function createCategory(data: CategoryFormProps) {
   const slug = data.slug;
   try {
     const existingCategory = await db.category.findUnique({
@@ -13,31 +14,46 @@ export async function createCategory(data: CategoryProps) {
       },
     });
     if (existingCategory) {
-      return existingCategory;
+      return {
+        status: 409,
+        data:null,
+        error: "Category Already Exist"
+      };
     }
     const newCategory = await db.category.create({
       data,
     });
     // console.log(newCategory);
-    revalidatePath("/dashboard/categories");
-    return newCategory;
+    revalidatePath("/dashboard/inventory/categories");
+    return{
+      status: 200,
+      data:newCategory,
+      error: 200,
+    };
   } catch (error) {
     console.log(error);
-    return null;
+    return {
+      status: 200,
+      error: "Something Went Wrong",
+      data: null,    
+    };
   }
 }
-export async function getAllCategories() {
+export async function getOrgCategories(orgId: string) {
   try {
     const categories = await db.category.findMany({
       orderBy: {
         createdAt: "desc",
       },
+      where: {
+        orgId,
+      } as any,
     });
 
     return categories;
   } catch (error) {
     console.log(error);
-    return null;
+    return [];
   }
 }
 export async function updateCategoryById(id: string, data: CategoryProps) {
@@ -82,7 +98,7 @@ export async function deleteCategory(id: string) {
     console.log(error);
   }
 }
-export async function createBulkCategories(categories: CategoryProps[]) {
+export async function createBulkCategories(categories: CategoryFormProps[]) {
   try {
     for (const category of categories) {
       await createCategory(category);

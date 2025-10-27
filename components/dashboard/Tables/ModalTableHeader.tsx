@@ -130,6 +130,7 @@ export default function ModalTableHeader({
                   slug: generateSlug(item.Title),
                   description: item.Description,
                   imageUrl: item.Image,
+                  orgId: item.org,
                   mainCategoryId: item.mainCategoryId,
                   status: true,
                 };

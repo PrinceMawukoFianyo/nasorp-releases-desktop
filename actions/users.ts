@@ -11,7 +11,7 @@ import { z } from "zod";
 import { OrgData } from "@/components/Forms/RegisterForm";
 import { generateOTP } from "@/lib/generateOTP";
 import VerifyEmail from "@/components/email-templates/verify-email";
-import { adminPermissions } from "@/config/permissions";
+import { adminPermissions, userPermissions } from "@/config/permissions";
 import { InviteData } from "@/components/Forms/user/UserInvitationForm";
 import UserInvitation from "@/components/email-templates/user-invite";
 import { PrismaClient } from "@prisma/client/extension";
@@ -22,19 +22,14 @@ const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
 const ADMIN_USER_ROLE = {
   displayName: "Administrator",
   roleName: "admin",
-  description: "Default user role with basic permissions",
+  description: "Full system access",
   permissions: adminPermissions,
 };
 const DEFAULT_USER_ROLE = {
   displayName: "User",
   roleName: "user",
   description: "Default user role with basic permissions",
-  permissions: [
-    "dashboard.read",
-    "profile.read",
-    "profile.update",
-    "orders.read",
-  ],
+  permissions: userPermissions,
 };
 const UpdateUserSchema = z.object({
   firstName: z.string().min(2, "First name must be at least 2 characters"),
@@ -144,7 +139,7 @@ export async function createUser(data: UserProps, orgData: OrgData) {
       // Send the verification email
       const verificationCode = newUser.token ?? "";
       const { data: emailData, error: emailError } = await resend.emails.send({
-        from: "Business Inventory <info@kidstarschristianacademy.com>",
+        from: "FMP Inventory <info@kidstarschristianacademy.com>",
         to: email,
         subject: "Verify your Account",
         react: VerifyEmail({ verificationCode }),
@@ -346,7 +341,7 @@ export async function deleteUser(id: string) {
         id,
       },
     });
-
+    revalidatePath("/dashboard/settings/users")
     return {
       ok: true,
       data: deleted,

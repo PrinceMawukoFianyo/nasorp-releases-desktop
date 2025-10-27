@@ -1,15 +1,18 @@
 "use client";
 
+
+import { ArrowUpDown, MoreHorizontal } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 
 import DateColumn from "@/components/DataTableColumns/DateColumn";
-
-import { ColumnDef } from "@tanstack/react-table";
-
-import { Role } from "@prisma/client";
-import ActionColumn from "@/components/DataTableColumns/ActionColumn";
+import ImageColumn from "@/components/DataTableColumns/ImageColumn";
 import SortableColumn from "@/components/DataTableColumns/SortableColumn";
-export const columns: ColumnDef<Role>[] = [
+import { ColumnDef } from "@tanstack/react-table";
+import ActionColumn from "@/components/DataTableColumns/ActionColumn";
+import { BriefItemResponse, CategoryResponse } from "@/types/types";
+import { ItemFormProps } from "@/components/Forms/Inventory/ItemFormModel";
+export const columns: ColumnDef<BriefItemResponse>[] = [
   {
     id: "select",
     header: ({ table }) => (
@@ -32,18 +35,18 @@ export const columns: ColumnDef<Role>[] = [
     enableSorting: false,
     enableHiding: false,
   },
-
   {
-    accessorKey: "displayName",
-    header: ({ column }) => (
-      <SortableColumn column={column} title="Role Title" />
-    ),
+    accessorKey: "name",
+    header: ({ column }) => <SortableColumn column={column} title="Name" />,
   },
   {
-    accessorKey: "description",
-    header: ({ column }) => (
-      <SortableColumn column={column} title="Description" />
-    ),
+    accessorKey: "slug",
+    header: ({ column }) => <SortableColumn column={column} title="Slug" />,
+  },
+  {
+    accessorKey: "thumbnail",
+    header: "Item Image",
+    cell: ({ row }) => <ImageColumn row={row} accessorKey="thumbnail" />,
   },
 
   {
@@ -53,14 +56,15 @@ export const columns: ColumnDef<Role>[] = [
   },
   {
     id: "actions",
+    header: "Actions",
     cell: ({ row }) => {
-      const role = row.original;
+      const item = row.original;
       return (
         <ActionColumn
           row={row}
-          model="role"
-          editEndpoint={`roles/update/${role.id}`}
-          id={role.id}
+          model="item"
+          editEndpoint={""}
+          id={item.id}
         />
       );
     },

@@ -80,25 +80,28 @@ export default function DataTable<TData, TValue>({
   });
   // console.log(searchResults);
   return (
-    <div className="space-y-4">
-      {model === "savings" && (
-        <SavingsSummary data={isSearch ? searchResults : filteredData} />
-      )}
-      <div className="grid grid-cols-12 gap-4">
-        <div className="col-span-full md:col-span-8">
+     <div className="space-y-4">
+      <div className="flex justify-between items-center gap-8">
+        <div className="flex-1 w-full">
           <SearchBar
             data={data}
             onSearch={setSearchResults}
             setIsSearch={setIsSearch}
-            placeholder={searchPlaceholder}
           />
         </div>
-        <div className="col-span-full md:col-span-4 flex items-center gap-2">
+        <div className="flex items-center gap-2 ">
+          <DateRangeFilter
+            data={data}
+            onFilter={setFilteredData}
+            setIsSearch={setIsSearch}
+          />
           <DateFilters
             data={data}
             onFilter={setFilteredData}
             setIsSearch={setIsSearch}
           />
+
+          <DataTableViewOptions table={table} />
         </div>
       </div>
 

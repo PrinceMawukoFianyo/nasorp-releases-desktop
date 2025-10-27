@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import Link from "next/link";
-import { Menu } from "lucide-react";
+import { Menu, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Session } from "next-auth";
@@ -12,12 +12,30 @@ import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { sidebarLinks } from "@/config/sidebar";
 import { usePermission } from "@/hooks/usePermissions";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { UserDropdownMenu } from "../UserDropdownMenu";
 
-export default function Navbar({ session }: { session: Session }) {
+interface NavbarProps {
+  session: Session & {
+    user?: {
+      name?: string | null;
+      email?: string | null;
+      image?: string | null;
+      role?: string | null;
+      orgName?: string | null;
+      orgId?: string | null;
+      roles?: Array<{
+        displayName: string;
+      }>;
+    };
+  };
+}
+
+export default function Navbar({ session }: NavbarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { hasPermission } = usePermission();
+  const user = session?.user;
 
   // Filter sidebar links based on user permissions
   const filteredLinks = sidebarLinks.filter((link) => {
@@ -76,7 +94,21 @@ export default function Navbar({ session }: { session: Session }) {
     }
   }
 
-  return (
+  const userRole = user?.roles?.[0]?.displayName ?? user?.role ?? "";
+  const orgName = user?.orgName ?? "";
+  const orgId = user?.orgId ?? "";
+
+  // Get user initials for avatar fallback
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+    return (
     <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-muted/60 px-4 lg:h-[60px] lg:px-6">
       <Sheet>
         <SheetTrigger asChild>
@@ -117,8 +149,23 @@ export default function Navbar({ session }: { session: Session }) {
           </div>
         </SheetContent>
       </Sheet>
+      
+      {/* Organization Banner - Left aligned */}
+       <div className="flex-1">
+        {orgName && (
+          <div className="font-medium flex gap-3 items-center whitespace-nowrap">
+            <span className="text-ms text-foreground whitespace-nowrap">
+              {orgName}
+            </span>
+            <span className="text-sm text-muted-foreground">|</span>
+            <span className="text-xs text-muted-foreground whitespace-nowrap">{userRole}</span>
+          </div>
+        )}
+      </div>
+      <div className="flex-1"></div>
 
-      <div className="w-full flex-1"></div>
+      {/* User Dropdown Menu */}
+       <div className="w-full flex-1"></div>
       <div className="p-4 ">
         <UserDropdownMenu
           username={session?.user?.name ?? ""}

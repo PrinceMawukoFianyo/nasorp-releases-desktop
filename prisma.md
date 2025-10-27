@@ -1,0 +1,294 @@
+```
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+
+model Role {
+  id           String       @id @default(cuid())
+  displayName  String // Human-readable name (e.g., "Store Manager")
+  roleName     String       @unique // System name (e.g., "store_manager")
+  organisation Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId        String
+  description  String?
+  permissions  String[] // Array of permission strings
+  users        User[]       @relation("UserRoles")
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([roleName])
+}
+
+model User {
+  id            String       @id @default(cuid())
+  name          String
+  firstName     String
+  lastName      String
+  phone         String       @unique
+  email         String       @unique
+  emailVerified DateTime?
+  image         String?
+  jobTitle      String?
+  roles         Role[]       @relation("UserRoles") // Updated to support multiple roles
+  // role          UserRole  @default(USER)
+  password      String?
+  status        Boolean      @default(true)
+  accounts      Account[]
+  sessions      Session[]
+  savings       Saving[]
+  blogs         Blog[]
+  orgName       String?
+  organisation  Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId         String
+  location      Location?    @relation(fields: [locationId], references: [id])
+  locationId    String?
+  locationName  String?
+  isVerfied     Boolean      @default(false)
+  token         String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  roleId        String?
+}
+
+model Location {
+  id        String       @id @default(cuid())
+  name      String
+  type      LocationType
+  address   String?
+  phone     String?
+  email     String?
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  users     User[]
+  // inventories   Inventory[]
+  // incomingTransfers Transfer[] @relation("ToLocation")
+  // outgoingTransfers Transfer[] @relation("FromLocation")
+  // purchaseOrders PurchaseOrder[] @relation("DeliveryLocation")
+  // salesOrders   SalesOrder[]   @relation("SalesLocation")
+}
+
+model Category {
+  id            String     @id @default(cuid())
+  title         String
+  slug          String     @unique
+  imageUrl      String?
+  description   String?
+  parentId      String?
+  parent        Category?  @relation("SubCategories", fields: [parentId], references: [id])
+  subCategories Category[] @relation("SubCategories")
+  items         Item[]
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+}
+
+model Unit {
+  id        String   @id @default(cuid())
+  name      String
+  symbol    String
+  items     Item[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Brand {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  items     Item[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TaxRate {
+  id        String   @id @default(cuid())
+  name      String
+  rate      Float
+  items     Item[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Item {
+  id                String         @id @default(cuid())
+  name              String
+  sku               String         @unique
+  barcode           String?        @unique
+  description       String?
+  dimensions        String?
+  weight            Float?
+  upc               String? //Twelve digit unique number associated with the bar code (Universal Product Code)
+  ean               String? //Thirteen digit unique number (International Article Number)
+  mpn               String? //Manufacturing Part Number unambiguously identifies a part design
+  isbn              String //Thirteen digit unique commercial book identifier (International Standard Book Number)
+  categoryId        String?
+  category          Category?      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  taxRateId         String?
+  tax               Float //tax rate
+  taxRate           TaxRate?       @relation(fields: [taxRateId], references: [id])
+  brandId           String?
+  brand             Brand?         @relation(fields: [brandId], references: [id])
+  unitId            String?
+  unit              Unit?          @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  unitOfMeasure     String? //unit name
+  costPrice         Float          @default(0)
+  sellingPrice      Float          @default(0)
+  minStockLevel     Int            @default(0)
+  maxStockLevel     Int?
+  isActive          Boolean        @default(true)
+  isSerialTracked   Boolean        @default(false)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  // inventories   Inventory[]
+  serialNumbers     SerialNumber[]
+  suppliers         Supplier[]     @relation("SupplierItems")
+  supplierRelations ItemSupplier[] // New relation
+  // purchaseOrderLines PurchaseOrderLine[]
+  // salesOrderLines SalesOrderLine[]
+  // transferLines  TransferLine[]
+  // adjustmentLines AdjustmentLine[]
+}
+
+// Serial number tracking
+model SerialNumber {
+  id              String       @id @default(cuid())
+  serialNumber    String       @unique
+  itemId          String
+  item            Item         @relation(fields: [itemId], references: [id])
+  status          SerialStatus @default(IN_STOCK)
+  locationId      String?
+  purchaseOrderId String?
+  salesOrderId    String?
+  notes           String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+enum SerialStatus {
+  IN_STOCK
+  SOLD
+  RESERVED
+  DAMAGED
+  RETURNED
+}
+
+model ItemSupplier {
+  id               String    @id @default(cuid())
+  itemId           String
+  item             Item      @relation(fields: [itemId], references: [id])
+  supplierId       String
+  supplier         Supplier  @relation(fields: [supplierId], references: [id])
+  isPreferred      Boolean   @default(false)
+  supplierSku      String? // Supplier's own SKU for this item
+  leadTime         Int? // Typical lead time in days
+  minOrderQty      Int? // Minimum order quantity
+  unitCost         Decimal // Supplier-specific cost
+  lastPurchaseDate DateTime?
+  notes            String?
+
+  @@unique([itemId, supplierId])
+}
+
+enum LocationType {
+  WAREHOUSE
+  SHOP
+  VIRTUAL
+}
+
+model Supplier {
+  id                String         @id @default(cuid())
+  name              String
+  contactPerson     String?
+  email             String?
+  phone             String?
+  address           String?
+  taxId             String?
+  paymentTerms      Int? // Days
+  notes             String?
+  isActive          Boolean        @default(true)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  items             Item[]         @relation("SupplierItems")
+  supplierRelations ItemSupplier[] // New relation
+  // purchaseOrders PurchaseOrder[]
+}
+
+model Organisation {
+  id                 String    @id @default(cuid())
+  name               String
+  slug               String    @unique
+  industry           String?
+  country            String?
+  state              String?
+  address            String?
+  currency           String?
+  timezone           String?
+  inventoryStartDate DateTime?
+  fiscalYear         String?
+  users              User[]
+  invites            Invite[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  Role      Role[]
+
+  @@map("organisations") // Maps to "organisations" table in the database [^1]
+}
+
+model Invite {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  organisation Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId        String
+  status       Boolean      @default(false)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@map("invites")
+}
+model ApiKey {
+  id        String       @id @default(cuid())
+  orgId     String
+  key       String       @unique
+  name      String
+  createdAt DateTime     @default(now())
+  org       Organisation @relation(fields: [orgId], references: [id])
+}
+
+
+```

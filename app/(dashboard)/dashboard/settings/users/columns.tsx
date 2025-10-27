@@ -37,13 +37,14 @@ export const columns: ColumnDef<UserWithRoles>[] = [
   },
   {
     id: "actions",
+    header: "Actions",
     cell: ({ row }) => {
       const user = row.original;
       return (
         <ActionColumn
           row={row}
           model="user"
-          editEndpoint={""}
+          editEndpoint={`user/update/${user.id}`}
           id={user.id}
         />
       );

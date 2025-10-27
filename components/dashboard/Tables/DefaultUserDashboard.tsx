@@ -115,13 +115,6 @@ export default function DefaultUserDashboard({
               <Search className="w-4 h-4 text-rose-600" />
             </Button>
 
-            <Button
-              variant="outline"
-              className="gap-2 border-rose-200 hover:bg-rose-50 dark:border-rose-800 dark:hover:bg-rose-950 bg-transparent"
-            >
-              <LogOut className="w-4 h-4 text-rose-600" />
-              <span className="hidden sm:inline text-rose-600">Sign Out</span>
-            </Button>
           </div>
         </div>
 
