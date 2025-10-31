@@ -10,7 +10,7 @@ import ImageColumn from "@/components/DataTableColumns/ImageColumn";
 import SortableColumn from "@/components/DataTableColumns/SortableColumn";
 import { ColumnDef } from "@tanstack/react-table";
 import ActionColumn from "@/components/DataTableColumns/ActionColumn";
-import { BriefItemResponse, CategoryResponse } from "@/types/types";
+import { BriefItemResponse } from "@/types/item";
 
 export const columns: ColumnDef<BriefItemResponse>[] = [
   {

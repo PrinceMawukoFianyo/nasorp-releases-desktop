@@ -89,7 +89,7 @@ export default function ActionColumn({
       }
       else if (model === "item") {
         const res = await deleteItem(id);
-        if (res?.ok) {
+        if (res?.success) {
           toast.success("Item deleted successfully");
           router.refresh();
           window.location.reload();
