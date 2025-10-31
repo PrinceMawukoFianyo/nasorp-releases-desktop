@@ -28,6 +28,7 @@ import { deleteUnit } from "@/actions/units";
 import { useRouter } from "next/navigation";
 import { deleteBrands } from "@/actions/brands";
 import { deleteCategory } from "@/actions/categories";
+import { deleteItem } from "@/actions/items";
 
 type ActionColumnProps = {
   row: any;
@@ -84,6 +85,16 @@ export default function ActionColumn({
           window.location.reload();
         } else {
           toast.error("Failed to delete Category");
+        }
+      }
+      else if (model === "item") {
+        const res = await deleteItem(id);
+        if (res?.ok) {
+          toast.success("Item deleted successfully");
+          router.refresh();
+          window.location.reload();
+        } else {
+          toast.error("Failed to delete Item");
         }
       }
     } catch (error) {

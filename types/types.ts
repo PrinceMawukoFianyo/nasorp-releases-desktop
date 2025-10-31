@@ -91,13 +91,7 @@ export interface TaxResponse {
   updatedAt: Date;
 }
 
-export interface BriefItemResponse {
-  id: string;
-  name: string;
-  slug: string;
-  createdAt: Date;
-  thumbnail: string | null;
-}
+
 
 export interface BrandResponse {
   id: string;

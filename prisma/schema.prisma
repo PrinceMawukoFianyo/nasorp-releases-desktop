@@ -171,8 +171,10 @@ model Item {
   organisation  Organisation? @relation(fields: [orgId], references: [id], onDelete: Cascade)
   orgId         String
   imageUrl        String[]
-  thumbnail        String?
+  thumbnail        String?  @default ("https://3mkq65v2if.ufs.sh/f/nEsxSqMfLeqN5a4owpbHBYgvTZ8SDtkMErGQOR6d42fKLCoP")
   categoryId        String?
+  salesCount         Int      @default(0)
+  salesTotal         Float    @default(0)
   category          Category?      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   taxRateId         String?
   tax               Float?         @default(0)

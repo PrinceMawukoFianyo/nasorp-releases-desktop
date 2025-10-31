@@ -11,7 +11,7 @@ import SortableColumn from "@/components/DataTableColumns/SortableColumn";
 import { ColumnDef } from "@tanstack/react-table";
 import ActionColumn from "@/components/DataTableColumns/ActionColumn";
 import { BriefItemResponse, CategoryResponse } from "@/types/types";
-import { ItemFormProps } from "@/components/Forms/Inventory/ItemFormModel";
+
 export const columns: ColumnDef<BriefItemResponse>[] = [
   {
     id: "select",
@@ -49,11 +49,11 @@ export const columns: ColumnDef<BriefItemResponse>[] = [
     cell: ({ row }) => <ImageColumn row={row} accessorKey="thumbnail" />,
   },
 
-  {
+ /*  {
     accessorKey: "createdAt",
     header: "Date Created",
     cell: ({ row }) => <DateColumn row={row} accessorKey="createdAt" />,
-  },
+  }, */
   {
     id: "actions",
     header: "Actions",

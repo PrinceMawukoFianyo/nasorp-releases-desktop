@@ -15,24 +15,14 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { generateSlug } from "@/lib/generateSlug";
+import { ItemCreateProps } from "@/types/item";
 import { CheckCheckIcon, LayoutGrid, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-export interface ItemFormProps {
-  id: string;
-  name: string;
-  slug: string;
-  orgId: string; 
-  sku: string;
-  costPrice: number;
-  sellingPrice: number;
-  thumbnail?: string;
-  isbn: string;      
-  tax: number;       
-}
+
 
 export function ItemFormModel({
   orgId,
@@ -44,18 +34,18 @@ export function ItemFormModel({
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<ItemFormProps>();
+  } = useForm<ItemCreateProps>();
   
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
 
 
-  const saveUnit = async (data: ItemFormProps) => {
+  const saveUnit = async (data: ItemCreateProps) => {
     setLoading(true);
-    data.slug = generateSlug(data.name);
-     data.sellingPrice = Number(data.sellingPrice);
-     data.costPrice = Number(data.costPrice);
-    data.thumbnail = "/placeholder.png";
+    
+    data.sellingPrice = Number(data.sellingPrice);
+    data.costPrice = Number(data.costPrice);
+    data.thumbnail = "https://3mkq65v2if.ufs.sh/f/nEsxSqMfLeqN5a4owpbHBYgvTZ8SDtkMErGQOR6d42fKLCoP";
     data.orgId = orgId;
     console.log(data);
     
@@ -63,7 +53,7 @@ export function ItemFormModel({
       const res = await createItem(data);
       console.log(res);
       
-      if (res.status === 200) {
+      if (res.success) {
         toast.success("item created successfully!");
         window.location.reload();
         reset();
