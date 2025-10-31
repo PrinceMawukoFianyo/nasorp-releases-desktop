@@ -373,12 +373,12 @@ export default function ItemListing({ title,orgId }: ItemListingProps) {
         </div>
         <div className="col-span-5">
             <button>
-              {/* <ImageUploadButton
+             {/* <ImageUploadButton
               title = "Item image" 
               imageUrl = {imageUrl} 
               setImageUrl = {setImageUrl}
               endpoint = "itemImage"
-              /> */}
+              />  */}
             </button>
           </div>
         </div>

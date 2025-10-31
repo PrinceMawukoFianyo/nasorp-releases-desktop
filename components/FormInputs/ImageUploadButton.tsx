@@ -16,6 +16,8 @@ export default function ImageUploadButton({
   imageUrl,
   setImageUrl,
   endpoint,
+  onUploadStart,
+  onUploadComplete,
 }: ImageInputProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -114,13 +116,23 @@ export default function ImageUploadButton({
                 <UploadButton
                   className="w-full"
                   endpoint={endpoint}
+                  onUploadBegin={() => {
+                    console.log("Upload started");
+                    onUploadStart();
+                  }}
                   onClientUploadComplete={(res) => {
                     console.log("Files: ", res);
-                    setImageUrl(res[0].url);
+                    if (res && res[0]) {
+                      setImageUrl(res[0].url);
+                      console.log("Image URL set to:", res[0].url);
+                    }
+                    onUploadComplete();
                     setIsModalOpen(false);
                   }}
                   onUploadError={(error: Error) => {
+                    console.error("Upload error:", error);
                     alert(`ERROR! ${error.message}`);
+                    onUploadComplete();
                   }}
                 />
               </div>
