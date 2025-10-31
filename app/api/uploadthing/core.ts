@@ -8,24 +8,22 @@ export const ourFileRouter = {
   // Define as many FileRoutes as you like, each with a unique routeSlug
   categoryImage: f({ image: { maxFileSize: "1MB" } }).onUploadComplete(
     async ({ metadata, file }) => {
-      console.log("file url", file.ufsUrl); // ✅ Changed
+      console.log("file url", file.url);
       return { uploadedBy: "JB" };
-    },  
+    }
+    
   ),
-  itemImage: f({ image: { maxFileSize: "1MB" } })
-  .middleware(async (req) => {
-    console.log("Middleware running for itemImage");
-    return {};
-  })
-  .onUploadComplete(async ({ metadata, file }) => {
-    console.log("Upload complete!");
-    console.log("file url", file.ufsUrl); // ✅ Changed
-    return { uploadedBy: "Fianyo" };
-  }),
+  itemImage: f({ image: { maxFileSize: "1MB" } }).onUploadComplete(
+    async ({ metadata, file }) => {
+      console.log("file url", file.url);
+      return { uploadedBy: "JB" };
+    }
+    
+  ),
   blogImage: f({ image: { maxFileSize: "1MB" } }).onUploadComplete(
     async ({ metadata, file }) => {
-      console.log("file url", file.ufsUrl); // ✅ Changed
-      return { uploadedBy: "Fianyo" };
+      console.log("file url", file.url);
+      return { uploadedBy: "JB" };
     }
   ),
   fileUploads: f({
@@ -50,7 +48,7 @@ export const ourFileRouter = {
     "application/gzip": { maxFileSize: "1MB", maxFileCount: 4 },
     "application/zip": { maxFileSize: "1MB", maxFileCount: 4 },
   }).onUploadComplete(async ({ metadata, file }) => {
-    console.log("file url", file.ufsUrl); // ✅ Changed
+    console.log("file url", file.url);
     return { uploadedBy: "JB" };
   }),
   mailAttachments: f({
@@ -75,7 +73,7 @@ export const ourFileRouter = {
     "application/gzip": { maxFileSize: "1MB", maxFileCount: 4 },
     "application/zip": { maxFileSize: "1MB", maxFileCount: 4 },
   }).onUploadComplete(async ({ metadata, file }) => {
-    console.log("file url", file.ufsUrl); // ✅ Changed
+    console.log("file url", file.url);
     return { uploadedBy: "JB" };
   }),
 } satisfies FileRouter;
