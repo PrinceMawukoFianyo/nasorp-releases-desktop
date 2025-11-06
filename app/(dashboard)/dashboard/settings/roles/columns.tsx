@@ -1,51 +1,66 @@
 "use client";
 
-import ImageColumn from "@/components/DataTableColumns/ImageColumn";
+import { Checkbox } from "@/components/ui/checkbox";
+
+import DateColumn from "@/components/DataTableColumns/DateColumn";
+
 import { ColumnDef } from "@tanstack/react-table";
+
+import { Role } from "@prisma/client";
 import ActionColumn from "@/components/DataTableColumns/ActionColumn";
 import SortableColumn from "@/components/DataTableColumns/SortableColumn";
-import { UserWithRoles } from "@/types/types";
-import UserRoleBtn from "@/components/DataTableComponents/UserRoleBtn";
+export const columns: ColumnDef<Role>[] = [
+  {
+    id: "select",
+    header: ({ table }) => (
+      <Checkbox
+        checked={
+          table.getIsAllPageRowsSelected() ||
+          (table.getIsSomePageRowsSelected() && "indeterminate")
+        }
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        aria-label="Select all"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        aria-label="Select row"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  },
 
-export const columns: ColumnDef<UserWithRoles>[] = [
   {
-    accessorKey: "image",
-    header: "Profile Image",
-    cell: ({ row }) => <ImageColumn row={row} accessorKey="image" />,
-  },
-  {
-    accessorKey: "name",
-    header: ({ column }) => <SortableColumn column={column} title="Name" />,
-  },
-  {
-    accessorKey: "role",
-    header: "Role",
-    cell: ({ row }) => {
-      const item = row.original;
-      return <UserRoleBtn user={item} />;
-    },
-  },
-  {
-    accessorKey: "email",
-    header: ({ column }) => <SortableColumn column={column} title="Email" />,
-  },
-  {
-    accessorKey: "phone",
+    accessorKey: "displayName",
     header: ({ column }) => (
-      <SortableColumn column={column} title="Phone Number" />
+      <SortableColumn column={column} title="Role Title" />
     ),
   },
   {
+    accessorKey: "description",
+    header: ({ column }) => (
+      <SortableColumn column={column} title="Description" />
+    ),
+  },
+
+  {
+    accessorKey: "createdAt",
+    header: "Date Created",
+    cell: ({ row }) => <DateColumn row={row} accessorKey="createdAt" />,
+  },
+  {
     id: "actions",
-    header: "Actions",
     cell: ({ row }) => {
-      const user = row.original;
+      const role = row.original;
       return (
         <ActionColumn
           row={row}
-          model="user"
-          editEndpoint={""}
-          id={user.id}
+          model="role"
+          editEndpoint={`roles/update/${role.id}`}
+          id={role.id}
         />
       );
     },

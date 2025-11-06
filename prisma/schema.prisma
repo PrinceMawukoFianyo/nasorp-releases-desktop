@@ -290,9 +290,20 @@ model Organisation {
   brands             Brand[]
   suppliers           Supplier[]
   taxes           TaxRate[]
+  apikeys          ApiKey[]
   
 
   @@map("organisations")
+}
+
+model ApiKey {
+  id         String     @id @default(cuid())
+  orgId     String     
+  key        String     @unique
+  name      String
+  isActive  Boolean  @default(true) 
+  createdAt  DateTime   @default(now())
+  org       Organisation      @relation(fields: [orgId], references: [id]) 
 }
 
 model Invite {
@@ -411,4 +422,55 @@ model Showcase {
   userId      String
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
+}
+
+model Adjustment {
+  id                 String        @id @default(cuid())
+  adjustmentNumber   String        @unique
+  date               DateTime
+  locationId         String
+  location           Location       @relation(fields: [locationId], references: [id])
+  adjustmentType     AdjustmentType
+  reason             String
+  notes              String?
+  status             AdjustmentStatus @default(DRAFT)
+  organisation       Organisation     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId              String
+  createdById        String
+  createdBy          User              @relation ("AdjustmentCreatedBy", fields: [createdById], references: [id])
+  approvedById       String?
+  approvedBy         User?              @relation ("AdjustmentApprovedBy", fields: [approvedById], references: [id])
+  lines              AdjustmentLine[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  
+  @@index([adjustmentNumber])
+  @@index([locatedId])
+  @@index([adjustmentType])
+  @@index([status])
+}
+
+enum AdjustmentType {
+  STOCk_COUNT
+  DAMAGE
+  THEFT
+  EXPIRED
+  WRITE_OFF
+  CORRECTION
+  OTHER
+}
+
+enum AdjustmentStatus {
+  DRAFT
+  APPROVED
+  COMPLETED
+  CANCELLED
+}
+
+model AdjustmentLine {
+  id                 String @default(cuid())
+  adjustmentId        String
+  adjustment          Adjustment @relation(fields:[adjustmentId], references: [id], onDelete: Cascade)
+  itemId               String
+  item                 Item      @relation(fields: [itemId], references: [id])
 }

@@ -256,12 +256,12 @@ export const permissions: ModulePermissions[] = [
   },
   {
     display: "API Settings",
-    name: "integrations",
+    name: "api_settings",
     permissions: {
-      create: "integrations.admin",
-      read: "integrations.admin",
-      update: "integrations.admin",
-      delete: "integrations.admin",
+      create: "api_settings.create",
+      read: "api_settings.read",
+      update: "api_settings.update",
+      delete: "api_settings.delete",
     },
   },
   {
@@ -306,22 +306,22 @@ export const permissions: ModulePermissions[] = [
   },
   {
     display: "Company Settings",
-    name: "settings",
+    name: "company_settings",
     permissions: {
-      create: "settings.admin",
-      read: "settings.admin",
-      update: "settings.admin",
-      delete: "settings.admin",
+      create: "company_settings.create",
+      read: "company_settings.read",
+      update: "company_settings.update",
+      delete: "company_settings.delete",
     },
   },
   {
     display: "Tax Rates",
-    name: "tax.settings",
+    name: "tax_settings",
     permissions: {
-      create: "tax.settings.admin",
-      read: "tax.settings.admin",
-      update: "tax.settings.admin",
-      delete: "tax.settings.admin",
+      create: "tax_settings.create",
+      read: "tax_settings.read",
+      update: "tax_settings.update",
+      delete: "tax_settings.delete",
     },
   },
   {
@@ -477,14 +477,18 @@ export const adminPermissions = [
   "integrations.read",
   "integrations.update",
   "integrations.delete",
-  "integrations.admin",
+
+  // API Settings
+  "api_settings.create",
+  "api_settings.read",
+  "api_settings.update",
+  "api_settings.delete",
 
   // Settings
   "settings.create",
   "settings.read",
   "settings.update",
   "settings.delete",
-  "settings.admin",
 
   // Locations
   "locations.create",
@@ -503,6 +507,18 @@ export const adminPermissions = [
   "roles.read",
   "roles.update",
   "roles.delete",
+
+  // Company Settings
+  "company_settings.create",
+  "company_settings.read",
+  "company_settings.update",
+  "company_settings.delete",
+
+  // Tax Settings
+  "tax_settings.create",
+  "tax_settings.read",
+  "tax_settings.update",
+  "tax_settings.delete",
 
   // Profile
   "profile.create",
@@ -639,6 +655,7 @@ export const userPermissions = [
   "profile.read",
   "profile.update",
 ];
+
 // Helper function to get all permission strings
 export function getAllPermissions(): string[] {
   return permissions.flatMap((module) => Object.values(module.permissions));
