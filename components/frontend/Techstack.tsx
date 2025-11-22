@@ -57,7 +57,7 @@ const themeStyles: Record<ThemeType, ThemeColors> = {
   light: {
     wrapper: "bg-gray-50 border-gray-200",
     section: {
-      services: "bg-blue-50/50",
+      services: "bg-rose-50/50",
       products: "bg-orange-50/50",
       emergency: "bg-red-50/50",
       support: "bg-green-50/50",
@@ -65,20 +65,20 @@ const themeStyles: Record<ThemeType, ThemeColors> = {
     card: "bg-white hover:bg-gray-50 border border-gray-200/50",
     cardGlow: "hover:shadow-[0_0_15px_rgba(59,130,246,0.1)]",
     iconWrapper: {
-      services: "bg-blue-100",
+      services: "bg-rose-100",
       products: "bg-orange-100",
       emergency: "bg-red-100",
       support: "bg-green-100",
     },
     title: {
-      services: "text-blue-600",
+      services: "text-rose-600",
       products: "text-orange-600",
       emergency: "text-red-600",
       support: "text-green-600",
     },
     text: "text-gray-600",
     icon: {
-      services: "text-blue-500",
+      services: "text-rose-500",
       products: "text-orange-500",
       emergency: "text-red-500",
       support: "text-green-500",
@@ -88,7 +88,7 @@ const themeStyles: Record<ThemeType, ThemeColors> = {
   dark: {
     wrapper: "bg-neutral-950 border-neutral-800",
     section: {
-      services: "bg-blue-950/20",
+      services: "bg-rose-950/20",
       products: "bg-orange-950/20",
       emergency: "bg-red-950/20",
       support: "bg-green-950/20",
@@ -96,20 +96,20 @@ const themeStyles: Record<ThemeType, ThemeColors> = {
     card: "bg-black hover:bg-neutral-900 border border-neutral-800/50",
     cardGlow: "hover:shadow-[0_0_15px_rgba(59,130,246,0.15)]",
     iconWrapper: {
-      services: "bg-blue-950/50",
+      services: "bg-rose-950/50",
       products: "bg-orange-950/50",
       emergency: "bg-red-950/50",
       support: "bg-green-950/50",
     },
     title: {
-      services: "text-blue-300",
+      services: "text-rose-300",
       products: "text-orange-300",
       emergency: "text-red-300",
       support: "text-green-300",
     },
     text: "text-gray-300",
     icon: {
-      services: "text-blue-400",
+      services: "text-rose-400",
       products: "text-orange-400",
       emergency: "text-red-400",
       support: "text-green-400",
@@ -324,12 +324,12 @@ const HardwarePlumbingGrid: React.FC<ServicesGridProps> = ({ theme = "light" }) 
   );
 
   return (
-    <div className="w-full py-16 px-4 bg-gradient-to-br from-gray-50 to-blue-50">
+    <div className="w-full py-16 px-4 bg-gradient-to-br from-gray-50 to-rose-50">
       <div className="max-w-7xl mx-auto">
         {/* Header Section */}
         <div className="text-center mb-12">
           <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            Everything you need for your <span className="text-blue-600">home</span> & <span className="text-orange-600">projects</span>
+            Everything you need for your <span className="text-rose-600">home</span> & <span className="text-orange-600">projects</span>
           </h2>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             From emergency repairs to major renovations, we're your one-stop shop for quality tools, 
@@ -351,7 +351,7 @@ const HardwarePlumbingGrid: React.FC<ServicesGridProps> = ({ theme = "light" }) 
               >
                 <div className="flex items-center mb-4 sm:mb-6">
                   <div className={`w-2 h-8 rounded-full mr-3 ${
-                    category.type === 'services' ? 'bg-blue-500' :
+                    category.type === 'services' ? 'bg-rose-500' :
                     category.type === 'products' ? 'bg-orange-500' :
                     category.type === 'emergency' ? 'bg-red-500' : 'bg-green-500'
                   }`}></div>
@@ -381,7 +381,7 @@ const HardwarePlumbingGrid: React.FC<ServicesGridProps> = ({ theme = "light" }) 
         {/* Call to Action */}
         <div className="text-center mt-12">
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-full font-semibold transition-all duration-300 flex items-center">
+            <button className="bg-rose-600 hover:bg-rose-700 text-white px-8 py-3 rounded-full font-semibold transition-all duration-300 flex items-center">
               <Phone className="w-5 h-5 mr-2" />
               Call (+233) 206-333-156
             </button>

@@ -15,6 +15,7 @@ import { adminPermissions, userPermissions } from "@/config/permissions";
 import { InviteData } from "@/components/Forms/user/UserInvitationForm";
 import UserInvitation from "@/components/email-templates/user-invite";
 import { PrismaClient } from "@prisma/client/extension";
+import { generateAPIKey } from "@/lib/generateAPIKey";
 // import { generateNumericToken } from "@/lib/token";
 const resend = new Resend(process.env.RESEND_API_KEY);
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
@@ -89,8 +90,17 @@ export async function createUser(data: UserProps, orgData: OrgData) {
         data: orgData,
       });
 
-      // Find or create default role - FIX: Use findUnique and handle existing role
-      let defaultRole = await tx.role.findUnique({
+      // Create the Default API Key
+      await db.apiKey.create({
+        data: {
+          name: "Default Key",
+          key: generateAPIKey(),
+          orgId: org.id
+        }
+      })
+
+      // Find or create default role - FIX: Use findUnique/findFirst and handle existing role
+      let defaultRole = await tx.role.findFirst({
         where: { 
           roleName: ADMIN_USER_ROLE.roleName,
         },
@@ -171,7 +181,7 @@ export async function createUser(data: UserProps, orgData: OrgData) {
   }
 }
 export async function  createInvitedUser(data: InvitedUserProps) {
-  const { email, password, firstName, lastName, name, phone, image, orgId, roleId,orgName } = data;
+  const { email, password, firstName, lastName, name, phone, image, orgId, roleId,orgName, locationName, locationId } = data;
 
   try {
     // Use a transaction for atomic operations
@@ -214,6 +224,8 @@ export async function  createInvitedUser(data: InvitedUserProps) {
           orgId: orgId,
           orgName: orgName,
           phone,
+          locationId,
+          locationName,
           image,
           isVerified: true,
           roles: {
@@ -602,7 +614,7 @@ export async function getCurrentUsersCount(){
 }
 
 export async function sendInvite(data: InviteData){
-  const { email, orgId, orgName, roleId, roleName,} = data;
+  const { email, orgId, orgName, roleId, roleName, locationId,locationName} = data;
 
   try {
     // Check for existing users
@@ -636,7 +648,7 @@ export async function sendInvite(data: InviteData){
     })
     // Send the Verification email
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
-    const linkUrl =`${baseUrl}/user-invite/${orgId}?roleId=${roleId}&& email=${email}&&orgName=${orgName}`;
+    const linkUrl =`${baseUrl}/user-invite/${orgId}?roleId=${roleId}&& email=${email}&&orgName=${orgName}&&locationId=${locationId}&&locationName=${locationName}`;
     const {data, error} = await resend.emails.send({
         from: "Business Inventory <kidstarschristianacademy.com>", // Business Domain Must be pasted here
         to: email,

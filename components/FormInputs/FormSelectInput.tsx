@@ -6,7 +6,7 @@ import { Option, Options } from "react-tailwindcss-select/dist/components/type";
 type FormSelectInputProps = {
   options: Options;
   label: string;
-  option: Option;
+  option: Option | null;
   setOption: any;
   href?: string;
   labelShown?: boolean;
@@ -31,7 +31,7 @@ export default function FormSelectInput({
       <div className="flex items-center space-x-2">
         <Select
           isSearchable
-          primaryColor="blue"
+          primaryColor="rose"
           value={option}
           onChange={(item) => setOption(item)}
           options={options}

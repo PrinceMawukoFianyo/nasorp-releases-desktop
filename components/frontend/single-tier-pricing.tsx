@@ -120,7 +120,7 @@ const HardwareStoreShowcase = ({ theme = "light" }) => {
         
         {/* Category Badges */}
         <div className="flex flex-wrap justify-center gap-3 mt-6">
-          <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">
+          <Badge className="bg-rose-100 text-rose-800 hover:bg-rose-200">
             Bundle Deals Available
           </Badge>
           <Badge className="bg-red-100 text-red-800 hover:bg-red-200">
@@ -141,7 +141,7 @@ const HardwareStoreShowcase = ({ theme = "light" }) => {
           return (
             <Card
               key={product.id}
-              className={`group hover:shadow-2xl transition-all duration-300 overflow-hidden border-2 hover:border-blue-200 ${
+              className={`group hover:shadow-2xl transition-all duration-300 overflow-hidden border-2 hover:border-rose-200 ${
                 isDark
                   ? "bg-slate-800/50 border-slate-700"
                   : "bg-white border-slate-200"
@@ -233,8 +233,8 @@ const HardwareStoreShowcase = ({ theme = "light" }) => {
                 <Button
                   className={`w-full h-12 text-base font-semibold group-hover:scale-105 transition-transform duration-200 ${
                     isDark
-                      ? "bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
-                      : "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+                      ? "bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800"
+                      : "bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700"
                   } text-white shadow-lg hover:shadow-xl`}
                 >
                   <ShoppingCartIcon className="w-5 h-5 mr-2" />
@@ -251,7 +251,7 @@ const HardwareStoreShowcase = ({ theme = "light" }) => {
         className={`text-center p-8 rounded-2xl ${
           isDark
             ? "bg-gradient-to-r from-slate-800 to-slate-700"
-            : "bg-gradient-to-r from-blue-50 to-emerald-50"
+            : "bg-gradient-to-r from-rose-50 to-emerald-50"
         }`}
       >
         <h3

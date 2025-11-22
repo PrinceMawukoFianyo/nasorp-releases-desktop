@@ -38,7 +38,7 @@ export function getFileIcon(extension: string | undefined) {
     case "doc":
     case "docx":
       return (
-        <FaFileWord className="w-6 h-6 flex-shrink-0 mr-2 text-blue-500" />
+        <FaFileWord className="w-6 h-6 flex-shrink-0 mr-2 text-rose-500" />
       );
     case "xls":
     case "xlsx":

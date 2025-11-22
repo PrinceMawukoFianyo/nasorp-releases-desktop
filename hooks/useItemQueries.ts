@@ -1,9 +1,10 @@
-// hooks/useProductQueries.ts
+// hooks/useItemQueries.ts
+"use client";
+
 import { itemAPI } from "@/services/items";
 import { ItemCreateProps } from "@/types/item";
 import {
-  useQuery,
-  useSuspenseQuery,
+  useQuery, // ✅ Changed from useSuspenseQuery
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
@@ -20,36 +21,39 @@ export const itemKeys = {
   detail: (id: string) => [...itemKeys.details(), id] as const,
 };
 
-
 /**
- * Hook for fetching products with React Suspense
- * Use this when the component is wrapped in a Suspense boundary
+ * ✅ FIXED: Changed from useSuspenseQuery to useQuery
+ * This fixes the Router update error
  */
-// export function useSuspenseProducts() {
-//   // Get all products with Suspense (data is guaranteed to be defined)
-//   const { data: products, refetch } = useSuspenseQuery({
-//     queryKey: itemKeys.lists(),
-//     queryFn: itemAPI.getAll,
-//   });
-
-//   return {
-//     products,
-//     refetch,
-//   };
-// }
-
 export function useOrgItems(orgId: string) {
-  // Get an item a particular organisation
-  const {data: items, refetch} = useSuspenseQuery({
+  const { data, refetch, error, isError, isLoading } = useQuery({ // ✅ Changed from useSuspenseQuery
     queryKey: itemKeys.org_list(orgId),
     queryFn: () => itemAPI.getAllBrief(orgId),
-
+    retry: (failureCount, error: any) => {
+      // Don't retry on 401 errors
+      if (error?.message?.includes("Authentication failed")) {
+        return false;
+      }
+      return failureCount < 2; // Retry twice for other errors
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled: !!orgId, // Only run if orgId exists
   });
-  return {
-    items,
-    refetch,
+
+  // ✅ Show error toast if query fails (but not during initial load)
+  if (isError && error && !isLoading) {
+    toast.error("Failed to load items", {
+      description: error?.message || "Please try refreshing the page",
+    });
   }
-  
+
+  return {
+    items: data || [], // ✅ Return empty array if data is undefined
+    refetch,
+    error,
+    isError,
+    isLoading, // ✅ Added isLoading for loading states
+  };
 }
 
 export function useCreateItem() {
@@ -71,6 +75,24 @@ export function useCreateItem() {
   });
 }
 
+export function useDeleteItem() {
+  const queryClient = useQueryClient();
+
+  // Delete a product
+  return useMutation({
+    mutationFn: (id: string) => itemAPI.delete(id),
+    onSuccess: () => {
+      toast.success("Item deleted successfully");
+      // Invalidate products list to trigger a refetch
+      queryClient.invalidateQueries({ queryKey: itemKeys.lists() });
+    },
+    onError: (error: Error) => {
+      toast.error("Failed to delete item", {
+        description: error.message || "Unknown error occurred",
+      });
+    },
+  });
+}
 /* export function useUpdateProduct() {
   const queryClient = useQueryClient();
 
@@ -93,22 +115,3 @@ export function useCreateItem() {
     },
   });
 }*/
-
-export function useDeleteItem() {
-  const queryClient = useQueryClient();
-
-  // Delete a product
-  return useMutation({
-    mutationFn: (id: string) => itemAPI.delete(id),
-    onSuccess: () => {
-      toast.success("item deleted successfully");
-      // Invalidate products list to trigger a refetch
-      queryClient.invalidateQueries({ queryKey: itemKeys.lists() });
-    },
-    onError: (error: Error) => {
-      toast.error("Failed to delete item", {
-        description: error.message || "Unknown error occurred",
-      });
-    },
-  });
-} 

@@ -22,7 +22,7 @@ export type OrgData={
     currency: string | undefined;
     timezone: string | undefined;
 }
-export default function RegisterInvitedUserForm({userEmail, orgId, orgName, roleId,}: {userEmail:string, orgId: string, orgName: string, roleId: string,}) {
+export default function RegisterInvitedUserForm({userEmail, orgId, orgName, roleId, locationName, locationId}: {userEmail:string, orgId: string, orgName: string, roleId: string,  locationId: string, locationName: string,}) {
   const [loading, setLoading] = useState(false);
   const [emailErr, setEmailErr] = useState<string | null>(null);
   const {
@@ -40,8 +40,10 @@ export default function RegisterInvitedUserForm({userEmail, orgId, orgName, role
     setLoading(true);
     (data.orgId=orgId),
     (data.roleId=roleId),
+    (data.locationId=locationId),
     data.name = `${data.firstName} ${data.lastName}`;
     data.orgName = orgName
+    data.locationName = locationName
     data.image =
       "https://utfs.io/f/59b606d1-9148-4f50-ae1c-e9d02322e834-2558r.png";
      
@@ -109,6 +111,7 @@ export default function RegisterInvitedUserForm({userEmail, orgId, orgName, role
                 <div className="">
                   <TextInput
                     type="email"
+                    readonly = {true}
                     register={register}
                     errors={errors}
                     label="Email Address"

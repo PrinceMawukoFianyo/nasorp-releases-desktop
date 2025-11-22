@@ -158,9 +158,9 @@ model Item {
   isbn              String //Thirteen digit unique commercial book identifier (International Standard Book Number)
   categoryId        String?
   category          Category?      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  taxRateId         String?
+  taxRate         String?
   tax               Float //tax rate
-  taxRate           TaxRate?       @relation(fields: [taxRateId], references: [id])
+  taxRate           TaxRate?       @relation(fields: [taxRate], references: [id])
   brandId           String?
   brand             Brand?         @relation(fields: [brandId], references: [id])
   unitId            String?

@@ -1,5 +1,6 @@
 import { Role, User } from "@prisma/client";
 
+
 export type  CategoryProps = {
   title: string;
   slug: string;
@@ -18,6 +19,8 @@ export type InvitedUserProps = {
   name: string;
   orgId: string;
   orgName: string;
+  locationName: string;
+  locationId: string;
   roleId: string;
   firstName: string;
   lastName: string;
@@ -114,3 +117,37 @@ export type CategoryResponse = {
 };
 
 
+export type SupplierCreateProps = {
+  
+  name: string;
+  contactPerson?: string;
+  email?: string;
+  phone?: string;
+      
+}
+
+// types/item.ts
+export interface SupplierResponse {
+  id:           string;       
+  name:         string;
+  contactPerson: string | null;
+  email:        string | null;
+  phone:        string | null;
+  address:      string | null;
+  taxId:        string | null;
+  paymentTerms: number;
+  notes:        string | null;
+  isActive:     boolean; 
+  createdAt: Date;
+  updatedAt: Date;
+
+}
+
+export type BriefSupplierResponse = {
+  id: string,
+  name: string,
+  contactPerson: string | null,
+  phone: string | null,
+  email: string | null,   
+  createdAt: Date,
+}

@@ -46,7 +46,7 @@ return (
 
       {/* Using direct permission check */}
       {hasPermission("users.create") && (
-        <button className="bg-blue-500 text-white px-4 py-2">
+        <button className="bg-rose-500 text-white px-4 py-2">
           Create User
         </button>
       )}
@@ -89,7 +89,7 @@ return (
 <td>john@example.com</td>
 <td className="space-x-2">
 <PermissionGate permission="users.update">
-<button className="text-blue-500">Edit</button>
+<button className="text-rose-500">Edit</button>
 </PermissionGate>
 
             <PermissionGate permission="users.delete">

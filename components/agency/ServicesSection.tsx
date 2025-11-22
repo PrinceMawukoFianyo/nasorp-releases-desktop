@@ -9,7 +9,7 @@ import {
   LucideIcon,
 } from "lucide-react";
 // Define color variants type
-type ColorVariant = "blue" | "purple" | "emerald" | "pink" | "amber" | "indigo";
+type ColorVariant = "rose" | "purple" | "emerald" | "pink" | "amber" | "indigo";
 
 // Define service interface
 interface Service {
@@ -41,7 +41,7 @@ const services: Service[] = [
       "Backend Systems",
       "API Integration",
     ],
-    color: "blue",
+    color: "rose",
   },
   {
     icon: LayoutGrid,
@@ -107,7 +107,7 @@ const services: Service[] = [
 
 const ServiceCard: React.FC<ServiceCardProps> = ({ service }) => {
   const colorVariants = {
-    blue: "bg-blue-50 text-blue-600 group-hover:bg-blue-600",
+    rose: "bg-rose-50 text-rose-600 group-hover:bg-rose-600",
     purple: "bg-purple-50 text-purple-600 group-hover:bg-purple-600",
     emerald: "bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600",
     pink: "bg-pink-50 text-pink-600 group-hover:bg-pink-600",
@@ -183,7 +183,7 @@ const ServicesSection = () => {
           <p className="text-gray-600 mb-6">
             Need a custom solution? Let's discuss your project requirements.
           </p>
-          <button className="inline-flex items-center justify-center px-8 py-4 rounded-full bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors">
+          <button className="inline-flex items-center justify-center px-8 py-4 rounded-full bg-rose-600 text-white font-medium hover:bg-rose-700 transition-colors">
             Get Started
           </button>
         </div>

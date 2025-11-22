@@ -33,7 +33,7 @@ export default function DefaultUserDashboard({user}:{user:AuthenticatedUser}) {
       description: "Browse all product categories",
       icon: Grid3x3,
       href: "/categories",
-      color: "bg-blue-500",
+      color: "bg-rose-500",
     },
     {
       title: "Products",
@@ -95,7 +95,7 @@ export default function DefaultUserDashboard({user}:{user:AuthenticatedUser}) {
           </div>
 
           {/* Welcome Card */}
-          <Card className="bg-gradient-to-r from-blue-500 to-purple-600 border-0 text-white">
+          <Card className="bg-gradient-to-r from-rose-500 to-purple-600 border-0 text-white">
             <CardContent className="pt-6">
               <p className="text-lg font-medium">
                 {hour < 12

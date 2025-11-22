@@ -7,14 +7,14 @@ const Hero = () => {
       {/* Background Elements */}
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]"></div>
-        <div className="absolute top-0 left-0 w-96 h-96 bg-blue-100 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
+        <div className="absolute top-0 left-0 w-96 h-96 bg-rose-100 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-purple-100 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
       </div>
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16">
         <div className="text-center max-w-4xl mx-auto">
           {/* Pill Label */}
-          <div className="inline-flex items-center justify-center px-6 py-2 rounded-full bg-blue-50 text-blue-600 text-sm font-medium mb-8">
+          <div className="inline-flex items-center justify-center px-6 py-2 rounded-full bg-rose-50 text-rose-600 text-sm font-medium mb-8">
             <Sparkles className="w-4 h-4 mr-2" />
             Web Development Agency
           </div>
@@ -22,7 +22,7 @@ const Hero = () => {
           {/* Main Heading */}
           <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight">
             We Build Digital Products That
-            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-rose-600 to-purple-600 bg-clip-text text-transparent">
               {" "}
               Make an Impact
             </span>
@@ -37,7 +37,7 @@ const Hero = () => {
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button className="inline-flex items-center justify-center px-8 py-4 rounded-full bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors group">
+            <button className="inline-flex items-center justify-center px-8 py-4 rounded-full bg-rose-600 text-white font-medium hover:bg-rose-700 transition-colors group">
               Start Your Project
               <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </button>
@@ -55,10 +55,10 @@ const Hero = () => {
             ].map((stat, index) => (
               <div
                 key={index}
-                className="flex flex-col items-center p-6 rounded-2xl bg-white/50 backdrop-blur-sm border border-gray-100 hover:border-blue-100 transition-colors"
+                className="flex flex-col items-center p-6 rounded-2xl bg-white/50 backdrop-blur-sm border border-gray-100 hover:border-rose-100 transition-colors"
               >
-                <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center mb-4">
-                  <stat.icon className="w-6 h-6 text-blue-600" />
+                <div className="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center mb-4">
+                  <stat.icon className="w-6 h-6 text-rose-600" />
                 </div>
                 <div className="text-3xl font-bold text-gray-900 mb-2">
                   {stat.value}

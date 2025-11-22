@@ -46,6 +46,7 @@ type MenuItem = {
 };
 
 export const sidebarLinks: ISidebarLink[] = [
+  // Dashboard
   {
     title: "Dashboard",
     href: "/dashboard",
@@ -53,6 +54,8 @@ export const sidebarLinks: ISidebarLink[] = [
     dropdown: false,
     permission: "dashboard.read",
   },
+
+  // Inventory Section
   {
     title: "Inventory",
     icon: Package,
@@ -82,30 +85,28 @@ export const sidebarLinks: ISidebarLink[] = [
       },
       {
         title: "Current Stock",
-        href: "/dashboard/inventory/current-stock",
+        href: "/dashboard/inventory/stock",
         permission: "stock.read",
       },
       {
         title: "Low Stock Items",
-        href: "/dashboard/inventory/low-stock",
+        href: "/dashboard/inventory/stock",
         permission: "stock.read",
       },
       {
+        title: "Serial Numbers",
+        href: "/dashboard/inventory/serial-numbers",
+        permission: "serial.numbers.read",
+      },
+      {
         title: "Stock Transfers",
-        href: "/dashboard/inventory/stock-transfers",
+        href: "/dashboard/inventory/transfers",
         permission: "transfers.read",
       },
-    
       {
         title: "Stock Adjustment",
         href: "/dashboard/inventory/stock-adjustment",
         permission: "adjustment.read",
-      },
-      
-      {
-        title: "Serial Numbers",
-        href: "/dashboard/inventory/serial-numbers",
-        permission: "serial_numbers.read",
       },
       {
         title: "Batch/Lot Numbers",
@@ -129,6 +130,8 @@ export const sidebarLinks: ISidebarLink[] = [
       },
     ],
   },
+
+  // Purchases Section
   {
     title: "Purchases",
     icon: ShoppingBag,
@@ -138,18 +141,13 @@ export const sidebarLinks: ISidebarLink[] = [
     dropdownMenu: [
       {
         title: "Purchase Orders",
-        href: "/dashboard/purchases/orders",
+        href: "/dashboard/purchases/purchase-orders",
         permission: "purchases.read",
-      },
-      {
-        title: "Create Purchase Order",
-        href: "/dashboard/purchases/orders/create",
-        permission: "purchases.create",
       },
       {
         title: "Goods Receipt",
         href: "/dashboard/purchases/goods-receipt",
-        permission: "goods_receipt.read",
+        permission: "goods.receipts.read",
       },
       {
         title: "Create Receipt",
@@ -161,13 +159,10 @@ export const sidebarLinks: ISidebarLink[] = [
         href: "/dashboard/purchases/suppliers",
         permission: "suppliers.read",
       },
-      {
-        title: "Add Supplier",
-        href: "/dashboard/purchases/suppliers/create",
-        permission: "suppliers.create",
-      },
     ],
   },
+
+  // Sales Section
   {
     title: "Sales",
     icon: TrendingUp,
@@ -186,11 +181,6 @@ export const sidebarLinks: ISidebarLink[] = [
         permission: "sales.read",
       },
       {
-        title: "Create Sales Order",
-        href: "/dashboard/sales/orders/create",
-        permission: "sales.create",
-      },
-      {
         title: "Returns",
         href: "/dashboard/sales/returns",
         permission: "returns.read",
@@ -200,8 +190,15 @@ export const sidebarLinks: ISidebarLink[] = [
         href: "/dashboard/sales/backorders",
         permission: "backorders.read",
       },
+      {
+        title: "Customers",
+        href: "/dashboard/sales/customers",
+        permission: "customers.read",
+      },
     ],
   },
+
+  // Reports Section
   {
     title: "Reports",
     icon: BarChart3,
@@ -244,8 +241,15 @@ export const sidebarLinks: ISidebarLink[] = [
         href: "/dashboard/reports/product-performance",
         permission: "reports.read",
       },
+      {
+        title: "Customer Analysis",
+        href: "/dashboard/reports/customer-analysis",
+        permission: "reports.read",
+      },
     ],
   },
+
+  // Integrations Section
   {
     title: "Integrations",
     icon: Cable,
@@ -261,15 +265,18 @@ export const sidebarLinks: ISidebarLink[] = [
       {
         title: "Accounting Integration",
         href: "/dashboard/integrations/accounting",
-        permission: "integrations.read",
+        permission: "integrations.read", //  FIXED: Matches permissions.ts
+
       },
       {
         title: "API Settings",
         href: "/dashboard/integrations/api-settings",
-        permission: "integrations.admin",
+        permission: "api_settings.read", //  FIXED: Changed from integrations.admin
       },
     ],
   },
+
+  // Settings Section
   {
     title: "Settings",
     href: "/dashboard/settings",
@@ -282,21 +289,13 @@ export const sidebarLinks: ISidebarLink[] = [
         href: "/dashboard/settings/locations",
         permission: "locations.read",
       },
+      
       {
-        title: "Add Location",
-        href: "/dashboard/settings/locations/create",
-        permission: "locations.create",
+        title: "Tax Rates", //  FIXED: Title changed
+        href: "/dashboard/settings/tax-rates", //  FIXED: Corrected path (list view)
+        permission: "tax.settings.read", //  FIXED: Correct permission
       },
-      {
-        title: "Tax Rates",
-        href: "/dashboard/settings/tax rate/create",
-        permission: "locations.create",
-      },
-      {
-        title: "Add Tax Rates",
-        href: "/dashboard/settings/tax-rate/create",
-        permission: "tax.create",
-      },
+    
       {
         title: "Users & Invites",
         href: "/dashboard/settings/users",

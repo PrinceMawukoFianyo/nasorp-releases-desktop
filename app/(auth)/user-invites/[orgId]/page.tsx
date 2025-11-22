@@ -17,11 +17,13 @@ export default async function Page({
   const {orgId} = await params;
   const email =  (await searchParams).email as string
   const roleId = (await searchParams).roleId as string
+  const locationId = (await searchParams).locationId as string
+  const locationName = (await searchParams).locationName as string
   const orgName = (await searchParams).orgName as string
   return (
     <GridBackground>
       <div className="px-4">
-        <RegisterInvitedUserForm userEmail={email} orgId={orgId} orgName={orgName} roleId={roleId} />
+        <RegisterInvitedUserForm userEmail={email} orgId={orgId} orgName={orgName} roleId={roleId} locationName= {locationName}  locationId={locationId} />
       </div>
     </GridBackground>
   );

@@ -483,10 +483,10 @@ export default function VerifyOTPForm({
                   </Button>
                 </div> 
 
-                <div className="mt-4 bg-blue-50 p-4 rounded-lg">
+                <div className="mt-4 bg-rose-50 p-4 rounded-lg">
                   <div className="flex items-start space-x-3">
-                    <PhoneCall className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                    <div className="text-sm text-blue-800">
+                    <PhoneCall className="h-5 w-5 text-rose-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-rose-800">
                       <p>
                         If you didn't receive a verification code, please call
                         <strong> +256762063160</strong> for assistance with

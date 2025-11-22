@@ -35,7 +35,7 @@ export const permissions: ModulePermissions[] = [
     },
   },
   {
-    display: "items",
+    display: "Items",
     name: "items",
     permissions: {
       create: "items.create",
@@ -95,63 +95,23 @@ export const permissions: ModulePermissions[] = [
     },
   },
   {
-    display: "Stock Adjustment",
-    name: "adjustment",
+    display: "Stock Adjustments",
+    name: "adjustments",
     permissions: {
-      create: "adjustment.create",
-      read: "adjustment.read",
-      update: "adjustment.update",
-      delete: "adjustment.delete",
+      create: "adjustments.create",
+      read: "adjustments.read",
+      update: "adjustments.update",
+      delete: "adjustments.delete",
     },
   },
   {
     display: "Serial Numbers",
-    name: "serial_numbers",
+    name: "serial.numbers",
     permissions: {
-      create: "serial_numbers.create",
-      read: "serial_numbers.read",
-      update: "serial_numbers.update",
-      delete: "serial_numbers.delete",
-    },
-  },
-  {
-    display: "Batch/Lot Numbers",
-    name: "batch_numbers",
-    permissions: {
-      create: "batch_numbers.create",
-      read: "batch_numbers.read",
-      update: "batch_numbers.update",
-      delete: "batch_numbers.delete",
-    },
-  },
-  {
-    display: "Barcode Management",
-    name: "barcodes",
-    permissions: {
-      create: "barcodes.create",
-      read: "barcodes.read",
-      update: "barcodes.update",
-      delete: "barcodes.delete",
-    },
-  },
-  {
-    display: "Warehouses",
-    name: "warehouses",
-    permissions: {
-      create: "warehouses.create",
-      read: "warehouses.read",
-      update: "warehouses.update",
-      delete: "warehouses.delete",
-    },
-  },
-  {
-    display: "Stock Takes",
-    name: "stock_takes",
-    permissions: {
-      create: "stock_takes.create",
-      read: "stock_takes.read",
-      update: "stock_takes.update",
-      delete: "stock_takes.delete",
+      create: "serial.numbers.create",
+      read: "serial.numbers.read",
+      update: "serial.numbers.update",
+      delete: "serial.numbers.delete",
     },
   },
   {
@@ -165,13 +125,23 @@ export const permissions: ModulePermissions[] = [
     },
   },
   {
-    display: "Goods Receipt",
-    name: "goods_receipt",
+    display: "Purchase Orders",
+    name: "purchase.orders",
     permissions: {
-      create: "goods_receipt.create",
-      read: "goods_receipt.read",
-      update: "goods_receipt.update",
-      delete: "goods_receipt.delete",
+      create: "purchase.orders.create",
+      read: "purchase.orders.read",
+      update: "purchase.orders.update",
+      delete: "purchase.orders.delete",
+    },
+  },
+  {
+    display: "Goods Receipts",
+    name: "goods.receipts",
+    permissions: {
+      create: "goods.receipts.create",
+      read: "goods.receipts.read",
+      update: "goods.receipts.update",
+      delete: "goods.receipts.delete",
     },
   },
   {
@@ -185,6 +155,16 @@ export const permissions: ModulePermissions[] = [
     },
   },
   {
+    display: "Suppliers Items",
+    name: "suppliers Items",
+    permissions: {
+      create: "suppliers.items.create",
+      read: "suppliers.items.read",
+      update: "suppliers.items.update",
+      delete: "suppliers.items.delete",
+    },
+  },
+  {
     display: "Sales",
     name: "sales",
     permissions: {
@@ -194,6 +174,17 @@ export const permissions: ModulePermissions[] = [
       delete: "sales.delete",
     },
   },
+  
+  {
+    display: "Sales Orders",
+    name: "sales.orders",
+    permissions: {
+      create: "sales.orders.create",
+      read: "sales.orders.read",
+      update: "sales.orders.update",
+      delete: "sales.orders.delete",
+    },
+  },
   {
     display: "POS",
     name: "pos",
@@ -201,7 +192,7 @@ export const permissions: ModulePermissions[] = [
       create: "pos.create",
       read: "pos.read",
       update: "pos.update",
-      delete: "pos.delete",
+      delete: "pos.access",
     },
   },
   {
@@ -212,16 +203,6 @@ export const permissions: ModulePermissions[] = [
       read: "returns.read",
       update: "returns.update",
       delete: "returns.delete",
-    },
-  },
-  {
-    display: "Backorders",
-    name: "backorders",
-    permissions: {
-      create: "backorders.create",
-      read: "backorders.read",
-      update: "backorders.update",
-      delete: "backorders.delete",
     },
   },
   {
@@ -245,13 +226,93 @@ export const permissions: ModulePermissions[] = [
     },
   },
   {
+    display: "Inventory Reports",
+    name: "reports.inventory",
+    permissions: {
+      create: "reports.inventory.create",
+      read: "reports.inventory.read",
+      update: "reports.inventory.update",
+      delete: "reports.inventory.delete",
+    },
+  },
+  {
+    display: "Purchase Reports",
+    name: "reports.purchases",
+    permissions: {
+      create: "reports.purchases.create",
+      read: "reports.purchases.read",
+      update: "reports.purchases.update",
+      delete: "reports.purchases.delete",
+    },
+  },
+  {
+    display: "Sales Reports",
+    name: "reports.sales",
+    permissions: {
+      create: "reports.sales.create",
+      read: "reports.sales.read",
+      update: "reports.sales.update",
+      delete: "reports.sales.delete",
+    },
+  },
+  {
+    display: "Product Reports",
+    name: "reports.products",
+    permissions: {
+      create: "reports.products.create",
+      read: "reports.products.read",
+      update: "reports.products.update",
+      delete: "reports.products.delete",
+    },
+  },
+  {
+    display: "Customer Reports",
+    name: "reports.customers",
+    permissions: {
+      create: "reports.customers.create",
+      read: "reports.customers.read",
+      update: "reports.customers.update",
+      delete: "reports.customers.delete",
+    },
+  },
+  {
     display: "Integrations",
     name: "integrations",
     permissions: {
       create: "integrations.create",
       read: "integrations.read",
       update: "integrations.update",
-      delete: "integrations.delete",
+      delete: "integrations.access",
+    },
+  },
+  {
+    display: "POS Integration",
+    name: "integrations.pos",
+    permissions: {
+      create: "integrations.pos.create",
+      read: "integrations.pos.read",
+      update: "integrations.pos.update",
+      delete: "integrations.pos.access",
+    },
+  },
+  {
+    display: "Accounting Integration",
+    name: "integrations.accounting",
+    permissions: {
+      create: "integrations.accounting.create",
+      read: "integrations.accounting.read",
+      update: "integrations.accounting.update",
+      delete: "integrations.accounting.access",
+    },
+  },
+  {
+    display: "E-commerce Integration",
+    name: "integrations.ecommerce",
+    permissions: {
+      create: "integrations.ecommerce.create",
+      read: "integrations.ecommerce.read",
+      update: "integrations.ecommerce.update",
+      delete: "integrations.ecommerce.access",
     },
   },
   {
@@ -265,13 +326,13 @@ export const permissions: ModulePermissions[] = [
     },
   },
   {
-    display: "Settings",
-    name: "settings",
+    display: "Content",
+    name: "content",
     permissions: {
-      create: "settings.create",
-      read: "settings.read",
-      update: "settings.update",
-      delete: "settings.delete",
+      create: "content.create",
+      read: "content.read",
+      update: "content.update",
+      delete: "content.delete",
     },
   },
   {
@@ -282,6 +343,16 @@ export const permissions: ModulePermissions[] = [
       read: "locations.read",
       update: "locations.update",
       delete: "locations.delete",
+    },
+  },
+  {
+    display: "Tax Settings",
+    name: "tax.settings",
+    permissions: {
+      create: "tax.settings.create",
+      read: "tax.settings.read",
+      update: "tax.settings.update",
+      delete: "tax.settings.access",
     },
   },
   {
@@ -306,22 +377,12 @@ export const permissions: ModulePermissions[] = [
   },
   {
     display: "Company Settings",
-    name: "company_settings",
+    name: "company.settings",
     permissions: {
-      create: "company_settings.create",
-      read: "company_settings.read",
-      update: "company_settings.update",
-      delete: "company_settings.delete",
-    },
-  },
-  {
-    display: "Tax Rates",
-    name: "tax_settings",
-    permissions: {
-      create: "tax_settings.create",
-      read: "tax_settings.read",
-      update: "tax_settings.update",
-      delete: "tax_settings.delete",
+      create: "company.settings.create",
+      read: "company.settings.read",
+      update: "company.settings.update",
+      delete: "company.settings.access",
     },
   },
   {
@@ -334,6 +395,16 @@ export const permissions: ModulePermissions[] = [
       delete: "profile.delete",
     },
   },
+  {
+    display: "Password",
+    name: "password",
+    permissions: {
+      create: "password.create",
+      read: "password.read",
+      update: "password.update",
+      delete: "password.change",
+    },
+  },
 ];
 
 export const adminPermissions = [
@@ -344,7 +415,10 @@ export const adminPermissions = [
   "dashboard.delete",
 
   // Inventory
+  "inventory.create",
   "inventory.read",
+  "inventory.update",
+  "inventory.delete",
 
   // Items
   "items.create",
@@ -382,41 +456,17 @@ export const adminPermissions = [
   "transfers.update",
   "transfers.delete",
 
-  // Adjustment
-  "adjustment.create",
-  "adjustment.read",
-  "adjustment.update",
-  "adjustment.delete",
+  // Adjustments
+  "adjustments.create",
+  "adjustments.read",
+  "adjustments.update",
+  "adjustments.delete",
 
   // Serial Numbers
-  "serial_numbers.create",
-  "serial_numbers.read",
-  "serial_numbers.update",
-  "serial_numbers.delete",
-
-  // Batch Numbers
-  "batch_numbers.create",
-  "batch_numbers.read",
-  "batch_numbers.update",
-  "batch_numbers.delete",
-
-  // Barcodes
-  "barcodes.create",
-  "barcodes.read",
-  "barcodes.update",
-  "barcodes.delete",
-
-  // Warehouses
-  "warehouses.create",
-  "warehouses.read",
-  "warehouses.update",
-  "warehouses.delete",
-
-  // Stock Takes
-  "stock_takes.create",
-  "stock_takes.read",
-  "stock_takes.update",
-  "stock_takes.delete",
+  "serial.numbers.create",
+  "serial.numbers.read",
+  "serial.numbers.update",
+  "serial.numbers.delete",
 
   // Purchases
   "purchases.create",
@@ -424,11 +474,17 @@ export const adminPermissions = [
   "purchases.update",
   "purchases.delete",
 
-  // Goods Receipt
-  "goods_receipt.create",
-  "goods_receipt.read",
-  "goods_receipt.update",
-  "goods_receipt.delete",
+  // Purchase Orders
+  "purchase.orders.create",
+  "purchase.orders.read",
+  "purchase.orders.update",
+  "purchase.orders.delete",
+
+  // Goods Receipts
+  "goods.receipts.create",
+  "goods.receipts.read",
+  "goods.receipts.update",
+  "goods.receipts.delete",
 
   // Suppliers
   "suppliers.create",
@@ -436,29 +492,35 @@ export const adminPermissions = [
   "suppliers.update",
   "suppliers.delete",
 
+  // Suppliers Items
+  "suppliers.items.create",
+  "suppliers.items.read",
+  "suppliers.items.update",
+  "suppliers.items.delete",
+
   // Sales
   "sales.create",
   "sales.read",
   "sales.update",
   "sales.delete",
 
+  // Sales Orders
+  "sales.orders.create",
+  "sales.orders.read",
+  "sales.orders.update",
+  "sales.orders.delete",
+
   // POS
   "pos.create",
   "pos.read",
   "pos.update",
-  "pos.delete",
+  "pos.access",
 
   // Returns
   "returns.create",
   "returns.read",
   "returns.update",
   "returns.delete",
-
-  // Backorders
-  "backorders.create",
-  "backorders.read",
-  "backorders.update",
-  "backorders.delete",
 
   // Customers
   "customers.create",
@@ -472,29 +534,48 @@ export const adminPermissions = [
   "reports.update",
   "reports.delete",
 
+  // Report subcategories
+  "reports.inventory.read",
+  "reports.purchases.read",
+  "reports.sales.read",
+  "reports.products.read",
+  "reports.customers.read",
+
   // Integrations
   "integrations.create",
   "integrations.read",
   "integrations.update",
-  "integrations.delete",
+  "integrations.access",
+  "integrations.pos.access",
+  "integrations.accounting.read",
+  "integrations.accounting.access",
+  "integrations.ecommerce.access",
+  "integrations.api.access",
 
-  // API Settings
+   // API Settings
   "api_settings.create",
   "api_settings.read",
   "api_settings.update",
   "api_settings.delete",
 
+
   // Settings
   "settings.create",
   "settings.read",
   "settings.update",
-  "settings.delete",
+  "settings.access",
 
   // Locations
   "locations.create",
   "locations.read",
   "locations.update",
   "locations.delete",
+
+  // Tax Settings
+  "tax.settings.create",
+  "tax.settings.read",
+  "tax.settings.update",
+  "tax.settings.access",
 
   // Users
   "users.create",
@@ -509,22 +590,22 @@ export const adminPermissions = [
   "roles.delete",
 
   // Company Settings
-  "company_settings.create",
-  "company_settings.read",
-  "company_settings.update",
-  "company_settings.delete",
-
-  // Tax Settings
-  "tax_settings.create",
-  "tax_settings.read",
-  "tax_settings.update",
-  "tax_settings.delete",
+  "company.settings.create",
+  "company.settings.read",
+  "company.settings.update",
+  "company.settings.access",
 
   // Profile
   "profile.create",
   "profile.read",
   "profile.update",
   "profile.delete",
+
+  // Password
+  "password.create",
+  "password.read",
+  "password.update",
+  "password.change",
 ];
 
 export const managerPermissions = [
@@ -558,91 +639,121 @@ export const managerPermissions = [
   "transfers.read",
   "transfers.update",
 
-  // Adjustment
-  "adjustment.create",
-  "adjustment.read",
-  "adjustment.update",
+  // Adjustments
+  "adjustments.create",
+  "adjustments.read",
+  "adjustments.update",
 
   // Serial Numbers
-  "serial_numbers.read",
-  "serial_numbers.update",
-
-  // Batch Numbers
-  "batch_numbers.read",
-  "batch_numbers.update",
-
-  // Barcodes
-  "barcodes.read",
-
-  // Warehouses
-  "warehouses.read",
-
-  // Stock Takes
-  "stock_takes.create",
-  "stock_takes.read",
-  "stock_takes.update",
+  "serial.numbers.read",
+  "serial.numbers.update",
 
   // Purchases
   "purchases.create",
   "purchases.read",
   "purchases.update",
 
-  // Goods Receipt
-  "goods_receipt.create",
-  "goods_receipt.read",
-  "goods_receipt.update",
+  // Purchase Orders
+  "purchase.orders.create",
+  "purchase.orders.read",
+  "purchase.orders.update",
+
+  // Goods Receipts
+  "goods.receipts.create",
+  "goods.receipts.read",
+  "goods.receipts.update",
 
   // Suppliers
   "suppliers.read",
   "suppliers.update",
+
+  // Suppliers
+  "suppliers.items.read",
+  "suppliers.items.update",
+
 
   // Sales
   "sales.create",
   "sales.read",
   "sales.update",
 
+  // Sales Orders
+  "sales.orders.create",
+  "sales.orders.read",
+  "sales.orders.update",
+
   // POS
   "pos.create",
   "pos.read",
+  "pos.access",
 
   // Returns
   "returns.create",
   "returns.read",
   "returns.update",
 
-  // Backorders
-  "backorders.read",
-  "backorders.update",
-
   // Customers
   "customers.read",
   "customers.update",
 
-  // Reports
+  // Reports - MUST HAVE PARENT PERMISSION
   "reports.read",
+  "reports.inventory.read",
+  "reports.purchases.read",
+  "reports.sales.read",
+  "reports.products.read",
+  "reports.customers.read",
+
+  // Integrations - ADD PARENT PERMISSION
+  "integrations.access",
+  "integrations.pos.access",
+  "integrations.accounting.access",
+  "integrations.api.access",
+  "api.keys.read",
+  
+
+  // Settings - ADD PARENT PERMISSION
+  "settings.access",
+  "locations.read",
+  "tax.settings.read",
+  "users.read",
+  "roles.read",
+  "company.settings.access",
 
   // Profile
   "profile.read",
   "profile.update",
+
+  // Password
+  "password.update",
+  "password.change",
 ];
 
 export const userPermissions = [
   // Dashboard
   "dashboard.read",
 
-  // Products
+  // Inventory - ADD PARENT PERMISSION TO SEE SECTION
+  "inventory.read",
+
+  // Items
   "items.read",
 
   // Stock
   "stock.read",
 
-  // Sales
+  // Sales - ALREADY HAS PARENT
   "sales.create",
   "sales.read",
+
+  // Sales Orders
+  "sales.orders.create",
+  "sales.orders.read",
 
   // POS
   "pos.create",
   "pos.read",
+  "pos.access",
 
   // Returns
   "returns.create",
@@ -651,9 +762,27 @@ export const userPermissions = [
   // Customers
   "customers.read",
 
+  // Reports - MUST HAVE PARENT PERMISSION
+  "reports.read",
+  "reports.sales.read",
+  "reports.products.read",
+
+  // Purchases - ADD PARENT PERMISSION
+  "purchases.read",
+
+  // Suppliers
+  "suppliers.read",
+
+  // Settings - ADD FOR PROFILE ACCESS
+  "settings.access",
+
   // Profile
   "profile.read",
   "profile.update",
+
+  // Password
+  "password.update",
+  "password.change",
 ];
 
 // Helper function to get all permission strings

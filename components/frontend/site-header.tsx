@@ -100,7 +100,7 @@ const features = [
     icon: Building2,
     title: "Supplier Management",
     description:
-      "Comprehensive supplier database with product-supplier relationships and vendor performance tracking.",
+      "Comprehensive supplier database with product-supplier relationships and supplier performance tracking.",
     href: "/features/supplier-management",
   },
   {
@@ -160,7 +160,7 @@ export default function SiteHeader({ session }: { session: Session | null }) {
                       <h4 className="text-lg font-medium">Features</h4>
                       <Link
                         href="/features"
-                        className="text-sm text-blue-500 hover:underline"
+                        className="text-sm text-rose-500 hover:underline"
                       >
                         View all
                       </Link>
@@ -176,10 +176,10 @@ export default function SiteHeader({ session }: { session: Session | null }) {
                         >
                           <div className="flex items-start gap-4">
                             <div className="p-2 bg-muted rounded-md group-hover:bg-muted/80">
-                              <feature.icon className="h-6 w-6 text-blue-500" />
+                              <feature.icon className="h-6 w-6 text-rose-500" />
                             </div>
                             <div>
-                              <h5 className="font-medium mb-1 group-hover:text-blue-500">
+                              <h5 className="font-medium mb-1 group-hover:text-rose-500">
                                 {feature.title}
                               </h5>
                               <p className="text-sm text-muted-foreground line-clamp-2">
@@ -319,7 +319,7 @@ export default function SiteHeader({ session }: { session: Session | null }) {
                       onClick={() => setOpen(false)}
                     >
                       <div className="p-2 bg-muted rounded-md">
-                        <feature.icon className="h-6 w-6 text-blue-500" />
+                        <feature.icon className="h-6 w-6 text-rose-500" />
                       </div>
                       <div>
                         <h5 className="font-medium mb-1">{feature.title}</h5>

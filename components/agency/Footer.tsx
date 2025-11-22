@@ -83,7 +83,7 @@ const Footer = () => {
               href="/"
               className="text-2xl font-bold flex items-center gap-2 mb-6"
             >
-              <span className="w-3 h-3 rounded-full bg-blue-500"></span>
+              <span className="w-3 h-3 rounded-full bg-rose-500"></span>
               devStudio
             </Link>
             <p className="text-gray-400 mb-8 pr-8">
@@ -141,9 +141,9 @@ const Footer = () => {
               <input
                 type="email"
                 placeholder="Enter your email"
-                className="flex-1 px-4 py-3 bg-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 px-4 py-3 bg-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
               />
-              <button className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
+              <button className="px-6 py-3 bg-rose-600 hover:bg-rose-700 rounded-lg transition-colors">
                 Subscribe
               </button>
             </div>

@@ -8,6 +8,7 @@ import { getAuthenticatedUser } from "@/config/useAuth";
 import { getOrgRoles } from "@/actions/roles";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import InvitesTable from "@/components/dashboard/Tables/InvitesTable";
+import { getOrgLocations } from "@/actions/locations";
 
 export default async function page() {
   
@@ -17,12 +18,19 @@ export default async function page() {
   const orgName = user?.orgName ?? "";
   const users = (await getOrgUsers(orgId)) || [];
   const invites = (await getOrgInvites(orgId)) || [];
+  const orgLocations = await getOrgLocations();
   const res = await getOrgRoles(orgId);
   const rolesData = res.data || [];
   const roles = rolesData.map((role)=>{
     return{
       label: role.displayName,
       value: role.id,
+    }
+  });
+  const locations = orgLocations.map((loc)=>{
+    return{
+      label: loc.name,
+      value: loc.id,
     }
   });
   
@@ -49,7 +57,7 @@ export default async function page() {
                   href="/dashboard/users/new"
                   data={users}
                   model="user"
-                  modalForm={<UserInvitationForm roles={roles} orgId={orgId} orgName={orgName}/>}
+                  modalForm={<UserInvitationForm locations= {locations} roles={roles} orgId={orgId} orgName={orgName}/>}
                 />
                 <DataTable columns={columns} data={users} />
             </TabsContent>

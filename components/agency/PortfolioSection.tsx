@@ -106,7 +106,7 @@ const PortfolioSection = () => {
                 px-6 py-2 rounded-full text-sm font-medium transition-all duration-300
                 ${
                   activeCategory === category
-                    ? "bg-blue-600 text-white"
+                    ? "bg-rose-600 text-white"
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }
               `}
@@ -138,7 +138,7 @@ const PortfolioSection = () => {
               <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-sm text-blue-300 mb-2">
+                    <p className="text-sm text-rose-300 mb-2">
                       {project.category}
                     </p>
                     <h3 className="text-xl font-bold mb-2">{project.title}</h3>
@@ -172,7 +172,7 @@ const PortfolioSection = () => {
 
         {/* Call to Action */}
         <div className="text-center mt-16">
-          <button className="inline-flex items-center justify-center px-8 py-4 rounded-full bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium hover:from-blue-700 hover:to-blue-800 transition-all duration-300">
+          <button className="inline-flex items-center justify-center px-8 py-4 rounded-full bg-gradient-to-r from-rose-600 to-rose-700 text-white font-medium hover:from-rose-700 hover:to-rose-800 transition-all duration-300">
             View All Projects
             <ArrowUpRight className="ml-2 w-5 h-5" />
           </button>

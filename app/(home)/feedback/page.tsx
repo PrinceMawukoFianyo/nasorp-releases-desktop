@@ -24,7 +24,7 @@ const feedbackTypeColors = {
     "text-purple-600 bg-purple-100 dark:bg-purple-900/50 dark:text-purple-400",
   IMPROVEMENT:
     "text-emerald-600 bg-emerald-100 dark:bg-emerald-900/50 dark:text-emerald-400",
-  THANKS: "text-blue-600 bg-blue-100 dark:bg-blue-900/50 dark:text-blue-400",
+  THANKS: "text-rose-600 bg-rose-100 dark:bg-rose-900/50 dark:text-rose-400",
   OTHER: "text-slate-600 bg-slate-100 dark:bg-slate-900/50 dark:text-slate-400",
 };
 
@@ -32,7 +32,7 @@ const statusColors = {
   PENDING:
     "text-yellow-600 bg-yellow-100 dark:bg-yellow-900/50 dark:text-yellow-400",
   IN_PROGRESS:
-    "text-blue-600 bg-blue-100 dark:bg-blue-900/50 dark:text-blue-400",
+    "text-rose-600 bg-rose-100 dark:bg-rose-900/50 dark:text-rose-400",
   COMPLETED:
     "text-emerald-600 bg-emerald-100 dark:bg-emerald-900/50 dark:text-emerald-400",
   APPROVED:

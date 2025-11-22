@@ -26,7 +26,7 @@ const contactInfo = [
     icon: Phone,
     title: "Give us a call",
     details: ["+1 (555) 123-4567", "+1 (555) 765-4321"],
-    color: "blue",
+    color: "rose",
   },
   {
     icon: Mail,
@@ -87,7 +87,7 @@ const ContactSection = () => {
       {/* Background Elements */}
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]"></div>
-        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-100 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
+        <div className="absolute top-0 right-0 w-96 h-96 bg-rose-100 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-100 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
       </div>
 
@@ -142,7 +142,7 @@ const ContactSection = () => {
                 <input
                   type="text"
                   {...register("name", { required: "Name is required" })}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-colors"
                   placeholder="John Doe"
                 />
                 {errors.name && (
@@ -166,7 +166,7 @@ const ContactSection = () => {
                       message: "Invalid email address",
                     },
                   })}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-colors"
                   placeholder="john@example.com"
                 />
                 {errors.email && (
@@ -184,7 +184,7 @@ const ContactSection = () => {
                 <input
                   type="tel"
                   {...register("phone")}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-colors"
                   placeholder="+1 (555) 000-0000"
                 />
               </div>
@@ -198,7 +198,7 @@ const ContactSection = () => {
                   {...register("service", {
                     required: "Please select a service",
                   })}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-colors"
                 >
                   <option value="">Select a service</option>
                   {services.map((service, index) => (
@@ -222,7 +222,7 @@ const ContactSection = () => {
                 <textarea
                   {...register("message", { required: "Message is required" })}
                   rows={4}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors resize-none"
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-colors resize-none"
                   placeholder="Tell us about your project..."
                 />
                 {errors.message && (
@@ -242,8 +242,8 @@ const ContactSection = () => {
       font-medium transition-all duration-300
       ${
         isSubmitting
-          ? "bg-blue-500 cursor-not-allowed"
-          : "bg-blue-600 hover:bg-blue-700"
+          ? "bg-rose-500 cursor-not-allowed"
+          : "bg-rose-600 hover:bg-rose-700"
       }
       text-white
     `}
@@ -290,7 +290,7 @@ const ContactSection = () => {
               ].map((feature, index) => (
                 <div key={index} className="flex gap-4">
                   <div className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
-                    <feature.icon className="w-6 h-6 text-blue-400" />
+                    <feature.icon className="w-6 h-6 text-rose-400" />
                   </div>
                   <div>
                     <h4 className="font-semibold mb-2">{feature.title}</h4>
@@ -303,7 +303,7 @@ const ContactSection = () => {
             <div className="mt-8">
               <a
                 href="#portfolio"
-                className="inline-flex items-center text-blue-400 hover:text-blue-300 transition-colors"
+                className="inline-flex items-center text-rose-400 hover:text-rose-300 transition-colors"
               >
                 View Our Portfolio
                 <ArrowRight className="w-5 h-5 ml-2" />

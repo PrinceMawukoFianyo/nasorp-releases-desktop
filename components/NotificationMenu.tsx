@@ -81,14 +81,14 @@ export function NotificationMenu({
                     ? "border-yellow-500 bg-yellow-50"
                     : item.status === "DANGER"
                       ? "border-red-500 bg-red-50"
-                      : "border-blue-500 bg-blue-50";
+                      : "border-rose-500 bg-rose-50";
 
                 const textClass =
                   item.status === "WARNING"
                     ? "text-yellow-600"
                     : item.status === "DANGER"
                       ? "text-red-600"
-                      : "text-blue-600";
+                      : "text-rose-600";
 
                 const Icon =
                   item.status === "WARNING" || item.status === "DANGER"

@@ -108,7 +108,7 @@ const TagInput: React.FC<TagInputProps> = ({
           onKeyPress={handleKeyPress}
           placeholder={placeholder}
           disabled={disabled}
-          className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+          className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-rose-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
           aria-label="Tag input"
           aria-invalid={!!error}
           aria-describedby={error ? "tag-input-error" : undefined}
@@ -117,7 +117,7 @@ const TagInput: React.FC<TagInputProps> = ({
           type="button"
           onClick={addTag}
           disabled={disabled || !inputValue.trim()}
-          className="p-2 text-white bg-blue-500 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          className="p-2 text-white bg-rose-500 rounded-md hover:bg-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
           aria-label="Add tag"
         >
           <Plus size={20} />

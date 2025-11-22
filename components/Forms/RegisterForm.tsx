@@ -82,7 +82,7 @@ export default function RegisterForm() {
           <div className="grid gap-2  mt-10 md:mt-0">
             <h1 className="text-3xl font-bold">Create an account</h1>
             <p className="text-muted-foreground text-sm">
-              Create your <span className="text-blue-600">Business Inventory</span>{" "}
+              Create your <span className="text-rose-600">Business Inventory</span>{" "}
               Account today to get started
             </p>
           </div>

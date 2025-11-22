@@ -70,6 +70,40 @@ export async function getOrgApiKeys(orgId: string) {
   }
 }
 
+export async function getOrgKey(orgId: string): Promise<string | null | undefined> {
+  try {
+    if (!orgId) {
+      console.error("❌ getOrgKey: No orgId provided");
+      return null;
+    }
+
+    console.log("🔍 Fetching API key for orgId:", orgId);
+
+    const key = await db.apiKey.findFirst({
+      where: {
+        orgId,
+      },
+    });
+
+    if (!key) {
+      console.warn("⚠️ No API key found in database for orgId:", orgId);
+      return null;
+    }
+
+    console.log("✅ API key found for orgId:", orgId);
+    
+    // ✅ Return the key - adjust field name based on your schema
+    // Common field names: key, value, apiKey, token
+    return key.key || null;
+  } catch (error) {
+    console.error("❌ getOrgKey database error:", error);
+    
+    // Return null so fallback can be used
+    return null;
+  }
+}
+
+
 export async function revokeAPIKey(id: string) {
   try {
     const user = await getAuthenticatedUser();

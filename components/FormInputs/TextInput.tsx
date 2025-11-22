@@ -20,6 +20,7 @@ type TextInputProps = {
   placeholder?: string;
   icon?: any;
   isRequired?: boolean;
+  readonly?: boolean;
 };
 export default function TextInput({
   register,
@@ -32,6 +33,8 @@ export default function TextInput({
   icon,
   placeholder,
   isRequired = true,
+  readonly = false,
+
 }: TextInputProps) {
   const Icon = icon;
   return (
@@ -66,6 +69,7 @@ export default function TextInput({
             </div>
           )}
           <input
+            readOnly = {readonly}
             id={name}
             type={type}
             {...register(`${name}`, { required: isRequired })}

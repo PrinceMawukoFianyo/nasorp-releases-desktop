@@ -52,7 +52,7 @@ export const columns: ColumnDef<BriefBlog>[] = [
           target="_blank"
           href={`/blogs/${blog.id}`}
         >
-          <Eye className="text-blue-500" />
+          <Eye className="text-rose-500" />
         </Link>
       );
     },

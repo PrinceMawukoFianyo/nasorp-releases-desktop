@@ -1,12 +1,44 @@
 import { generateSlug } from "@/lib/generateSlug";
 import { db } from "@/prisma/db";
 import { ItemCreateProps} from "@/types/item";
+import { headers } from "next/headers";
 import { NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
   try {
     
+    const headersList = await headers();
+        const apiKey = headersList.get("x-api-key");
     
+        if (!apiKey) {
+           return new Response(
+          JSON.stringify({
+            success: false,
+            error: "API Key is required",
+            data: null,
+          }),
+          {
+            status: 401,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+        }
+    
+        const validKey = await db.apiKey.findUnique({ where: { key: apiKey } });
+        if (!validKey) {
+           return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Invalid API Key",
+            data: null,
+           
+          }),
+          {
+            status: 403,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+        }
     // Get query parameters for pagination
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1', 10);

@@ -25,14 +25,21 @@ export type InviteData = {
     orgName: string;
     roleId: string;
     roleName: string; 
+    locationId: string;
+    locationName: string; 
 }
 
 export function UserInvitationForm({
+  locations,
   roles,
   orgId,
   orgName,
   
 }: {
+  locations: {
+    label: string;
+    value: string;
+  }[];
   roles: {
     label: string;
     value: string;
@@ -44,6 +51,7 @@ export function UserInvitationForm({
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
   const [selectedRole, setSelectedRole] = useState<any>(roles[0]);
+  const [selectedLocation, setSelectedLocation] = useState<any>(roles[0]);
   const router = useRouter();
   const sendInvitation = async () => {
     setLoading(true);
@@ -57,6 +65,8 @@ export function UserInvitationForm({
       orgName,
       roleName: selectedRole.label,
       roleId: selectedRole.value as string,
+      locationName: selectedLocation.label,
+      locationId: selectedLocation.value as string,
     };
     console.log(data);
     try {
@@ -110,6 +120,12 @@ export function UserInvitationForm({
                 onKeyPress={(e) => e.key === "Enter" && sendInvitation()}
               />
               {err && <p className="text-red-500 -mt-1">{err}</p>}
+              <FormSelectInput
+                label="User Location"
+                options={locations}
+                option={selectedLocation}
+                setOption={setSelectedLocation}
+              />
               <FormSelectInput
                 label="User Role"
                 options={roles}

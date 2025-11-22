@@ -17,9 +17,9 @@ const CustomCheckbox = forwardRef<HTMLInputElement, CustomCheckboxProps>(
           ref={ref}
           {...props}
           className={cn(
-            "w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded",
-            "focus:ring-blue-500 focus:ring-2",
-            "checked:bg-blue-600 checked:border-blue-600",
+            "w-5 h-5 text-rose-600 bg-gray-100 border-gray-300 rounded",
+            "focus:ring-rose-500 focus:ring-2",
+            "checked:bg-rose-600 checked:border-rose-600",
             className
           )}
         />

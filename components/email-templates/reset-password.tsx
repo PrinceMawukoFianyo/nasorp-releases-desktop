@@ -29,7 +29,7 @@ export const ResetPasswordEmail = ({
       <Preview>NextAdmin reset your password</Preview>
       <Body style={main}>
         <Container style={container}>
-          <Heading style={textBlue} className="text-center ">
+          <Heading style={textrose} className="text-center ">
             Next Admin
           </Heading>
           <Section>
@@ -90,7 +90,7 @@ const text = {
   lineHeight: "26px",
 };
 
-const textBlue = {
+const textrose = {
   color: "#007ee6",
 };
 

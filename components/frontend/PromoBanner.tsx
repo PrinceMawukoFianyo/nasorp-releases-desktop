@@ -13,8 +13,8 @@ const PromoBanner: React.FC = () => {
       <div
         className="
         sticky top-0 z-[999]
-        bg-gradient-to-r from-blue-600 via-indigo-500 to-blue-600
-        hover:from-blue-500 hover:via-indigo-400 hover:to-blue-500
+        bg-gradient-to-r from-rose-600 via-indigo-500 to-rose-600
+        hover:from-rose-500 hover:via-indigo-400 hover:to-rose-500
         transition-all duration-300
       "
       >

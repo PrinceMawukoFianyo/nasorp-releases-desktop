@@ -55,10 +55,10 @@ export default function HardwarePlumbingFAQ() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
-    <section className="py-16 bg-blue-50">
+    <section className="py-16 bg-rose-50">
       <div className="container mx-auto px-4 max-w-4xl">
         <div className="text-center mb-12">
-          <p className="text-sm font-semibold text-blue-600 mb-2 uppercase tracking-wide">
+          <p className="text-sm font-semibold text-rose-600 mb-2 uppercase tracking-wide">
             Frequently Asked Questions
           </p>
           <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
@@ -80,9 +80,9 @@ export default function HardwarePlumbingFAQ() {
                     {faq.question}
                   </h3>
                   {openIndex === index ? (
-                    <Minus className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                    <Minus className="w-5 h-5 text-rose-600 flex-shrink-0" />
                   ) : (
-                    <Plus className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                    <Plus className="w-5 h-5 text-rose-600 flex-shrink-0" />
                   )}
                 </div>
               </button>

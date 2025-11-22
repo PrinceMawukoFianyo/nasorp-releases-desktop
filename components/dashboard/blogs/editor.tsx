@@ -81,7 +81,7 @@ export default function VEditor({
       Link.configure({
         openOnClick: false,
         HTMLAttributes: {
-          class: "text-blue-500 underline",
+          class: "text-rose-500 underline",
         },
       }),
       Subscript,

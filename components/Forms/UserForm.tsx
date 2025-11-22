@@ -199,7 +199,7 @@ export default function UserForm({
                 <div className="grid gap-6">
                   <Select
                     isSearchable
-                    primaryColor="blue"
+                    primaryColor="rose"
                     value={status}
                     onChange={handleChange}
                     options={options}

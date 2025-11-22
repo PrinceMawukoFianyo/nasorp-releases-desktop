@@ -45,11 +45,11 @@ export interface PaginatedResponse<T> {
   pagination: Pagination;
 }
 
-// export type ApiResponse<T> = {
-//   data: T;
-//   success: boolean;
-//   error: string | null; 
-// } 
+export type ApiResponse<T> = {
+   data: T;
+   success: boolean;
+   error: string | null; 
+ } 
  
 
 export type ProductPayload = {
@@ -66,10 +66,64 @@ export type UpdateProductPayload = {
   numberPlate?: string;
 };
 
+interface BriefItemsData {
+
+}
+//export type BriefItemsResponse = ApiResponse <BriefItemData>;
+
 export type ProductApiResponse = {
   success: boolean;
   data?: any;
   error?: string;
 };
+interface ProductData {
+  id: string
+  name: string
+  sku: string
+  slug: string
+  barcode?: string | null
+  description?: string | null
+  dimensions?: string | null
+  weight?: string | null
+  upc?: string | null
+  ean?: string | null
+  mpn?: string | null
+  isbn?: string | null
+  thumbnail: string
+  imageUrl: string[]
+  categoryId?: string | null
+  salesCount: number
+  salesTotal: number
+  taxRateId?: string | null
+  orgId: string
+  tax: number
+  brandId?: string | null
+  unitId?: string | null
+  unitOfMeasure?: string | null
+  costPrice: number
+  sellingPrice: number
+  minStockLevel: number
+  maxStockLevel?: number | null
+  isActive: boolean
+  isSerialTracked: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+interface ProductResponse {
+  success: boolean;
+  data: ProductData;
+  error?: string;
+}
+
+interface ProductListResponse {
+  success: boolean;
+  data: ProductData[];
+  error?: string;
+}
+
+export type {ProductData, ProductResponse, ProductListResponse};
 
 // export type ItemCreateProps = ApiResponse<ItemResponse>;
+
+

@@ -38,7 +38,7 @@ export default function WaitList() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-950 to-blue-900 flex flex-col items-center justify-center px-4 py-20 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-b from-rose-950 to-rose-900 flex flex-col items-center justify-center px-4 py-20 relative overflow-hidden">
       {/* Grid Background */}
       <div
         className="absolute inset-0"
@@ -54,7 +54,7 @@ export default function WaitList() {
       />
 
       {/* Glowing Orbs */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500 rounded-full opacity-20 blur-3xl" />
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-rose-500 rounded-full opacity-20 blur-3xl" />
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500 rounded-full opacity-20 blur-3xl" />
 
       {/* Main Content */}
@@ -86,9 +86,9 @@ export default function WaitList() {
                 {...register("email")}
                 type="email"
                 placeholder="Enter your email"
-                className={`w-full px-6 py-4 rounded-lg bg-blue-800/20 backdrop-blur-sm text-white 
-                  placeholder-gray-400 border ${errors.email ? "border-red-500" : "border-blue-700/50"}
-                  focus:outline-none focus:border-blue-500 transition-colors`}
+                className={`w-full px-6 py-4 rounded-lg bg-rose-800/20 backdrop-blur-sm text-white 
+                  placeholder-gray-400 border ${errors.email ? "border-red-500" : "border-rose-700/50"}
+                  focus:outline-none focus:border-rose-500 transition-colors`}
                 disabled={isSubmitting || isSubmitSuccessful}
               />
               {errors.email && (
@@ -129,13 +129,13 @@ export default function WaitList() {
         {/* Waitlist Counter */}
         <div className="flex items-center justify-center gap-2 mb-12">
           <div className="flex -space-x-2">
-            <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-semibold ring-2 ring-blue-900">
+            <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-semibold ring-2 ring-rose-900">
               JD
             </div>
-            <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold ring-2 ring-blue-900">
+            <div className="w-10 h-10 rounded-full bg-rose-600 flex items-center justify-center text-white font-semibold ring-2 ring-rose-900">
               AS
             </div>
-            <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold ring-2 ring-blue-900">
+            <div className="w-10 h-10 rounded-full bg-rose-500 flex items-center justify-center text-white font-semibold ring-2 ring-rose-900">
               MK
             </div>
           </div>

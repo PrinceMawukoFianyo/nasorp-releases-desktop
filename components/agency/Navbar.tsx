@@ -45,7 +45,7 @@ const Navbar = () => {
               href="/agency"
               className="text-2xl font-bold text-gray-900 flex items-center gap-2"
             >
-              <span className="w-3 h-3 rounded-full bg-blue-600"></span>
+              <span className="w-3 h-3 rounded-full bg-rose-600"></span>
               devStudio
             </Link>
           </div>
@@ -57,7 +57,7 @@ const Navbar = () => {
                 <Link
                   key={item.label}
                   href={item.href}
-                  className="text-gray-600 hover:text-blue-600 transition-colors text-sm font-medium"
+                  className="text-gray-600 hover:text-rose-600 transition-colors text-sm font-medium"
                 >
                   {item.label}
                 </Link>
@@ -69,7 +69,7 @@ const Navbar = () => {
           <div className="hidden md:block flex-shrink-0">
             <Link
               href="/agency/contact"
-              className="bg-blue-600 text-white px-6 py-2.5 rounded-full text-sm font-medium hover:bg-blue-700 transition-colors"
+              className="bg-rose-600 text-white px-6 py-2.5 rounded-full text-sm font-medium hover:bg-rose-700 transition-colors"
             >
               Start Project
             </Link>
@@ -103,7 +103,7 @@ const Navbar = () => {
                 key={item.label}
                 href={item.href}
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="block px-4 py-2 text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-colors text-sm font-medium"
+                className="block px-4 py-2 text-gray-600 hover:text-rose-600 hover:bg-gray-50 rounded-lg transition-colors text-sm font-medium"
               >
                 {item.label}
               </Link>
@@ -111,7 +111,7 @@ const Navbar = () => {
             <div className="px-4 pt-2">
               <Link
                 href="/agency/contact"
-                className="w-full bg-blue-600 text-white px-6 py-2.5 rounded-full text-sm font-medium hover:bg-blue-700 transition-colors"
+                className="w-full bg-rose-600 text-white px-6 py-2.5 rounded-full text-sm font-medium hover:bg-rose-700 transition-colors"
               >
                 Start Project
               </Link>

@@ -22,7 +22,7 @@ export default async function ChangelogsPage() {
                 <div>
                   <CardTitle className="text-xl">{log.title}</CardTitle>
                   <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
-                    <span className="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400">
+                    <span className="px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-600 dark:bg-rose-900/50 dark:text-rose-400">
                       {log.version}
                     </span>
                     <span>•</span>

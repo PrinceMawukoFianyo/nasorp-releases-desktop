@@ -17,7 +17,7 @@ const Footer = () => {
                 <a
                   href="#"
                   title=""
-                  className="flex items-center justify-center text-white transition-all duration-200 bg-gray-800 rounded-full w-7 h-7 hover:bg-blue-600 focus:bg-blue-600"
+                  className="flex items-center justify-center text-white transition-all duration-200 bg-gray-800 rounded-full w-7 h-7 hover:bg-rose-600 focus:bg-rose-600"
                 >
                   <svg
                     className="w-4 h-4"
@@ -34,7 +34,7 @@ const Footer = () => {
                 <a
                   href="#"
                   title=""
-                  className="flex items-center justify-center text-white transition-all duration-200 bg-gray-800 rounded-full w-7 h-7 hover:bg-blue-600 focus:bg-blue-600"
+                  className="flex items-center justify-center text-white transition-all duration-200 bg-gray-800 rounded-full w-7 h-7 hover:bg-rose-600 focus:bg-rose-600"
                 >
                   <svg
                     className="w-4 h-4"
@@ -51,7 +51,7 @@ const Footer = () => {
                 <a
                   href="#"
                   title=""
-                  className="flex items-center justify-center text-white transition-all duration-200 bg-gray-800 rounded-full w-7 h-7 hover:bg-blue-600 focus:bg-blue-600"
+                  className="flex items-center justify-center text-white transition-all duration-200 bg-gray-800 rounded-full w-7 h-7 hover:bg-rose-600 focus:bg-rose-600"
                 >
                   <svg
                     className="w-4 h-4"
@@ -70,7 +70,7 @@ const Footer = () => {
                 <a
                   href="#"
                   title=""
-                  className="flex items-center justify-center text-white transition-all duration-200 bg-gray-800 rounded-full w-7 h-7 hover:bg-blue-600 focus:bg-blue-600"
+                  className="flex items-center justify-center text-white transition-all duration-200 bg-gray-800 rounded-full w-7 h-7 hover:bg-rose-600 focus:bg-rose-600"
                 >
                   <svg
                     className="w-4 h-4"
@@ -99,7 +99,7 @@ const Footer = () => {
                 <a
                   href="#"
                   title=""
-                  className="flex text-base text-black transition-all duration-200 hover:text-blue-600 focus:text-blue-600"
+                  className="flex text-base text-black transition-all duration-200 hover:text-rose-600 focus:text-rose-600"
                 >
                   {" "}
                   About{" "}
@@ -110,7 +110,7 @@ const Footer = () => {
                 <a
                   href="#"
                   title=""
-                  className="flex text-base text-black transition-all duration-200 hover:text-blue-600 focus:text-blue-600"
+                  className="flex text-base text-black transition-all duration-200 hover:text-rose-600 focus:text-rose-600"
                 >
                   {" "}
                   Features{" "}
@@ -121,7 +121,7 @@ const Footer = () => {
                 <a
                   href="#"
                   title=""
-                  className="flex text-base text-black transition-all duration-200 hover:text-blue-600 focus:text-blue-600"
+                  className="flex text-base text-black transition-all duration-200 hover:text-rose-600 focus:text-rose-600"
                 >
                   {" "}
                   Works{" "}
@@ -132,7 +132,7 @@ const Footer = () => {
                 <a
                   href="#"
                   title=""
-                  className="flex text-base text-black transition-all duration-200 hover:text-blue-600 focus:text-blue-600"
+                  className="flex text-base text-black transition-all duration-200 hover:text-rose-600 focus:text-rose-600"
                 >
                   {" "}
                   Career{" "}
@@ -151,7 +151,7 @@ const Footer = () => {
                 <a
                   href="#"
                   title=""
-                  className="flex text-base text-black transition-all duration-200 hover:text-blue-600 focus:text-blue-600"
+                  className="flex text-base text-black transition-all duration-200 hover:text-rose-600 focus:text-rose-600"
                 >
                   {" "}
                   Customer Support{" "}
@@ -162,7 +162,7 @@ const Footer = () => {
                 <a
                   href="#"
                   title=""
-                  className="flex text-base text-black transition-all duration-200 hover:text-blue-600 focus:text-blue-600"
+                  className="flex text-base text-black transition-all duration-200 hover:text-rose-600 focus:text-rose-600"
                 >
                   {" "}
                   Delivery Details{" "}
@@ -173,7 +173,7 @@ const Footer = () => {
                 <a
                   href="#"
                   title=""
-                  className="flex text-base text-black transition-all duration-200 hover:text-blue-600 focus:text-blue-600"
+                  className="flex text-base text-black transition-all duration-200 hover:text-rose-600 focus:text-rose-600"
                 >
                   {" "}
                   Terms & Conditions{" "}
@@ -184,7 +184,7 @@ const Footer = () => {
                 <a
                   href="#"
                   title=""
-                  className="flex text-base text-black transition-all duration-200 hover:text-blue-600 focus:text-blue-600"
+                  className="flex text-base text-black transition-all duration-200 hover:text-rose-600 focus:text-rose-600"
                 >
                   {" "}
                   Privacy Policy{" "}
@@ -208,13 +208,13 @@ const Footer = () => {
                   name="email"
                   id="email"
                   placeholder="Enter your email"
-                  className="block w-full p-4 text-black placeholder-gray-500 transition-all duration-200 bg-white border border-gray-200 rounded-md focus:outline-none focus:border-blue-600 caret-blue-600"
+                  className="block w-full p-4 text-black placeholder-gray-500 transition-all duration-200 bg-white border border-gray-200 rounded-md focus:outline-none focus:border-rose-600 caret-rose-600"
                 />
               </div>
 
               <button
                 type="submit"
-                className="inline-flex items-center justify-center px-6 py-4 mt-3 font-semibold text-white transition-all duration-200 bg-blue-600 rounded-md hover:bg-blue-700 focus:bg-blue-700"
+                className="inline-flex items-center justify-center px-6 py-4 mt-3 font-semibold text-white transition-all duration-200 bg-rose-600 rounded-md hover:bg-rose-700 focus:bg-rose-700"
               >
                 Subscribe
               </button>

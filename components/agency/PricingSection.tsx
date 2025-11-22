@@ -21,7 +21,7 @@ const pricingPlans = [
     ],
     popular: false,
     buttonText: "Get Started",
-    color: "blue",
+    color: "rose",
   },
   {
     name: "Professional",
@@ -175,7 +175,7 @@ const PricingSection = () => {
           </p>
           <p className="text-sm text-gray-500">
             Need a custom solution?
-            <button className="text-blue-600 font-medium ml-2 hover:text-blue-700">
+            <button className="text-rose-600 font-medium ml-2 hover:text-rose-700">
               Contact our team
             </button>
           </p>

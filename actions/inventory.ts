@@ -1,0 +1,133 @@
+"use server"
+
+import { db } from "@/prisma/db"
+import { Item, InventoryItem, LocationStock } from "@/types/inventory"
+
+export async function getInventoryItems(orgId: string, searchQuery?: string) {
+  try {
+    const items = await db.item.findMany({
+      where: {
+        orgId,
+        ...(searchQuery && {
+          OR: [
+            { name: { contains: searchQuery, mode: "insensitive" } },
+            { sku: { contains: searchQuery, mode: "insensitive" } }
+          ],
+        }),
+      },
+      include: {
+        category: true,
+        inventories: {
+          include: {
+            location: true,
+          },
+        },
+      },
+      orderBy: {
+        name: "asc",
+      },
+    })
+
+    // Transform data to match InventoryItem interface
+    const inventoryItems: InventoryItem[] = items.map((item) => {
+      const locations: LocationStock[] = item.inventories.map((inv) => ({
+        id: inv.locationId,
+        name: inv.location.name,
+        quantity: inv.quantity,
+        reserved: inv.reservedQuantity || 0, // Add safety check
+        available: Math.max(0, inv.quantity - (inv.reservedQuantity || 0)), // Add safety check
+        stockStatus: calculateStockStatus(inv.quantity, inv.reservedQuantity || 0), // Add safety check
+      }))
+
+      const totalQuantity = item.inventories.reduce((sum, inv) => sum + inv.quantity, 0)
+      const reservedQuantity = item.inventories.reduce((sum, inv) => sum + (inv.reservedQuantity || 0), 0) // Add safety check
+      const availableQuantity = totalQuantity - reservedQuantity
+      const overallStockStatus = calculateStockStatus(totalQuantity, reservedQuantity)
+
+      return {
+        id: item.id,
+        name: item.name,
+        sku: item.sku,
+        category: item.category?.title || "Uncategorized",
+        totalQuantity,
+        reservedQuantity,
+        availableQuantity,
+        stockStatus: overallStockStatus,
+        locations,
+      }
+    })
+
+    return inventoryItems
+  } catch (error) {
+    console.error("Error fetching inventory items:", error)
+    return []
+  }
+}
+
+// Helper function to calculate stock status
+function calculateStockStatus(quantity: number, reserved: number): "OUT_OF_STOCK" | "LOW_STOCK" | "IN_STOCK" {
+  const available = quantity - reserved
+  
+  if (available <= 0) {
+    return "OUT_OF_STOCK"
+  } else if (available < 10) { // You can adjust this threshold
+    return "LOW_STOCK"
+  } else {
+    return "IN_STOCK"
+  }
+}
+
+export async function getInventoryItem(itemId: string, orgId: string) {
+  try {
+    const item = await db.item.findUnique({
+      where: {
+        id: itemId,
+        orgId,
+      },
+      include: {
+        category: true,
+        inventories: {
+          include: {
+            location: true,
+          },
+        },
+      },
+    })
+
+    if (!item) {
+      return null
+    }
+
+    // Transform data to match InventoryItem interface
+    const locations: LocationStock[] = item.inventories.map((inv) => ({
+      id: inv.locationId,
+      name: inv.location.name,
+      quantity: inv.quantity,
+      reserved: inv.reservedQuantity || 0, // Add safety check
+      available: Math.max(0, inv.quantity - (inv.reservedQuantity || 0)), // Add safety check
+      stockStatus: calculateStockStatus(inv.quantity, inv.reservedQuantity || 0), // Add safety check
+    }))
+
+    const totalQuantity = item.inventories.reduce((sum, inv) => sum + inv.quantity, 0)
+    const reservedQuantity = item.inventories.reduce((sum, inv) => sum + (inv.reservedQuantity || 0), 0) // Add safety check
+    const availableQuantity = totalQuantity - reservedQuantity
+    const overallStockStatus = calculateStockStatus(totalQuantity, reservedQuantity)
+
+    const inventoryItem: InventoryItem = {
+      id: item.id,
+      name: item.name,
+      sku: item.sku,
+      category: item.category?.title || "Uncategorized",
+      totalQuantity,
+      reservedQuantity,
+      availableQuantity,
+      stockStatus: overallStockStatus,
+      locations,
+    }
+
+    return inventoryItem
+  } catch (error) {
+    console.error("Error fetching inventory item:", error)
+    return null
+  }
+}

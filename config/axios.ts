@@ -1,91 +1,86 @@
-// lib/axios.ts or utils/api.ts
+"use server"
 import axios from "axios";
+import { getAuthenticatedUser } from "./useAuth";
+import { getOrgKey } from "@/actions/apiKeys";
+import { getServerSession } from "next-auth";
+import { authOptions } from "./auth";
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;  
-export const api = axios.create({
-  baseURL:`${BASE_URL}/api/v1`,
-  timeout: 10000, // 10 seconds
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL; 
+
+// Create a Base axios instance without authentication
+const baseApi = axios.create({
+  baseURL: `${BASE_URL}/api/v1`,
   headers: {
     "Content-Type": "application/json",
-  },
-});
-
-/* // Add request interceptor
-api.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    // Get token from localStorage
-    const token = localStorage.getItem("token");
-    
-    // If token exists, add it to headers
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    
-    // You can also add other custom headers
-    // config.headers['X-Custom-Header'] = 'value';
-    
-    console.log("Request:", config.method?.toUpperCase(), config.url);
-    return config;
-  },
-  (error: AxiosError) => {
-    console.error("Request Error:", error);
-    return Promise.reject(error);
   }
-);
+})
 
-// Add response interceptor
-api.interceptors.response.use(
-  (response: AxiosResponse) => {
-    // Return only the data from response
-    console.log("Response:", response.status, response.config.url);
-    return response.data; // This returns response.data instead of full response
-  },
-  (error: AxiosError) => {
-    // Handle errors
-    console.error("Response Error:", error.response?.status, error.config?.url);
+// ✅ FIXED: No more TypeScript errors
+export async function getAuthenticatedApi() {
+  try {
+    // Get session
+    const session = await getServerSession(authOptions);
     
-    if (error.response) {
-      // Server responded with error status
-      const status = error.response.status;
-      
-      switch (status) {
-        case 401:
-          // Unauthorized - redirect to login
-          console.error("Unauthorized - Please login");
-          localStorage.removeItem("token");
-          window.location.href = "/login";
-          break;
-          
-        case 403:
-          // Forbidden
-          console.error("Forbidden - You do not have permission");
-          break;
-          
-        case 404:
-          // Not found
-          console.error("Resource not found");
-          break;
-          
-        case 500:
-          // Server error
-          console.error("Server error - Please try again later");
-          break;
-          
-        default:
-          console.error("Error:", error.response.data);
-      }
-      
-      return Promise.reject(error.response.data);
-    } else if (error.request) {
-      // Request was made but no response
-      console.error("Network Error - No response from server");
-      return Promise.reject({ 
-        message: "Network error. Please check your connection." 
-      });
-    } else {
-      // Something else happened
-      console.error("Error:", error.message);
-      return Promise.reject({ message: error.message });
+    if (!session?.user) {
+      throw new Error("Not authenticated. Please login.");
     }
+
+    const orgId = session?.user.orgId ?? "";
+    
+    if (!orgId) {
+      throw new Error("Organization ID not found in session.");
+    }
+
+    // ✅ Try to get API key from database
+    let apiKey: string = ""; // Changed to string, not null
+    
+    try {
+      const dbKey = await getOrgKey(orgId);
+      apiKey = dbKey || ""; // Convert null/undefined to empty string
+    } catch (dbError) {
+      console.error("❌ Failed to fetch API key from database:", dbError);
+    }
+
+    // ✅ If no API key from DB, use environment variable
+    if (!apiKey) {
+      console.warn("⚠️ No API key from database, using environment variable");
+      apiKey = process.env.API_KEY || process.env.NEXT_PUBLIC_API_KEY || "";
+    }
+
+    // ✅ Final check - throw error if still no key
+    if (!apiKey) {
+      throw new Error("API Key not found. Please add API_KEY to your .env file.");
+    }
+
+    console.log("✅ API Key found:", apiKey.substring(0, 10) + "...");
+
+    // Return a new instance with the API Key  
+    const authenticatedApi = axios.create({
+      baseURL: `${BASE_URL}/api/v1`,
+      timeout: 10000, // 10 seconds
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey, // Now guaranteed to be a string
+      },
+    });
+
+    return authenticatedApi;
+  } catch (error) {
+    console.error("❌ getAuthenticatedApi failed:", error);
+    throw error;
   }
-); */
+}
+
+export { baseApi as api };
+ 
+// Example of how to use the authenticated API in a server action
+export async function fetchProtectedData(endpoint: string, params = {}) {
+  try {
+    const api = await getAuthenticatedApi();
+    const response = await api.get(endpoint, { params });
+    return response.data;
+  } catch (error) {
+    console.error("API request failed", error);
+    throw error;
+  }
+}

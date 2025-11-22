@@ -10,6 +10,9 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { Car, DollarSign } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { useTransition } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link"; // ✅ ADDED: Import Link component
 import {
   DataTable,
   Column,
@@ -30,7 +33,7 @@ import { useCreateItem, useDeleteItem, useOrgItems } from "@/hooks/useItemQuerie
 import { BriefItemDTO, ItemCreateProps } from "@/types/item";
 import { BriefItemResponse } from "@/types/item";
 import ImageUploadButton from "@/components/FormInputs/ImageUploadButton";
-import { useScroll } from "framer-motion";
+import { Button } from "@/components/ui/button";
 
 interface ItemListingProps {
   title: string;
@@ -50,11 +53,14 @@ type ProductFormValues = z.infer<typeof productFormSchema>;
 const DEFAULT_IMAGE = "https://3mkq65v2if.ufs.sh/f/nEsxSqMfLeqN5a4owpbHBYgvTZ8SDtkMErGQOR6d42fKLCoP";
 
 export default function ItemListing({ title, orgId }: ItemListingProps) {
+  const router = useRouter();
+  
   // React Query hooks with Suspense - note that data is always defined
   const { items, refetch } = useOrgItems(orgId);
   const createItemMutation = useCreateItem();
   const deleteItemMutation = useDeleteItem();
-  //const updateItemMutation = useUpdateItem();
+
+  const [isPending, startTransition] = useTransition();
 
   // Local state
   const [imageUrl, setImageUrl] = useState(DEFAULT_IMAGE);
@@ -108,7 +114,7 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-UG", {
       style: "currency",
-      currency: "UGX",
+      currency: "GHS",
       minimumFractionDigits: 0,
     }).format(amount);
   };
@@ -123,7 +129,8 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
         Price: product.sellingPrice,
         "Sales Count": product.salesCount,
         "Total Sales": formatCurrency(product.salesTotal),
-        "Date Added": formatDate(product.createdAt),
+        // ✅ FIXED: Removed "Date Added" from export
+        // "Date Added": formatDate(product.createdAt),
       }));
 
       // Create workbook and worksheet
@@ -157,12 +164,12 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
     setFormDialogOpen(true);
   };
 
-  // Handle edit click
-  /* const handleEditClick = (product: Product) => {
-    setCurrentProduct(product);
-    setFormDialogOpen(true);
-  }; */
-
+   const handleEditClick = (product: BriefItemResponse) => {
+    startTransition(() => {
+      router.push(`/dashboard/inventory/items/${product.id}/edit`);
+    });
+  };
+  
   // Handle delete click
   const handleDeleteClick = (product: BriefItemResponse) => {
     setProductToDelete(product);
@@ -202,12 +209,6 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
           });
         },
       });
-    } else {
-      // Edit existing product
-      /* updateProductMutation.mutate({
-        id: currentProduct.id,
-        data,
-      }); */
     }
   };
 
@@ -262,9 +263,21 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
       accessorKey: (row) => formatCurrency(row.salesTotal),
     },
     {
+      header: "Supplier",
+      accessorKey: "id",
+      cell: (row) => (
+        // ✅ FIXED: Using Next.js Link component correctly
+        <Link href={`/dashboard/inventory/items/${row.id}/suppliers`}>
+          <Button variant={"outline"}>
+            View Suppliers
+          </Button>
+        </Link>
+      ),
+    },
+    /* {
       header: "Date Added",
       accessorKey: (row) => formatDate(row.createdAt),
-    },
+    }, */
   ];
 
   // Generate subtitle with total value
@@ -286,7 +299,7 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
         data={items}
         columns={columns}
         keyField="id"
-        isLoading={false} // With Suspense, we're guaranteed to have data
+        isLoading={false}
         onRefresh={refetch}
         actions={{
           onAdd: handleAddClick,
@@ -299,11 +312,8 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
         }}
         renderRowActions={(item) => (
           <TableActions.RowActions
-            //onEdit={() => handleEditClick(item)}
+            onEdit={() => handleEditClick(item)}
             onDelete={() => handleDeleteClick(item)}
-            //isDeleting={
-            //deleteProductMutation.isPending && productToDelete?.id === item.id
-            //}
           />
         )}
       />

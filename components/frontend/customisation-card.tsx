@@ -133,8 +133,8 @@ const CustomizationCard = ({ theme = "light" }) => {
               </div>
 
               <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-xl bg-blue-100">
-                  <Layout className="w-6 h-6 text-blue-600" />
+                <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-xl bg-rose-100">
+                  <Layout className="w-6 h-6 text-rose-600" />
                 </div>
                 <div>
                   <h3

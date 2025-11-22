@@ -110,7 +110,7 @@ const InventoryComparison = ({ theme = "light" }) => {
   ];
 
   return (
-    <section className="w-full bg-blue-50/20">
+    <section className="w-full bg-rose-50/20">
       {/* Header Section */}
       <div className="w-full max-w-6xl mx-auto py-20 px-6 text-center">
         <h2 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight leading-tight mb-8">
@@ -125,7 +125,7 @@ const InventoryComparison = ({ theme = "light" }) => {
           See how Inventory Pro transforms chaotic manual processes into 
           streamlined automated workflows that save time and prevent costly mistakes.
           <br />
-          <span className="font-semibold text-blue-600">Join thousands of businesses already saving hours daily</span>
+          <span className="font-semibold text-rose-600">Join thousands of businesses already saving hours daily</span>
         </p>
       </div>
 
@@ -228,14 +228,14 @@ const InventoryComparison = ({ theme = "light" }) => {
 
         {/* Call to Action */}
         <div className="text-center mt-16">
-          <div className="bg-gradient-to-r from-blue-500 to-emerald-500 rounded-2xl p-8 text-white">
+          <div className="bg-gradient-to-r from-rose-500 to-emerald-500 rounded-2xl p-8 text-white">
             <h3 className="text-2xl md:text-3xl font-bold mb-4">
               Ready to Transform Your Inventory Management?
             </h3>
             <p className="text-lg mb-6 opacity-90">
               Join thousands of businesses that have eliminated inventory chaos with Inventory Pro
             </p>
-            <button className="bg-white text-blue-600 px-8 py-3 rounded-xl font-semibold hover:bg-gray-50 transition-colors">
+            <button className="bg-white text-rose-600 px-8 py-3 rounded-xl font-semibold hover:bg-gray-50 transition-colors">
               Start Your Free Trial Today
             </button>
           </div>

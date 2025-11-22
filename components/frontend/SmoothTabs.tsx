@@ -181,13 +181,13 @@ const InventoryFeatureTabs = () => {
   ];
 
   return (
-    <section className="w-full py-20 bg-blue-50/30">
+    <section className="w-full py-20 bg-rose-50/30">
       {/* Header Section */}
       <div className="max-w-6xl mx-auto px-6 mb-16 text-center">
         <h2 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight mb-6">
           Everything You Need for
           <br /> 
-          <span className="inline-block bg-gradient-to-r from-blue-200 via-emerald-200 to-teal-300 px-4 rounded-lg">
+          <span className="inline-block bg-gradient-to-r from-rose-200 via-emerald-200 to-teal-300 px-4 rounded-lg">
             Smart Inventory Management
           </span>
         </h2>
@@ -208,7 +208,7 @@ const InventoryFeatureTabs = () => {
                 <TabsTrigger
                   key={feature.id}
                   value={feature.id}
-                  className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-full data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 transition-all duration-300 text-slate-600"
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-full data-[state=active]:bg-rose-100 data-[state=active]:text-rose-900 transition-all duration-300 text-slate-600"
                 >
                   <Icon className="w-5 h-5" />
                   <span className="hidden md:inline font-medium">
@@ -235,8 +235,8 @@ const InventoryFeatureTabs = () => {
               >
                 <div className="flex items-start gap-6">
                   {/* Feature Icon */}
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-100 to-emerald-50 flex items-center justify-center shadow-sm">
-                    <feature.icon className="w-8 h-8 text-blue-600" />
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-rose-100 to-emerald-50 flex items-center justify-center shadow-sm">
+                    <feature.icon className="w-8 h-8 text-rose-600" />
                   </div>
 
                   {/* Content */}
@@ -252,9 +252,9 @@ const InventoryFeatureTabs = () => {
                     <ul className="space-y-4">
                       {feature.subFeatures.map((item, index) => (
                         <li key={index} className="flex items-start gap-3">
-                          <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mt-1">
+                          <div className="w-5 h-5 rounded-full bg-rose-100 flex items-center justify-center flex-shrink-0 mt-1">
                             <svg
-                              className="w-3 h-3 text-blue-600"
+                              className="w-3 h-3 text-rose-600"
                               fill="none"
                               viewBox="0 0 24 24"
                               stroke="currentColor"

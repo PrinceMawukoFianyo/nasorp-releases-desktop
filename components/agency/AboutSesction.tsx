@@ -73,7 +73,7 @@ const AboutSection = () => {
       {/* Background Elements */}
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]"></div>
-        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-100 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
+        <div className="absolute top-0 right-0 w-96 h-96 bg-rose-100 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-100 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
       </div>
 
@@ -83,7 +83,7 @@ const AboutSection = () => {
           <div className="lg:w-1/2">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
               Building Digital Excellence Since{" "}
-              <span className="text-blue-600">2019</span>
+              <span className="text-rose-600">2019</span>
             </h2>
             <p className="text-lg text-gray-600 mb-8">
               We're a team of passionate developers, designers, and digital
@@ -97,7 +97,7 @@ const AboutSection = () => {
                   key={index}
                   className="text-center p-4 bg-white rounded-xl shadow-sm"
                 >
-                  <div className="text-3xl font-bold text-blue-600 mb-2">
+                  <div className="text-3xl font-bold text-rose-600 mb-2">
                     {stat.value}
                   </div>
                   <div className="text-sm text-gray-600">{stat.label}</div>
@@ -128,8 +128,8 @@ const AboutSection = () => {
                 key={index}
                 className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow"
               >
-                <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center mb-4">
-                  <value.icon className="w-6 h-6 text-blue-600" />
+                <div className="w-12 h-12 bg-rose-50 rounded-lg flex items-center justify-center mb-4">
+                  <value.icon className="w-6 h-6 text-rose-600" />
                 </div>
                 <h4 className="text-lg font-semibold text-gray-900 mb-2">
                   {value.title}
@@ -169,7 +169,7 @@ const AboutSection = () => {
           </div>
           {/* Call to Action */}
           <div className="mt-20 text-center">
-            <button className="inline-flex items-center justify-center px-8 py-4 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-300">
+            <button className="inline-flex items-center justify-center px-8 py-4 rounded-full bg-gradient-to-r from-rose-600 to-purple-600 text-white font-medium hover:from-rose-700 hover:to-purple-700 transition-all duration-300">
               Join Our Team
             </button>
           </div>

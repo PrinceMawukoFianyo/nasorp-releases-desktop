@@ -30,7 +30,7 @@ const FooterBanner = () => {
           <span className="text-sm md:text-base">by</span>
           <Link
             href="https://wa.me/message/5USU26346OWRF1"
-            className="text-sm md:text-base text-blue-400 hover:text-blue-300 transition-colors duration-200 underline"
+            className="text-sm md:text-base text-rose-400 hover:text-rose-300 transition-colors duration-200 underline"
             target="_blank"
             rel="noopener noreferrer"
           >

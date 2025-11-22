@@ -6,7 +6,7 @@ import React from "react";
 
 export default function NotFound() {
   return (
-    <div className="bg-blue-50 min-h-screen">
+    <div className="bg-rose-50 min-h-screen">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="relative h-[calc(550px-85px)] flex justify-center items-center flex-col">
           <svg
