@@ -71,7 +71,6 @@ model User {
   accounts      Account[]
   sessions      Session[]
   savings       Saving[]
-  blogs         Blog[]
   orgName       String?
   organisation  Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
   orgId         String

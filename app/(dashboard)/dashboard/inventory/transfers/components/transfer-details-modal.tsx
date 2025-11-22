@@ -8,7 +8,7 @@ import { TransferSkeleton } from "../components/transfer-skeleton"
 import { getTransferDetails } from "@/actions/transfer-stock-history"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 
-interface TransferDetailPageProps {
+type TransferDetailPageProps = {
   params: Promise<{ id: string }>
 }
 

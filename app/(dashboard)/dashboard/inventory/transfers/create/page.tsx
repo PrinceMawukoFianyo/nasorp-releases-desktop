@@ -215,6 +215,34 @@ export default function CreateTransferPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
               
+              <Select 
+                value={selectedItem} 
+                onValueChange={(value) => {
+                  setSelectedItem(value)
+                  setSearchQuery("")
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Or select from dropdown" />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredItems.length > 0 ? (
+                    filteredItems.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{item.name}</span>
+                          <span className="text-xs text-gray-500">{item.sku}</span>
+                        </div>
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="no-results" disabled>
+                      No items found
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+              
               {searchQuery && filteredItems.length > 0 && (
                 <div className="border border-gray-200 rounded-lg bg-white shadow-md max-h-48 overflow-y-auto">
                   {filteredItems.slice(0, 10).map((item) => (

@@ -1,4 +1,4 @@
-export function formatDate(date: Date | string | null): 
+/* export function formatDate(date: Date | string | null): 
 string{
     if(!date) return "-";
     return dateFnsFormat(new Date(date), "MM d, yyyy");
@@ -9,4 +9,4 @@ string{
       style: 'currency',
       currency: 'USD',
     }).format(amount)
-  }
+  } */

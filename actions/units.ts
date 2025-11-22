@@ -1,6 +1,5 @@
 "use server";
 
-import { MetaPros } from "@/components/dashboard/blogs/blog-edit-form";
 import { UnitFormProps } from "@/components/Forms/Inventory/UnitForm";
 import { db } from "@/prisma/db";
 import { revalidatePath } from "next/cache";

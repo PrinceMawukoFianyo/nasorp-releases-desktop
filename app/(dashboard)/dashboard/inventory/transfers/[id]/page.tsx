@@ -8,10 +8,6 @@ import { TransferSkeleton } from "../components/transfer-skeleton"
 import { getTransferDetails } from "@/actions/transfer-stock-history"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 
-interface TransferDetailPageProps {
-  params: { id: string }
-}
-
 async function TransferDetailView({ transferId }: { transferId: string }) {
   const { success, transfer, error } = await getTransferDetails(transferId)
 
@@ -54,7 +50,7 @@ async function TransferDetailView({ transferId }: { transferId: string }) {
         status: "APPROVED" as const,
         label: "Approved",
         description: "Transfer approved and ready for movement",
-        date: transfer.approvedBy ? new Date(transfer.createdAt).toLocaleDateString('en-US', { 
+        date: transfer.approvedBy && transfer.updatedAt ? new Date(transfer.updatedAt).toLocaleDateString('en-US', { 
           year: 'numeric', 
           month: 'short', 
           day: 'numeric',
@@ -68,15 +64,21 @@ async function TransferDetailView({ transferId }: { transferId: string }) {
         status: "IN_TRANSIT" as const,
         label: "In Transit",
         description: "Items are being moved between locations",
-        date: "",
+        date: transfer.status === "IN_TRANSIT" || transfer.status === "COMPLETED" ? new Date(transfer.updatedAt).toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'short', 
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        }) : "",
         completed: ["IN_TRANSIT", "COMPLETED"].includes(transfer.status),
         current: transfer.status === "IN_TRANSIT",
       },
       {
         status: "COMPLETED" as const,
         label: "Completed",
-        description: "Transfer successfully completed",
-        date: transfer.status === "COMPLETED" ? new Date().toLocaleDateString('en-US', { 
+        description: "Transfer successfully completed and inventory updated",
+        date: transfer.status === "COMPLETED" ? new Date(transfer.updatedAt).toLocaleDateString('en-US', { 
           year: 'numeric', 
           month: 'short', 
           day: 'numeric',
@@ -89,11 +91,20 @@ async function TransferDetailView({ transferId }: { transferId: string }) {
     ]
 
     if (transfer.status === "CANCELLED") {
-      return baseEvents.map(event => ({
-        ...event,
-        completed: event.status === "CREATED",
-        current: false
-      }))
+      return [{
+        status: "CANCELLED" as const,
+        label: "Cancelled",
+        description: "Transfer has been cancelled",
+        date: new Date(transfer.updatedAt).toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'short', 
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        }),
+        completed: true,
+        current: true,
+      }]
     }
 
     return baseEvents
@@ -190,25 +201,37 @@ async function TransferDetailView({ transferId }: { transferId: string }) {
                 day: 'numeric' 
               })}</span>
             </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Last Updated:</span>
+              <span className="font-medium">{new Date(transfer.updatedAt).toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}</span>
+            </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Actions */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h3 className="text-lg font-semibold">Transfer Actions</h3>
-              <p className="text-sm text-gray-600">Update the status of this transfer</p>
+      {transfer.status !== "COMPLETED" && transfer.status !== "CANCELLED" && (
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-semibold">Transfer Actions</h3>
+                <p className="text-sm text-gray-600">Update the status of this transfer</p>
+              </div>
+              <TransferActions 
+                transferId={transfer.id} 
+                status={transfer.status} 
+              />
             </div>
-            <TransferActions 
-              transferId={transfer.id} 
-              status={transfer.status} 
-            />
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Status Timeline */}
@@ -249,6 +272,12 @@ function TransferDetailContent({ transferId }: { transferId: string }) {
   )
 }
 
-export default function TransferDetailPage({ params }: TransferDetailPageProps) {
-  return <TransferDetailContent transferId={params.id} />
+// Next.js 15+ requires async params
+export default async function TransferDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await params
+  return <TransferDetailContent transferId={id} />
 }
