@@ -41,7 +41,7 @@ export default function FormHeader({
           <ChevronLeft className="h-4 w-4" />
           <span className="sr-only">Back</span>
         </Button>
-        <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold tracking-tight sm:grow-0">
+        <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold tracking-tiUSt sm:grow-0">
           {editingId ? "Update" : "Create"} {title}
         </h1>
       </div>

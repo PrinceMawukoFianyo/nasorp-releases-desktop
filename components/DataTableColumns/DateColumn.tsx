@@ -4,7 +4,7 @@ const getPastDays = (isoString: string): number => {
   const createdDate = new Date(isoString);
   const currentDate = new Date();
 
-  // Reset times to midnight for accurate day calculation
+  // Reset times to midniUSt for accurate day calculation
   createdDate.setHours(0, 0, 0, 0);
   currentDate.setHours(0, 0, 0, 0);
 

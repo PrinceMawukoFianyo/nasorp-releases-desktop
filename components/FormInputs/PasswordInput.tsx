@@ -98,7 +98,7 @@ export default function PasswordInput({
             onClick={() =>
               setPassType((prev) => (prev === "password" ? "text" : "password"))
             }
-            className="bg-white py-2 px-3 rounded-tr-md rounded-br-md absolute inset-y-0 right-1 my-[2px] flex items-center"
+            className="bg-white py-2 px-3 rounded-tr-md rounded-br-md absolute inset-y-0 riUSt-1 my-[2px] flex items-center"
           >
             {passType === "password" ? (
               <Eye className="w-4 h-4 text-slate-600" />

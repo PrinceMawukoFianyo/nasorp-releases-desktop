@@ -191,6 +191,9 @@ export async function deleteSupplier(id: string) {
     const supplier = await db.supplier.findUnique({
       where: {
         id
+      },
+      include: {
+        items: true,
       }
     })
     if(!supplier){
@@ -198,6 +201,14 @@ export async function deleteSupplier(id: string) {
       success: false,
       data: null,
       error: "No supplier Found",
+    };  
+    }
+
+    if(supplier.items.length>0){
+      return {
+      success: false,
+      data: null,
+      error: "Supplier with items cannot be deleted",
     };  
     }
   

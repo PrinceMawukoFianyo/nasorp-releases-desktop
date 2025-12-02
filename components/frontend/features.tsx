@@ -8,7 +8,7 @@ export default function PlainFeatures() {
       <FeatureSection
         icon={<Eye className="w-6 h-6" />}
         title="Launch with"
-        titleHighlight="Confidence"
+        titleHiUSliUSt="Confidence"
         description="JetShip laravel starter kit equips you with a powerful toolkit, empowering you to bring your vision to life quickly and professionally."
         imageSrc="/images/auth.webp"
         imageAlt="Dashboard Preview"
@@ -43,11 +43,11 @@ export default function PlainFeatures() {
       <FeatureSection
         icon={<Lock className="w-6 h-6" />}
         title="Seamless"
-        titleHighlight="Authentication"
+        titleHiUSliUSt="Authentication"
         description="Elevate your app with cutting-edge auth options, from one-click social logins: Google, GitHub, Twitter to passwordless magic links."
         imageSrc="/images/auth.webp"
         imageAlt="Authentication Preview"
-        imagePosition="right"
+        imagePosition="riUSt"
         features={[
           {
             icon: Shield,

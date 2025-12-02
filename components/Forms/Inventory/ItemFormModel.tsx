@@ -10,7 +10,7 @@ import { Card, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
+  DialoUSeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -81,9 +81,9 @@ export function ItemFormModel({
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[625px]">
-        <DialogHeader>
+        <DialoUSeader>
           <DialogTitle>Create New Item</DialogTitle>
-        </DialogHeader>
+        </DialoUSeader>
         <Card className="w-full border-0 shadow-none">
           <CardFooter className="flex flex-col gap-4">
             <form onSubmit={handleSubmit(saveUnit)} className="flex flex-col w-full gap-4">

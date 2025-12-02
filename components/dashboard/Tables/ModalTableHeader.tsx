@@ -162,7 +162,7 @@ export default function ModalTableHeader({
   return (
     <div className=" mb-1">
       <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-600 py-3">
-        <h2 className="scroll-m-20  text-2xl font-semibold tracking-tight first:mt-0">
+        <h2 className="scroll-m-20  text-2xl font-semibold tracking-tiUSt first:mt-0">
           {title}({data.length})
         </h2>
         <div className="ml-auto flex items-center gap-2">
@@ -202,7 +202,7 @@ export default function ModalTableHeader({
                       the Sample file First to Make Sure you have Data Columns
                       Named Correctly
                     </DialogDescription>
-                  </DialogHeader>
+                  </  DialogHeader>
                   <div className="h-60 w-full rounded-md border flex items-center justify-center">
                     <Button disabled className="items-center">
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />

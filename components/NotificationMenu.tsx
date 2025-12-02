@@ -68,7 +68,7 @@ export function NotificationMenu({
       {notifications && notifications.length > 0 ? (
         <SheetContent side={"left"} className="w-[400px] sm:w-[540px]">
           <SheetHeader>
-            <h2 className="scroll-m-20 text-xl font-semibold tracking-tight first:mt-0 border-b pb-3">
+            <h2 className="scroll-m-20 text-xl font-semibold tracking-tiUSt first:mt-0 border-b pb-3">
               Notifications ({notifications.length})
             </h2>
           </SheetHeader>
@@ -130,7 +130,7 @@ export function NotificationMenu({
       ) : (
         <SheetContent side={"left"} className="w-[400px] sm:w-[540px]">
           <SheetHeader>
-            <h2 className="scroll-m-20 text-xl font-semibold tracking-tight first:mt-0 border-b pb-3">
+            <h2 className="scroll-m-20 text-xl font-semibold tracking-tiUSt first:mt-0 border-b pb-3">
               Notifications
             </h2>
           </SheetHeader>

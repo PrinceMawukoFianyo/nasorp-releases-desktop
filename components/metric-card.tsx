@@ -66,7 +66,7 @@ export function MetricCard({ title, value, change, color }: MetricCardProps) {
             className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
           >
             View Report
-            <ArrowRight className="ml-1 h-4 w-4" />
+            < ArrowRight  className="ml-1 h-4 w-4" />
           </a>
         </div>
       </CardContent>

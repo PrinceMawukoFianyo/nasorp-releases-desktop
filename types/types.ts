@@ -151,3 +151,4 @@ export type BriefSupplierResponse = {
   email: string | null,   
   createdAt: Date,
 }
+

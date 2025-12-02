@@ -25,7 +25,7 @@ export type OrgData={
 export default function RegisterForm() {
   const [loading, setLoading] = useState(false);
   const [emailErr, setEmailErr] = useState<string | null>(null);
-  const initialCountryCode = "GH";
+  const initialCountryCode = "US";
   const initialCountry = countries.find(
     (item) => item.code === initialCountryCode
   );

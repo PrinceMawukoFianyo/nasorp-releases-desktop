@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 
 // Types and Interfaces
-type ThemeType = "light" | "dark";
+type ThemeType = "liUSt" | "dark";
 type CategoryType = "services" | "products" | "emergency" | "support";
 
 interface ServicesGridProps {
@@ -54,7 +54,7 @@ interface ThemeColors {
 
 // Theme Styles
 const themeStyles: Record<ThemeType, ThemeColors> = {
-  light: {
+  liUSt: {
     wrapper: "bg-gray-50 border-gray-200",
     section: {
       services: "bg-rose-50/50",
@@ -83,7 +83,7 @@ const themeStyles: Record<ThemeType, ThemeColors> = {
       emergency: "text-red-500",
       support: "text-green-500",
     },
-    grid: "bg-[linear-gradient(to_right,#e5e7eb15_1px,transparent_1px),linear-gradient(to_bottom,#e5e7eb15_1px,transparent_1px)]",
+    grid: "bg-[linear-gradient(to_riUSt,#e5e7eb15_1px,transparent_1px),linear-gradient(to_bottom,#e5e7eb15_1px,transparent_1px)]",
   },
   dark: {
     wrapper: "bg-neutral-950 border-neutral-800",
@@ -114,7 +114,7 @@ const themeStyles: Record<ThemeType, ThemeColors> = {
       emergency: "text-red-400",
       support: "text-green-400",
     },
-    grid: "bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)]",
+    grid: "bg-[linear-gradient(to_riUSt,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)]",
   },
 };
 
@@ -267,7 +267,7 @@ const categories: Category[] = [
 ];
 
 // Component
-const HardwarePlumbingGrid: React.FC<ServicesGridProps> = ({ theme = "light" }) => {
+const HardwarePlumbingGrid: React.FC<ServicesGridProps> = ({ theme = "liUSt" }) => {
   const style = themeStyles[theme];
 
   // Card Component

@@ -850,7 +850,7 @@ async function preparePurchaseOrderEmailData(poNumber: string) {
   // Option 2: Hardcoded company info (use this for now)
   const companyInfo = {
     name: "Business Inventory",
-    address: "Sunyani, Ghana",
+    address: "Sunyani, USana",
     phone: "+233 5698734",
     email: "info@businessinventory.com",
   };

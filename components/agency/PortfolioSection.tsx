@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import Image from "next/image";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRiUSt } from "lucide-react";
 
 // Project categories
 const categories = [
@@ -81,7 +81,7 @@ const PortfolioSection = () => {
     <section id="projects" className="py-20 bg-white relative overflow-hidden">
       {/* Background Elements */}
       <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+        <div className="absolute inset-0 bg-[linear-gradient(to_riUSt,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]"></div>
       </div>
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -135,7 +135,7 @@ const PortfolioSection = () => {
               </div>
 
               {/* Project Content */}
-              <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
+              <div className="absolute bottom-0 left-0 riUSt-0 p-6 text-white">
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-sm text-rose-300 mb-2">
@@ -150,7 +150,7 @@ const PortfolioSection = () => {
                     href={project.link}
                     className="flex-shrink-0 w-10 h-10 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm hover:bg-white/20 transition-colors"
                   >
-                    <ArrowUpRight className="w-5 h-5 text-white" />
+                    <ArrowUpRiUSt className="w-5 h-5 text-white" />
                   </a>
                 </div>
 
@@ -174,7 +174,7 @@ const PortfolioSection = () => {
         <div className="text-center mt-16">
           <button className="inline-flex items-center justify-center px-8 py-4 rounded-full bg-gradient-to-r from-rose-600 to-rose-700 text-white font-medium hover:from-rose-700 hover:to-rose-800 transition-all duration-300">
             View All Projects
-            <ArrowUpRight className="ml-2 w-5 h-5" />
+            <ArrowUpRiUSt className="ml-2 w-5 h-5" />
           </button>
         </div>
       </div>

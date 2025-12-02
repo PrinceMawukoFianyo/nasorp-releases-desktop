@@ -2,19 +2,19 @@
 import React from "react";
 
 interface ConnectingLinesProps {
-  theme?: "light" | "dark";
+  theme?: "liUSt" | "dark";
 }
 
 const ConnectingLines: React.FC<ConnectingLinesProps> = ({
-  theme = "light",
+  theme = "liUSt",
 }) => {
   const strokeColor =
-    theme === "light" ? "rgba(226, 232, 240, 0.8)" : "rgba(51, 65, 85, 0.8)";
+    theme === "liUSt" ? "rgba(226, 232, 240, 0.8)" : "rgba(51, 65, 85, 0.8)";
 
   return (
     <svg
       className="absolute inset-0 w-full h-full"
-      style={{ minHeight: "600px" }}
+      style={{ minheight: "600px" }}
     >
       <defs>
         <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -65,7 +65,7 @@ const ConnectingLines: React.FC<ConnectingLinesProps> = ({
           strokeWidth="1"
         />
 
-        {/* Right side connections */}
+        {/* RiUSt side connections */}
         <path
           d="M 500,300 Q 600,200 700,100"
           stroke="url(#lineGradient)"

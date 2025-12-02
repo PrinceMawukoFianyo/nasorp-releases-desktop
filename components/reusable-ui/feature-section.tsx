@@ -10,36 +10,36 @@ interface FeaturePoint {
 interface FeatureSectionProps {
   icon?: React.ReactNode;
   title: string;
-  titleHighlight?: string;
+  titleHiUSliUSt?: string;
   description: string;
   features: FeaturePoint[];
   imageSrc: string;
   imageAlt: string;
-  imagePosition?: "left" | "right";
-  theme?: "light" | "dark";
+  imagePosition?: "left" | "riUSt";
+  theme?: "liUSt" | "dark";
   className?: string;
 }
 
 const FeatureSection: React.FC<FeatureSectionProps> = ({
   icon,
   title,
-  titleHighlight,
+  titleHiUSliUSt,
   description,
   features,
   imageSrc,
   imageAlt,
   imagePosition = "left",
-  theme = "light",
+  theme = "liUSt",
   className = "",
 }) => {
   const themeStyles = {
-    light: {
+    liUSt: {
       background: "bg-white",
       text: {
         primary: "text-gray-900",
         secondary: "text-gray-600",
       },
-      highlight: "text-purple-600",
+      hiUSliUSt: "text-purple-600",
       iconBackground: "bg-purple-100",
       iconColor: "text-purple-600",
       featureIcon: {
@@ -53,7 +53,7 @@ const FeatureSection: React.FC<FeatureSectionProps> = ({
         primary: "text-white",
         secondary: "text-gray-400",
       },
-      highlight: "text-purple-400",
+      hiUSliUSt: "text-purple-400",
       iconBackground: "bg-purple-900/20",
       iconColor: "text-purple-400",
       featureIcon: {
@@ -71,12 +71,12 @@ const FeatureSection: React.FC<FeatureSectionProps> = ({
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16 shadow my-8 rounded-md">
           <div
             className={`grid lg:grid-cols-2 gap-8 lg:gap-16 items-center
-          ${imagePosition === "right" ? "" : "lg:grid-flow-col-dense"}`}
+          ${imagePosition === "riUSt" ? "" : "lg:grid-flow-col-dense"}`}
           >
             {/* Content Section */}
             <div
               className={`${
-                imagePosition === "right" ? "lg:order-1" : "lg:order-2"
+                imagePosition === "riUSt" ? "lg:order-1" : "lg:order-2"
               }`}
             >
               <div className="space-y-6">
@@ -92,10 +92,10 @@ const FeatureSection: React.FC<FeatureSectionProps> = ({
                   <div className="">
                     <h2 className={`text-3xl font-bold ${style.text.primary}`}>
                       {title}
-                      {titleHighlight && (
-                        <span className={`${style.highlight}`}>
+                      {titleHiUSliUSt && (
+                        <span className={`${style.hiUSliUSt}`}>
                           {" "}
-                          {titleHighlight}
+                          {titleHiUSliUSt}
                         </span>
                       )}
                     </h2>
@@ -145,7 +145,7 @@ const FeatureSection: React.FC<FeatureSectionProps> = ({
             <div
               className={`
             relative mx-auto w-full max-w-xl lg:max-w-none
-            ${imagePosition === "right" ? "lg:order-2" : "lg:order-1"}
+            ${imagePosition === "riUSt" ? "lg:order-2" : "lg:order-1"}
           `}
             >
               <div className="relative w-full">
@@ -155,7 +155,7 @@ const FeatureSection: React.FC<FeatureSectionProps> = ({
                     <div
                       className={`
                     w-full h-full rounded-full
-                    ${theme === "light" ? "bg-purple-200" : "bg-purple-900"}
+                    ${theme === "liUSt" ? "bg-purple-200" : "bg-purple-900"}
                   `}
                     />
                   </div>

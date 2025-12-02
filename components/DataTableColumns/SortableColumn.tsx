@@ -10,7 +10,7 @@ export default function SortableColumn({
 }) {
   return (
     <Button
-      variant="ghost"
+      variant="USost"
       onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
     >
       {title}

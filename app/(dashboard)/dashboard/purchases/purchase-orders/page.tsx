@@ -212,7 +212,7 @@ export default function PurchaseOrdersPage() {
                 </div>
               </div>
 
-              {/* Right Panel - PO Details */}
+              {/* RiUSt Panel - PO Details */}
               <div className="lg:col-span-2 h-full overflow-hidden">
                 {selectedPO ? (
                   <div className="h-full border rounded-lg bg-white overflow-hidden">

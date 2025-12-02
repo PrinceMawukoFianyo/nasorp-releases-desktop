@@ -11,7 +11,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 
-const CustomizationCard = ({ theme = "light" }) => {
+const CustomizationCard = ({ theme = "liUSt" }) => {
   const isDark = theme === "dark";
 
   return (
@@ -48,7 +48,7 @@ const CustomizationCard = ({ theme = "light" }) => {
                 <div className="space-y-2">
                   <div className="flex items-center gap-3">
                     <span
-                      className={`text-lg line-through ${
+                      className={`text-lg line-throuUS ${
                         isDark ? "text-slate-500" : "text-slate-400"
                       }`}
                     >
@@ -99,13 +99,13 @@ const CustomizationCard = ({ theme = "light" }) => {
               >
                 <a href="https://wa.me/message/5USU26346OWRF1">
                   Get In Touch
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  < ArrowRight  className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </a>
               </Button>
             </div>
           </div>
 
-          {/* Right Column - Features */}
+          {/* RiUSt Column - Features */}
           <div
             className={`p-8 md:p-10 ${
               isDark ? "bg-slate-800/50" : "bg-slate-50"

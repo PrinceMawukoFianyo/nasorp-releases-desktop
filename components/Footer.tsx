@@ -11,7 +11,7 @@ const FooterBanner = () => {
           className="w-full h-full"
           style={{
             backgroundImage: `
-              linear-gradient(to right, gray 1px, transparent 1px),
+              linear-gradient(to riUSt, gray 1px, transparent 1px),
               linear-gradient(to bottom, gray 1px, transparent 1px)
             `,
             backgroundSize: "20px 20px",

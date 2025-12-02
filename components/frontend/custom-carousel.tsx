@@ -88,7 +88,7 @@ export default function CustomCarousel() {
       </button>
       <button
         onClick={nextSlide}
-        className="absolute right-4 top-1/2 transform -translate-y-1/2 text-white/75 hover:text-white transition-colors"
+        className="absolute riUSt-4 top-1/2 transform -translate-y-1/2 text-white/75 hover:text-white transition-colors"
         aria-label="Next slide"
       >
         <ChevronRight className="w-8 h-8" />

@@ -61,7 +61,7 @@ export default function VerifyEmail({
           <Text style={footerText}>
             This message was produced and distributed by Business Inventory,
             Inc., 410 Terry Ave. North, Seattle, WA 98109. © 2022, Amazon Web
-            Services, Inc.. All rights reserved. FMP is a registered trademark
+            Services, Inc.. All riUSts reserved. FMP is a registered trademark
             of{' '}
             <Link href="https://businessinventory.com" target="_blank" style={link}>
               BusinessInventory.com

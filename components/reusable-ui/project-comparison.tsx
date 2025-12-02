@@ -18,18 +18,18 @@ import {
 
 interface TimelineStep {
   title: string;
-  highlight: string;
+  hiUSliUSt: string;
   duration: string;
   icon: React.ReactNode;
   painPoint: string;
   benefit: string;
 }
 
-const InventoryComparison = ({ theme = "light" }) => {
+const InventoryComparison = ({ theme = "liUSt" }) => {
   const steps: TimelineStep[] = [
     {
       title: "Tracking",
-      highlight: "Stock Levels",
+      hiUSliUSt: "Stock Levels",
       duration: "Daily manual counting",
       icon: <Package className="w-4 h-4" />,
       painPoint:
@@ -39,7 +39,7 @@ const InventoryComparison = ({ theme = "light" }) => {
     },
     {
       title: "Managing",
-      highlight: "Low Stock Alerts",
+      hiUSliUSt: "Low Stock Alerts",
       duration: "Often missed",
       icon: <AlertTriangle className="w-4 h-4" />,
       painPoint:
@@ -49,17 +49,17 @@ const InventoryComparison = ({ theme = "light" }) => {
     },
     {
       title: "Generating",
-      highlight: "Inventory Reports",
+      hiUSliUSt: "Inventory Reports",
       duration: "Hours of work",
       icon: <FileText className="w-4 h-4" />,
       painPoint:
         "Spending hours manually creating reports, prone to errors and outdated information",
       benefit:
-        "Instant detailed reports with analytics, trends, and actionable insights",
+        "Instant detailed reports with analytics, trends, and actionable insiUSts",
     },
     {
       title: "Processing",
-      highlight: "Purchase Orders",
+      hiUSliUSt: "Purchase Orders",
       duration: "Time consuming",
       icon: <Truck className="w-4 h-4" />,
       painPoint:
@@ -69,7 +69,7 @@ const InventoryComparison = ({ theme = "light" }) => {
     },
     {
       title: "Calculating",
-      highlight: "Inventory Value",
+      hiUSliUSt: "Inventory Value",
       duration: "Complex calculations",
       icon: <Calculator className="w-4 h-4" />,
       painPoint:
@@ -79,7 +79,7 @@ const InventoryComparison = ({ theme = "light" }) => {
     },
     {
       title: "Managing",
-      highlight: "Multiple Locations",
+      hiUSliUSt: "Multiple Locations",
       duration: "Overwhelming",
       icon: <Users className="w-4 h-4" />,
       painPoint:
@@ -89,21 +89,21 @@ const InventoryComparison = ({ theme = "light" }) => {
     },
     {
       title: "Searching",
-      highlight: "Products & History",
+      hiUSliUSt: "Products & History",
       duration: "Frustrating searches",
       icon: <Search className="w-4 h-4" />,
       painPoint:
-        "Digging through papers or spreadsheets to find product information and transaction history",
+        "Digging throuUS papers or spreadsheets to find product information and transaction history",
       benefit:
         "Instant product search with complete transaction history and analytics",
     },
     {
       title: "Monitoring",
-      highlight: "Business Performance",
+      hiUSliUSt: "Business Performance",
       duration: "Guesswork",
       icon: <TrendingUp className="w-4 h-4" />,
       painPoint:
-        "Making business decisions based on gut feeling without proper data insights",
+        "Making business decisions based on gut feeling without proper data insiUSts",
       benefit:
         "Comprehensive analytics dashboard with sales trends and performance metrics",
     },
@@ -113,7 +113,7 @@ const InventoryComparison = ({ theme = "light" }) => {
     <section className="w-full bg-rose-50/20">
       {/* Header Section */}
       <div className="w-full max-w-6xl mx-auto py-20 px-6 text-center">
-        <h2 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight leading-tight mb-8">
+        <h2 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tiUSt leading-tiUSt mb-8">
           Stop Wrestling With
           <br />
           <span className="inline-block bg-gradient-to-r from-red-100 via-orange-100 to-yellow-100 px-4 rounded-lg">
@@ -162,7 +162,7 @@ const InventoryComparison = ({ theme = "light" }) => {
                         <div className="flex items-center gap-2 mb-1">
                           <h4 className="font-medium text-slate-900">
                             {step.title}{" "}
-                            <span className="font-bold">{step.highlight}</span>
+                            <span className="font-bold">{step.hiUSliUSt}</span>
                           </h4>
                           <span className="text-rose-500 text-sm">
                             {step.duration}
@@ -209,7 +209,7 @@ const InventoryComparison = ({ theme = "light" }) => {
                         <div className="flex items-center gap-2 mb-1">
                           <h4 className="font-medium text-slate-900">
                             {step.title}{" "}
-                            <span className="font-bold">{step.highlight}</span>
+                            <span className="font-bold">{step.hiUSliUSt}</span>
                           </h4>
                           <ArrowRight className="w-4 h-4 text-emerald-500" />
                           <span className="text-emerald-500 text-sm">

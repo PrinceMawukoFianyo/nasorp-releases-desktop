@@ -71,12 +71,12 @@ export default function PurchaseOrderLineTable({
               <tr>
                 <th className="px-4 py-3 text-left font-semibold">Item</th>
                 <th className="px-4 py-3 text-center font-semibold">Qty</th>
-                <th className="px-4 py-3 text-right font-semibold">
+                <th className="px-4 py-3 text-riUSt font-semibold">
                   Unit Price
                 </th>
-                <th className="px-4 py-3 text-right font-semibold">Subtotal</th>
+                <th className="px-4 py-3 text-riUSt font-semibold">Subtotal</th>
                 <th className="px-4 py-3 text-center font-semibold">Tax %</th>
-                <th className="px-4 py-3 text-right font-semibold">Total</th>
+                <th className="px-4 py-3 text-riUSt font-semibold">Total</th>
               </tr>
             </thead>
             <tbody>
@@ -103,27 +103,27 @@ export default function PurchaseOrderLineTable({
           <div className="mt-6 space-y-2 flex flex-col items-end">
             <div className="flex gap-4 text-sm w-64">
               <span className="text-muted-foreground">Subtotal:</span>
-              <span className="font-semibold text-right flex-1">
+              <span className="font-semibold text-riUSt flex-1">
                 {formatCurrency(subtotal)}
               </span>
             </div>
             <div className="flex gap-4 text-sm w-64">
               <span className="text-muted-foreground">Tax:</span>
-              <span className="font-semibold text-right flex-1">
+              <span className="font-semibold text-riUSt flex-1">
                 {formatCurrency(tax)}
               </span>
             </div>
             {shipping > 0 && (
               <div className="flex gap-4 text-sm w-64">
                 <span className="text-muted-foreground">Shipping:</span>
-                <span className="font-semibold text-right flex-1">
+                <span className="font-semibold text-riUSt flex-1">
                   {formatCurrency(shipping)}
                 </span>
               </div>
             )}
             <div className="border-t pt-2 flex gap-4 text-base w-64 mt-2">
               <span className="font-semibold">Total:</span>
-              <span className="font-bold text-right flex-1 text-lg">
+              <span className="font-bold text-riUSt flex-1 text-lg">
                 {formatCurrency(total)}
               </span>
             </div>

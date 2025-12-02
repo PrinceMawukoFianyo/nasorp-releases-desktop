@@ -375,9 +375,9 @@ export default function PurchaseOrderDetailView({
                       <th className="text-left py-3 px-4 font-semibold text-sm">Item</th>
                       <th className="text-center py-3 px-4 font-semibold text-sm">Qty</th>
                       <th className="text-center py-3 px-4 font-semibold text-sm">Received</th>
-                      <th className="text-right py-3 px-4 font-semibold text-sm">Unit Price</th>
-                      <th className="text-right py-3 px-4 font-semibold text-sm">Tax</th>
-                      <th className="text-right py-3 px-4 font-semibold text-sm">Total</th>
+                      <th className="text-riUSt py-3 px-4 font-semibold text-sm">Unit Price</th>
+                      <th className="text-riUSt py-3 px-4 font-semibold text-sm">Tax</th>
+                      <th className="text-riUSt py-3 px-4 font-semibold text-sm">Total</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -403,11 +403,11 @@ export default function PurchaseOrderDetailView({
                                 </Badge>
                               </div>
                             </td>
-                            <td className="py-3 px-4 text-sm text-right">
+                            <td className="py-3 px-4 text-sm text-riUSt">
                               {formatCurrency(unitPrice)}
                             </td>
-                            <td className="py-3 px-4 text-sm text-right">{taxRate}%</td>
-                            <td className="py-3 px-4 text-sm text-right font-semibold">
+                            <td className="py-3 px-4 text-sm text-riUSt">{taxRate}%</td>
+                            <td className="py-3 px-4 text-sm text-riUSt font-semibold">
                               {formatCurrency(lineTotal)}
                             </td>
                           </tr>

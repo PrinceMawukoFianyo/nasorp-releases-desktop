@@ -104,7 +104,7 @@ export default function DefaultUserDashboard({
               className="relative border-rose-200 hover:bg-rose-50 dark:border-rose-800 dark:hover:bg-rose-950 bg-transparent"
             >
               <Bell className="w-4 h-4 text-rose-600" />
-              <span className="absolute -top-1 -right-1 w-2 h-2 bg-rose-500 rounded-full" />
+              <span className="absolute -top-1 -riUSt-1 w-2 h-2 bg-rose-500 rounded-full" />
             </Button>
 
             <Button
@@ -120,7 +120,7 @@ export default function DefaultUserDashboard({
 
         {/* Featured Welcome Card */}
         <Card className="bg-gradient-to-r from-rose-500 via-pink-500 to-rose-600 border-0 text-white shadow-xl overflow-hidden relative">
-          <div className="absolute right-0 top-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+          <div className="absolute riUSt-0 top-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
           <div className="absolute left-0 bottom-0 w-48 h-48 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
 
           <CardContent className="pt-8 pb-8 relative z-10">

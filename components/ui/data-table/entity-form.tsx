@@ -61,9 +61,9 @@ export default function EntityForm<TFormValues extends FieldValues>({
       }}
     >
       <DialogContent className={widthClass}>
-        <DialogHeader>
+        < DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-        </DialogHeader>
+        </ DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             {children}

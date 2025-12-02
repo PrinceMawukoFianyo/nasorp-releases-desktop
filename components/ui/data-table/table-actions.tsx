@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Edit, Trash2, FileSpreadsheet, Loader2 } from "lucide-react";
+import { Plus, Edit, Trash2, FileSpreadsheet, Loader2, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import clsx from "clsx";
 
@@ -53,6 +53,29 @@ const EditButton = ({
       <Loader2 className="h-4 w-4 animate-spin" />
     ) : (
       <Edit className="h-4 w-4" />
+    )}
+  </Button>
+);
+
+// View Button
+const ViewButton = ({
+  onClick,
+  disabled = false,
+  loading = false,
+  className = "",
+}: ActionButtonProps) => (
+  <Button
+    variant="outline"
+    size="icon"
+    onClick={onClick}
+    disabled={disabled || loading}
+    title="View"
+    className={className}
+  >
+    {loading ? (
+      <Loader2 className="h-4 w-4 animate-spin" />
+    ) : (
+      <Eye className="h-4 w-4" />
     )}
   </Button>
 );
@@ -113,16 +136,19 @@ const ExportButton = ({
 // Row Actions
 const RowActions = ({
   onEdit,
+  onView,
   onDelete,
   isDeleting = false,
 }: {
   onEdit?: () => void;
   onDelete?: () => void;
+  onView?: () => void;
   isDeleting?: boolean;
 }) => {
   return (
     <div className="flex justify-end gap-2">
       {onEdit && <EditButton onClick={onEdit} />}
+      {onView && <ViewButton onClick={onView} />}
       {onDelete && <DeleteButton onClick={onDelete} loading={isDeleting} />}
     </div>
   );

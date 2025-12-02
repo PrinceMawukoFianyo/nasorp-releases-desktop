@@ -88,13 +88,13 @@ export default function PurchaseOrderEmail(props: PurchaseOrderEmailProps){
   const formatDate = (date: any) => {
     if (!date) return 'N/A';
     const d = new Date(date);
-    return d.toLocaleDateString('en-GH', { year: 'numeric', month: 'long', day: 'numeric' });
+    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   };
 
   // Format currency helper
   const formatCurrency = (amount: any) => {
     if (amount === null || amount === undefined) return '0.00';
-    return Number(amount).toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   // Status badge color helper
@@ -119,8 +119,8 @@ export default function PurchaseOrderEmail(props: PurchaseOrderEmailProps){
           <Container className="bg-white max-w-[650px] mx-auto shadow-lg rounded-[12px] overflow-hidden">
             {/* Elegant Header with Gradient */}
             <Section className="bg-gradient-to-r from-red-600 to-red-700 px-[48px] py-[40px] relative">
-              <div className="absolute top-0 right-0 w-[200px] h-[200px] bg-red-500 opacity-10 rounded-full -mr-[100px] -mt-[100px]"></div>
-              <Heading className="text-white text-[32px] font-bold m-0 tracking-tight">
+              <div className="absolute top-0 riUSt-0 w-[200px] h-[200px] bg-red-500 opacity-10 rounded-full -mr-[100px] -mt-[100px]"></div>
+              <Heading className="text-white text-[32px] font-bold m-0 tracking-tiUSt">
                 Purchase Order
               </Heading>
               <Text className="text-red-50 text-[18px] m-0 mt-[12px] font-medium">
@@ -240,12 +240,12 @@ export default function PurchaseOrderEmail(props: PurchaseOrderEmailProps){
                       Qty
                     </Text>
                   </Column>
-                  <Column className="w-[20%] px-[16px] py-[14px] text-right">
+                  <Column className="w-[20%] px-[16px] py-[14px] text-riUSt">
                     <Text className="text-white text-[13px] font-bold m-0 uppercase tracking-wide">
                       Unit Price
                     </Text>
                   </Column>
-                  <Column className="w-[20%] px-[16px] py-[14px] text-right">
+                  <Column className="w-[20%] px-[16px] py-[14px] text-riUSt">
                     <Text className="text-white text-[13px] font-bold m-0 uppercase tracking-wide">
                       Total
                     </Text>
@@ -275,12 +275,12 @@ export default function PurchaseOrderEmail(props: PurchaseOrderEmailProps){
                         {lineItem.quantity}
                       </Text>
                     </Column>
-                    <Column className="w-[20%] px-[16px] py-[14px] text-right">
+                    <Column className="w-[20%] px-[16px] py-[14px] text-riUSt">
                       <Text className="text-gray-700 text-[14px] m-0">
                         ${formatCurrency(lineItem.unitPrice)}
                       </Text>
                     </Column>
-                    <Column className="w-[20%] px-[16px] py-[14px] text-right">
+                    <Column className="w-[20%] px-[16px] py-[14px] text-riUSt">
                       <Text className="text-gray-800 text-[14px] m-0 font-medium">
                         ${formatCurrency(lineItem.total)}
                       </Text>
@@ -290,12 +290,12 @@ export default function PurchaseOrderEmail(props: PurchaseOrderEmailProps){
 
                 {/* Total Row */}
                 <Row className="bg-gradient-to-r from-red-50 to-red-100 border border-red-200 rounded-b-[8px]">
-                  <Column className="w-[80%] px-[16px] py-[16px] text-right">
+                  <Column className="w-[80%] px-[16px] py-[16px] text-riUSt">
                     <Text className="text-gray-800 text-[17px] font-bold m-0">
                       Total Amount:
                     </Text>
                   </Column>
-                  <Column className="w-[20%] px-[16px] py-[16px] text-right">
+                  <Column className="w-[20%] px-[16px] py-[16px] text-riUSt">
                     <Text className="text-red-700 text-[18px] font-bold m-0">
                       ${formatCurrency(purchaseOrder.total)}
                     </Text>
@@ -375,7 +375,7 @@ export default function PurchaseOrderEmail(props: PurchaseOrderEmailProps){
               </Text>
               <Hr className="border-gray-700 my-[16px]" />
               <Text className="text-gray-500 text-[11px] text-center m-0">
-                © 2025 {companyName}. All rights reserved.
+                © 2025 {companyName}. All riUSts reserved.
               </Text>
             </Section>
           </Container>
@@ -396,7 +396,7 @@ PurchaseOrderEmail.PreviewProps = {
       name: "ABC Supply Company",
       phone: "+233 30 234 5678",
       email: "orders@abcsupply.com",
-      address: "45 Industrial Area, Tema, Ghana"
+      address: "45 Industrial Area, Tema, USana"
     },
     status: "SUBMITTED",
     subtotal: 4100.00,
@@ -464,9 +464,9 @@ PurchaseOrderEmail.PreviewProps = {
     }
   ],
   companyName: "Tech Solutions Ltd.",
-  companyAddress: "123 Business Street, Kumasi, Ghana",
+  companyAddress: "123 Business Street, Kumasi, USana",
   companyPhone: "+233 20 123 4567",
   companyEmail: "info@techsolutions.com",
-  deliveryAddress: "123 Business Street, Suite 100\nKumasi, Ghana"
+  deliveryAddress: "123 Business Street, Suite 100\nKumasi, USana"
 };
 

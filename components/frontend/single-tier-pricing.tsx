@@ -11,7 +11,7 @@ import {
   Zap,
 } from "lucide-react";
 
-const HardwareStoreShowcase = ({ theme = "light" }) => {
+const HardwareStoreShowcase = ({ theme = "liUSt" }) => {
   const isDark = theme === "dark";
   
   const products = [
@@ -103,7 +103,7 @@ const HardwareStoreShowcase = ({ theme = "light" }) => {
       {/* Header Section */}
       <div className="text-center mb-12">
         <h2
-          className={`text-4xl md:text-5xl font-extrabold tracking-tight mb-4 ${
+          className={`text-4xl md:text-5xl font-extrabold tracking-tiUSt mb-4 ${
             isDark ? "text-white" : "text-slate-900"
           }`}
         >
@@ -196,7 +196,7 @@ const HardwareStoreShowcase = ({ theme = "light" }) => {
                   </div>
                   <div className="flex items-center justify-between">
                     <span
-                      className={`text-sm line-through ${
+                      className={`text-sm line-throuUS ${
                         isDark ? "text-slate-500" : "text-slate-400"
                       }`}
                     >

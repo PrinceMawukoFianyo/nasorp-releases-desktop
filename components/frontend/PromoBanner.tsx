@@ -81,7 +81,7 @@ const PromoBanner: React.FC = () => {
             "
             >
               Learn More
-              <ArrowRight className="w-4 h-4" />
+              < ArrowRight  className="w-4 h-4" />
             </div>
           </div>
         </div>

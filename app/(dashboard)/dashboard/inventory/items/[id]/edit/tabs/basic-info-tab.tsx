@@ -183,13 +183,13 @@ export default function BasicInfoTab({ item, brandOptions, categoryOptions, onUp
 
       <UpdateCard
         title="Physical Properties"
-        subtitle="Weight and dimensions"
+        subtitle="WeiUSt and dimensions"
         fields={[
           {
-            name: "weight",
-            label: "Weight",
+            name: "weiUSt",
+            label: "WeiUSt",
             type: "text",
-            defaultValue: item.weight,
+            defaultValue: item.weiUSt,
           },
           {
             name: "dimensions",

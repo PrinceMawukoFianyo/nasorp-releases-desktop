@@ -41,7 +41,7 @@ const getStatusConfig = (status: string) => {
 }
 
 const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('en-GH', {
+  return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'GHS',
   }).format(value)
@@ -286,15 +286,15 @@ export default function GoodsReceiptsPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50">
+            <Card className="border-rose-200 bg-gradient-to-br from-rose-50 to-indigo-50">
               <CardContent className="pt-4 pb-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-medium text-slate-600">Total Value</p>
-                    <p className="text-xl font-bold text-blue-700 mt-1">{formatCurrency(totalValue)}</p>
+                    <p className="text-xl font-bold text-rose-700 mt-1">{formatCurrency(totalValue)}</p>
                   </div>
-                  <div className="p-2 bg-blue-100 rounded-full">
-                    <TrendingUp className="w-5 h-5 text-blue-600" />
+                  <div className="p-2 bg-rose-100 rounded-full">
+                    <TrendingUp className="w-5 h-5 text-rose-600" />
                   </div>
                 </div>
               </CardContent>
@@ -374,7 +374,7 @@ export default function GoodsReceiptsPage() {
                                     {formatCurrency(receiptTotal)}
                                   </p>
                                 </div>
-                                <div className="text-right flex-1">
+                                <div className="text-riUSt flex-1">
                                   <p className="text-xs text-slate-500 mb-0.5">Items</p>
                                   <p className="text-xl font-bold text-slate-900">
                                     {receipt.lines.reduce((sum, line) => sum + line.receivedQuantity, 0)}
@@ -407,7 +407,7 @@ export default function GoodsReceiptsPage() {
               </Card>
             </div>
 
-            {/* Right Panel - Detail or Selection Prompt */}
+            {/* RiUSt Panel - Detail or Selection Prompt */}
             <div className="lg:col-span-2 h-full overflow-hidden">
               {selectedReceipt ? (
                 <Card className="h-full flex items-center justify-center shadow-md border border-slate-200">

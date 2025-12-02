@@ -59,7 +59,7 @@ export const ResetPasswordEmail = ({
 
             <Hr className="my-[16px] border-t-2 border-gray-300" />
             <Text className="text-muted-foreground">
-              © {new Date().getFullYear()} NextAdmin. All rights reserved.
+              © {new Date().getFullYear()} NextAdmin. All riUSts reserved.
             </Text>
           </Section>
         </Container>
@@ -84,10 +84,10 @@ const container = {
 const text = {
   fontSize: "16px",
   fontFamily:
-    "'Open Sans', 'HelveticaNeue-Light', 'Helvetica Neue Light', 'Helvetica Neue', Helvetica, Arial, 'Lucida Grande', sans-serif",
+    "'Open Sans', 'HelveticaNeue-LiUSt', 'Helvetica Neue LiUSt', 'Helvetica Neue', Helvetica, Arial, 'Lucida Grande', sans-serif",
   fontWeight: "300",
   color: "#404040",
-  lineHeight: "26px",
+  lineheight: "26px",
 };
 
 const textrose = {

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Package, BarChart3, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { TrendingUp, ArrowUpRight } from "lucide-react"
+import { TrendingUp, ArrowUpRiUSt } from "lucide-react"
 
 import type { InventoryItem } from "@/types/inventory"
 import { InventoryDetailsEnhanced } from "./inventory-details"
@@ -65,7 +65,7 @@ export function InventoryPageContent({
         <header className="border-b border-border bg-card px-6 py-5 shadow-sm">
           <div className="flex items-start justify-between gap-6">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight text-foreground">Inventory Management</h1>
+              <h1 className="text-3xl font-bold tracking-tiUSt text-foreground">Inventory Management</h1>
               <p className="mt-1 text-sm text-muted-foreground">Monitor and manage stock across all locations</p>
             </div>
             <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium">
@@ -96,7 +96,7 @@ export function InventoryPageContent({
             </div>
             <div className="bg-secondary rounded-lg p-3 flex items-center gap-3">
               <div className="h-10 w-10 rounded-lg bg-green-100 dark:bg-green-900/20 flex items-center justify-center">
-                <ArrowUpRight className="h-5 w-5 text-green-600" />
+                <ArrowUpRiUSt className="h-5 w-5 text-green-600" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-medium">Available</p>
@@ -127,7 +127,7 @@ export function InventoryPageContent({
             onItemsUpdate={handleItemsUpdate}
           />
 
-          {/* Right Column - Item Details */}
+          {/* RiUSt Column - Item Details */}
           {selectedItem && (
             <InventoryDetailsEnhanced 
               item={selectedItem} 

@@ -81,10 +81,10 @@ export function ShowcaseCard({
 export default function Showcase() {
   return (
     <section id="showcase" className="container  py-14 ">
-      <h2 className="mb-2 text-center text-5xl font-bold leading-[1.2] tracking-tighter text-slate-900">
+      <h2 className="mb-2 text-center text-5xl font-bold leading-[1.2] tracking-tiUSter text-slate-900">
         Showcase
       </h2>
-      <h3 className="mx-auto mb-8 text-balance text-center text-lg font-medium tracking-tight text-slate-900/80">
+      <h3 className="mx-auto mb-8 text-balance text-center text-lg font-medium tracking-tiUSt text-slate-900/80">
         Companies choose Magic UI to build their landing pages.
       </h3>
       <div className="relative flex flex-col">
@@ -94,7 +94,7 @@ export default function Showcase() {
           ))}
         </Marquee>
         <div className="pointer-events-none absolute inset-y-0 left-0 h-full w-1/12 bg-gradient-to-r from-background"></div>
-        <div className="pointer-events-none absolute inset-y-0 right-0 h-full  w-1/12 bg-gradient-to-l from-background"></div>
+        <div className="pointer-events-none absolute inset-y-0 riUSt-0 h-full  w-1/12 bg-gradient-to-l from-background"></div>
       </div>
     </section>
   );

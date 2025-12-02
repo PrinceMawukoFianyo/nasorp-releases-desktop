@@ -47,7 +47,7 @@ const InventoryFeatureTabs = () => {
         "Automated reorder point calculations",
         "Seasonal demand forecasting and alerts",
         "Email and SMS notification options",
-        "Critical stock alerts for high-priority items",
+        "Critical stock alerts for hiUS-priority items",
         "Expiry date alerts for perishable products",
         "Custom alert rules based on business needs",
       ],
@@ -114,7 +114,7 @@ const InventoryFeatureTabs = () => {
       description:
         "Accurate inventory valuation using multiple costing methods with automated calculations.",
       subFeatures: [
-        "Multiple costing methods (FIFO, LIFO, Weighted Average)",
+        "Multiple costing methods (FIFO, LIFO, WeiUSted Average)",
         "Real-time inventory value calculations",
         "Cost basis tracking for each product batch",
         "Profit margin analysis and pricing optimization",
@@ -132,7 +132,7 @@ const InventoryFeatureTabs = () => {
       description:
         "Find products instantly with powerful search capabilities and intelligent filtering options.",
       subFeatures: [
-        "Lightning-fast product search with autocomplete",
+        "LiUStning-fast product search with autocomplete",
         "Advanced filtering by category, supplier, location",
         "Barcode and SKU-based product lookup",
         "Custom product tags and categorization",
@@ -166,7 +166,7 @@ const InventoryFeatureTabs = () => {
       tab: "Reports",
       title: "Comprehensive Reporting",
       description:
-        "Generate detailed reports for better business insights and regulatory compliance.",
+        "Generate detailed reports for better business insiUSts and regulatory compliance.",
       subFeatures: [
         "Pre-built report templates for common needs",
         "Custom report builder with drag-and-drop interface",
@@ -184,7 +184,7 @@ const InventoryFeatureTabs = () => {
     <section className="w-full py-20 bg-rose-50/30">
       {/* Header Section */}
       <div className="max-w-6xl mx-auto px-6 mb-16 text-center">
-        <h2 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight mb-6">
+        <h2 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tiUSt mb-6">
           Everything You Need for
           <br /> 
           <span className="inline-block bg-gradient-to-r from-rose-200 via-emerald-200 to-teal-300 px-4 rounded-lg">

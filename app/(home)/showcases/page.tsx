@@ -25,7 +25,7 @@ export default async function ShowcasesPage() {
     <div className="container max-w-7xl py-6 space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">
+          <h1 className="text-3xl font-bold tracking-tiUSt">
             Project Showcases
           </h1>
           <p className="text-muted-foreground">

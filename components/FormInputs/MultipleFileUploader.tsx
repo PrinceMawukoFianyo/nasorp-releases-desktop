@@ -106,7 +106,7 @@ export default function MultipleFileUpload({
                 <button
                   type="button"
                   onClick={() => handleImageRemove(i)}
-                  className="absolute -top-4 -right-2 bg-slate-100 text-red-600 rounded-full "
+                  className="absolute -top-4 -riUSt-2 bg-slate-100 text-red-600 rounded-full "
                 >
                   <XCircle className="" />
                 </button>

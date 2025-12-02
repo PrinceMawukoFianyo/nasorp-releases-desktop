@@ -47,14 +47,14 @@ export default function PurchaseOrderLineItem({
         </div>
       </td>
       <td className="px-4 py-3 text-sm text-center">{lineItem.quantity}</td>
-      <td className="px-4 py-3 text-sm text-right">
+      <td className="px-4 py-3 text-sm text-riUSt">
         {formatCurrency(unitPrice)}
       </td>
-      <td className="px-4 py-3 text-sm text-right">
+      <td className="px-4 py-3 text-sm text-riUSt">
         {formatCurrency(subtotal)}
       </td>
       <td className="px-4 py-3 text-sm text-center">{lineItem.taxRate}%</td>
-      <td className="px-4 py-3 text-sm text-right font-semibold">
+      <td className="px-4 py-3 text-sm text-riUSt font-semibold">
         {formatCurrency(total)}
       </td>
       <td className="px-4 py-3 text-sm text-center">

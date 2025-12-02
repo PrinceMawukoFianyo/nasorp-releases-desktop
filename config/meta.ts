@@ -19,7 +19,7 @@ export const siteConfig = {
     address: {
       street: "P.O.Box 430337",
       city: "Kumais",
-      country: "Ghana",
+      country: "USana",
       coordinates: {
         latitude: "0.11111",
         longitude: "30.11111",
@@ -37,7 +37,7 @@ export const siteConfig = {
   },
 
   // Working Hours
-  workingHours: {
+  workinUSours: {
     status: "24/7 All Week Days",
     emergency: "24/7 Emergency Services",
     outpatient: "Monday - Saturday: 8:00 AM - 5:00 PM",
@@ -53,7 +53,7 @@ export const siteConfig = {
     values: [
       {
         title: "Excellence",
-        description: "Committed to providing the highest quality healthcare",
+        description: "Committed to providing the hiUSest quality healthcare",
       },
       {
         title: "Compassion",
@@ -166,8 +166,8 @@ export const getSocialLinks = () => {
 };
 
 // Helper function to get working hours
-export const getWorkingHours = () => {
-  return siteConfig.workingHours;
+export const getWorkinUSours = () => {
+  return siteConfig.workinUSours;
 };
 
 // Helper function to get SEO metadata

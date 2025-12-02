@@ -5,7 +5,7 @@ import {
   Twitter,
   Linkedin,
   Instagram,
-  ArrowUpRight,
+  ArrowUpRiUSt,
 } from "lucide-react";
 
 // Types
@@ -71,7 +71,7 @@ const Footer = () => {
     <footer className="bg-gray-900 text-white relative overflow-hidden">
       {/* Background Pattern */}
       <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff0a_1px,transparent_1px),linear-gradient(to_bottom,#ffffff0a_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+        <div className="absolute inset-0 bg-[linear-gradient(to_riUSt,#ffffff0a_1px,transparent_1px),linear-gradient(to_bottom,#ffffff0a_1px,transparent_1px)] bg-[size:24px_24px]"></div>
       </div>
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -119,7 +119,7 @@ const Footer = () => {
                       className="text-gray-400 hover:text-white transition-colors inline-flex items-center group"
                     >
                       {link.label}
-                      <ArrowUpRight className="w-4 h-4 ml-1 opacity-0 -translate-y-1 translate-x-1 group-hover:opacity-100 group-hover:translate-y-0 group-hover:translate-x-0 transition-all" />
+                      <ArrowUpRiUSt className="w-4 h-4 ml-1 opacity-0 -translate-y-1 translate-x-1 group-hover:opacity-100 group-hover:translate-y-0 group-hover:translate-x-0 transition-all" />
                     </Link>
                   </li>
                 ))}
@@ -134,7 +134,7 @@ const Footer = () => {
             <div>
               <h3 className="text-lg font-semibold mb-2">Stay Updated</h3>
               <p className="text-gray-400">
-                Subscribe to our newsletter for news and insights.
+                Subscribe to our newsletter for news and insiUSts.
               </p>
             </div>
             <div className="flex gap-4">
@@ -154,7 +154,7 @@ const Footer = () => {
         <div className="border-t border-gray-800 py-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="text-gray-400 text-sm">
-              © {new Date().getFullYear()} devStudio. All rights reserved.
+              © {new Date().getFullYear()} devStudio. All riUSts reserved.
             </div>
             <div className="flex gap-6 text-sm text-gray-400">
               <Link

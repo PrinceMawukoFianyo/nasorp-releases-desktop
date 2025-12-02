@@ -147,7 +147,7 @@ export async function updateItemById(id: string, data: Partial<ProductData>) {
     // ✅ VALIDATION: Remove any fields that don't exist in Prisma schema
     const validFields = [
       'id', 'name', 'sku', 'slug', 'barcode', 'description', 'dimensions', 
-      'weight', 'upc', 'ean', 'mpn', 'isbn', 'imageUrl', 'thumbnail', 
+      'weiUSt', 'upc', 'ean', 'mpn', 'isbn', 'imageUrl', 'thumbnail', 
       'salesCount', 'salesTotal', 'unitOfMeasure', 'costPrice', 'sellingPrice', 
       'minStockLevel', 'maxStockLevel', 'isActive', 'isSerialTracked', 
       'createdAt', 'updatedAt', 'organisationId', 'categoryId', 'taxRateId', 

@@ -248,7 +248,7 @@ export async function createGoodsReceipt(data: CreateGoodsReceiptRequest) {
         // Nothing received yet
         newStatus = PurchaseOrderStatus.SUBMITTED
       } else if (totalReceivedQuantity >= totalOrderedQuantity) {
-        // Fully received (equal or more - though more shouldn't happen due to validation)
+        // Fully received (equal or more - thouUS more shouldn't happen due to validation)
         newStatus = PurchaseOrderStatus.RECEIVED
       } else if (totalReceivedQuantity > 0) {
         // Partially received

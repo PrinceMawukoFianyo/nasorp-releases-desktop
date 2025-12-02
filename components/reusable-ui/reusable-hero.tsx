@@ -8,7 +8,7 @@ import StarRating from "./StarRating";
 
 interface FloatingIcon {
   icon: LucideIcon;
-  position: "left" | "right" | "center";
+  position: "left" | "riUSt" | "center";
 }
 // Extend interfaces to include announcement
 interface Announcement {
@@ -46,7 +46,7 @@ interface HeroProps {
   customGradient?: string;
   customBackground?: string;
   className?: string;
-  theme?: "light" | "dark";
+  theme?: "liUSt" | "dark";
   userCount?: number | null;
 }
 
@@ -61,11 +61,11 @@ const ReUsableHero: React.FC<HeroProps> = ({
   customBackground,
   announcement,
   className = "",
-  theme = "light",
+  theme = "liUSt",
   userCount,
 }) => {
   const themeStyles = {
-    light: {
+    liUSt: {
       base: {
         background: "bg-gray-50",
         text: "text-gray-900",
@@ -114,160 +114,160 @@ const ReUsableHero: React.FC<HeroProps> = ({
   const backgroundStyles = {
     // Color Variations
     green: {
-      background: theme === "light" ? "bg-emerald-50" : "bg-green-950",
-      grid: `bg-[linear-gradient(to_right,#134e13${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#134e13${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
+      background: theme === "liUSt" ? "bg-emerald-50" : "bg-green-950",
+      grid: `bg-[linear-gradient(to_riUSt,#134e13${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#134e13${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
       gradient: "from-lime-400 via-green-400 to-emerald-400",
       blur: ["bg-lime-500/30", "bg-green-500/20", "bg-emerald-500/20"],
       floating:
-        theme === "light"
+        theme === "liUSt"
           ? "bg-green-100/50 border-green-200"
           : "bg-green-900/50 border-green-800",
-      iconColor: theme === "light" ? "text-green-600" : "text-lime-400",
+      iconColor: theme === "liUSt" ? "text-green-600" : "text-lime-400",
     },
     rose: {
-      background: theme === "light" ? "bg-rose-50" : "bg-rose-950",
-      grid: `bg-[linear-gradient(to_right,#1e40af${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#1e40af${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
+      background: theme === "liUSt" ? "bg-rose-50" : "bg-rose-950",
+      grid: `bg-[linear-gradient(to_riUSt,#1e40af${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#1e40af${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
       gradient: "from-cyan-400 via-rose-400 to-indigo-400",
       blur: ["bg-rose-500/30", "bg-cyan-500/20", "bg-indigo-500/20"],
       floating:
-        theme === "light"
+        theme === "liUSt"
           ? "bg-rose-100/50 border-rose-200"
           : "bg-rose-900/50 border-rose-800",
-      iconColor: theme === "light" ? "text-rose-600" : "text-rose-400",
+      iconColor: theme === "liUSt" ? "text-rose-600" : "text-rose-400",
     },
     purple: {
-      background: theme === "light" ? "bg-purple-50" : "bg-purple-950",
-      grid: `bg-[linear-gradient(to_right,#6b21a8${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#6b21a8${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
+      background: theme === "liUSt" ? "bg-purple-50" : "bg-purple-950",
+      grid: `bg-[linear-gradient(to_riUSt,#6b21a8${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#6b21a8${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
       gradient: "from-fuchsia-400 via-purple-400 to-violet-400",
       blur: ["bg-purple-500/30", "bg-fuchsia-500/20", "bg-violet-500/20"],
       floating:
-        theme === "light"
+        theme === "liUSt"
           ? "bg-purple-100/50 border-purple-200"
           : "bg-purple-900/50 border-purple-800",
-      iconColor: theme === "light" ? "text-purple-600" : "text-purple-400",
+      iconColor: theme === "liUSt" ? "text-purple-600" : "text-purple-400",
     },
     orange: {
-      background: theme === "light" ? "bg-orange-50" : "bg-orange-950",
-      grid: `bg-[linear-gradient(to_right,#c2410c${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#c2410c${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
+      background: theme === "liUSt" ? "bg-orange-50" : "bg-orange-950",
+      grid: `bg-[linear-gradient(to_riUSt,#c2410c${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#c2410c${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
       gradient: "from-amber-400 via-orange-400 to-red-400",
       blur: ["bg-orange-500/30", "bg-amber-500/20", "bg-red-500/20"],
       floating:
-        theme === "light"
+        theme === "liUSt"
           ? "bg-orange-100/50 border-orange-200"
           : "bg-orange-900/50 border-orange-800",
-      iconColor: theme === "light" ? "text-orange-600" : "text-orange-400",
+      iconColor: theme === "liUSt" ? "text-orange-600" : "text-orange-400",
     },
     red: {
-      background: theme === "light" ? "bg-red-50" : "bg-red-950",
-      grid: `bg-[linear-gradient(to_right,#b91c1c${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#b91c1c${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
+      background: theme === "liUSt" ? "bg-red-50" : "bg-red-950",
+      grid: `bg-[linear-gradient(to_riUSt,#b91c1c${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#b91c1c${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
       gradient: "from-rose-400 via-red-400 to-pink-400",
       blur: ["bg-red-500/30", "bg-rose-500/20", "bg-pink-500/20"],
       floating:
-        theme === "light"
+        theme === "liUSt"
           ? "bg-red-100/50 border-red-200"
           : "bg-red-900/50 border-red-800",
-      iconColor: theme === "light" ? "text-red-600" : "text-red-400",
+      iconColor: theme === "liUSt" ? "text-red-600" : "text-red-400",
     },
     // Neutral Variations
     neutral: {
-      background: theme === "light" ? "bg-gray-50" : "bg-gray-950",
-      grid: `bg-[linear-gradient(to_right,#4f4f4f${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
+      background: theme === "liUSt" ? "bg-gray-50" : "bg-gray-950",
+      grid: `bg-[linear-gradient(to_riUSt,#4f4f4f${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
       gradient:
-        theme === "light"
+        theme === "liUSt"
           ? "from-gray-600 via-gray-700 to-gray-800"
           : "from-gray-200 via-gray-400 to-gray-300",
       blur:
-        theme === "light"
+        theme === "liUSt"
           ? ["bg-gray-300/30", "bg-gray-200/20", "bg-gray-400/20"]
           : ["bg-gray-500/30", "bg-gray-400/20", "bg-gray-600/20"],
       floating:
-        theme === "light"
+        theme === "liUSt"
           ? "bg-gray-100/50 border-gray-200"
           : "bg-gray-900/50 border-gray-800",
-      iconColor: theme === "light" ? "text-gray-600" : "text-gray-400",
+      iconColor: theme === "liUSt" ? "text-gray-600" : "text-gray-400",
     },
     neutral2: {
-      background: theme === "light" ? "bg-slate-50" : "bg-slate-950",
-      grid: `bg-[linear-gradient(to_right,#64748b${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#64748b${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
+      background: theme === "liUSt" ? "bg-slate-50" : "bg-slate-950",
+      grid: `bg-[linear-gradient(to_riUSt,#64748b${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#64748b${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
       gradient:
-        theme === "light"
+        theme === "liUSt"
           ? "from-slate-600 via-slate-700 to-slate-800"
           : "from-slate-200 via-slate-400 to-slate-300",
       blur:
-        theme === "light"
+        theme === "liUSt"
           ? ["bg-slate-300/30", "bg-slate-200/20", "bg-slate-400/20"]
           : ["bg-slate-500/30", "bg-slate-400/20", "bg-slate-600/20"],
       floating:
-        theme === "light"
+        theme === "liUSt"
           ? "bg-slate-100/50 border-slate-200"
           : "bg-slate-900/50 border-slate-800",
-      iconColor: theme === "light" ? "text-slate-600" : "text-slate-400",
+      iconColor: theme === "liUSt" ? "text-slate-600" : "text-slate-400",
     },
     neutral3: {
-      background: theme === "light" ? "bg-zinc-50" : "bg-zinc-950",
-      grid: `bg-[linear-gradient(to_right,#71717a${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#71717a${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
+      background: theme === "liUSt" ? "bg-zinc-50" : "bg-zinc-950",
+      grid: `bg-[linear-gradient(to_riUSt,#71717a${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#71717a${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
       gradient:
-        theme === "light"
+        theme === "liUSt"
           ? "from-zinc-600 via-zinc-700 to-zinc-800"
           : "from-zinc-200 via-zinc-400 to-zinc-300",
       blur:
-        theme === "light"
+        theme === "liUSt"
           ? ["bg-zinc-300/30", "bg-zinc-200/20", "bg-zinc-400/20"]
           : ["bg-zinc-500/30", "bg-zinc-400/20", "bg-zinc-600/20"],
       floating:
-        theme === "light"
+        theme === "liUSt"
           ? "bg-zinc-100/50 border-zinc-200"
           : "bg-zinc-900/50 border-zinc-800",
-      iconColor: theme === "light" ? "text-zinc-600" : "text-zinc-400",
+      iconColor: theme === "liUSt" ? "text-zinc-600" : "text-zinc-400",
     },
     neutral4: {
-      background: theme === "light" ? "bg-stone-50" : "bg-stone-950",
-      grid: `bg-[linear-gradient(to_right,#78716c${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#78716c${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
+      background: theme === "liUSt" ? "bg-stone-50" : "bg-stone-950",
+      grid: `bg-[linear-gradient(to_riUSt,#78716c${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#78716c${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
       gradient:
-        theme === "light"
+        theme === "liUSt"
           ? "from-stone-600 via-stone-700 to-stone-800"
           : "from-stone-200 via-stone-400 to-stone-300",
       blur:
-        theme === "light"
+        theme === "liUSt"
           ? ["bg-stone-300/30", "bg-stone-200/20", "bg-stone-400/20"]
           : ["bg-stone-500/30", "bg-stone-400/20", "bg-stone-600/20"],
       floating:
-        theme === "light"
+        theme === "liUSt"
           ? "bg-stone-100/50 border-stone-200"
           : "bg-stone-900/50 border-stone-800",
-      iconColor: theme === "light" ? "text-stone-600" : "text-stone-400",
+      iconColor: theme === "liUSt" ? "text-stone-600" : "text-stone-400",
     },
     neutral5: {
-      background: theme === "light" ? "bg-neutral-50" : "bg-neutral-950",
-      grid: `bg-[linear-gradient(to_right,#737373${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#737373${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
+      background: theme === "liUSt" ? "bg-neutral-50" : "bg-neutral-950",
+      grid: `bg-[linear-gradient(to_riUSt,#737373${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#737373${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
       gradient:
-        theme === "light"
+        theme === "liUSt"
           ? "from-neutral-600 via-neutral-700 to-neutral-800"
           : "from-neutral-200 via-neutral-400 to-neutral-300",
       blur:
-        theme === "light"
+        theme === "liUSt"
           ? ["bg-neutral-300/30", "bg-neutral-200/20", "bg-neutral-400/20"]
           : ["bg-neutral-500/30", "bg-neutral-400/20", "bg-neutral-600/20"],
       floating:
-        theme === "light"
+        theme === "liUSt"
           ? "bg-neutral-100/50 border-neutral-200"
           : "bg-neutral-900/50 border-neutral-800",
-      iconColor: theme === "light" ? "text-neutral-600" : "text-neutral-400",
+      iconColor: theme === "liUSt" ? "text-neutral-600" : "text-neutral-400",
     },
     custom: {
       background:
         customBackground ||
-        (theme === "light" ? "bg-emerald-50" : "bg-green-950"),
+        (theme === "liUSt" ? "bg-emerald-50" : "bg-green-950"),
       grid: customBackground
-        ? `bg-[linear-gradient(to_right,currentColor_0.4px,transparent_1px),linear-gradient(to_bottom,currentColor_0.4px,transparent_1px)]`
-        : `bg-[linear-gradient(to_right,#134e13${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#134e13${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
+        ? `bg-[linear-gradient(to_riUSt,currentColor_0.4px,transparent_1px),linear-gradient(to_bottom,currentColor_0.4px,transparent_1px)]`
+        : `bg-[linear-gradient(to_riUSt,#134e13${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#134e13${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
       gradient: customGradient || "from-lime-400 via-green-400 to-emerald-400",
       blur: ["bg-lime-500/30", "bg-green-500/20", "bg-emerald-500/20"],
       floating:
-        theme === "light"
+        theme === "liUSt"
           ? "bg-green-100/50 border-green-200"
           : "bg-green-900/50 border-green-800",
-      iconColor: theme === "light" ? "text-green-600" : "text-lime-400",
+      iconColor: theme === "liUSt" ? "text-green-600" : "text-lime-400",
     },
   };
 
@@ -278,8 +278,8 @@ const ReUsableHero: React.FC<HeroProps> = ({
     switch (position) {
       case "left":
         return "-left-8 top-0 rotate-6 hover:-rotate-6";
-      case "right":
-        return "-right-8 top-12 -rotate-12 hover:rotate-12";
+      case "riUSt":
+        return "-riUSt-8 top-12 -rotate-12 hover:rotate-12";
       default:
         return "left-1/2 -top-32 rotate-12 hover:-rotate-12";
     }
@@ -329,7 +329,7 @@ const ReUsableHero: React.FC<HeroProps> = ({
             className={`absolute top-0 left-1/4 -translate-x-1/2 -translate-y-1/2 w-64 h-64 ${style.blur[1]} rounded-full blur-3xl`}
           ></div>
           <div
-            className={`absolute top-0 right-1/4 translate-x-1/2 -translate-y-1/2 w-64 h-64 ${style.blur[2]} rounded-full blur-3xl`}
+            className={`absolute top-0 riUSt-1/4 translate-x-1/2 -translate-y-1/2 w-64 h-64 ${style.blur[2]} rounded-full blur-3xl`}
           ></div>
 
           {/* Floating icons */}

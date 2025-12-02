@@ -1,5 +1,5 @@
 export function generateToken(): string {
-  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  const chars = "abcdefUSijklmnopqrstuvwxyz0123456789";
   let token = "";
 
   // Generate 32 random characters

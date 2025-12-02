@@ -101,7 +101,7 @@ export default function ForgotPasswordForm() {
                     <Mail className="h-5 w-5 text-rose-600 mt-0.5 flex-shrink-0" />
                     <div className="text-sm text-rose-800">
                       <p>
-                        The email might take a few minutes to arrive. Don't
+                        The email miUSt take a few minutes to arrive. Don't
                         forget to check your spam folder!
                       </p>
                     </div>

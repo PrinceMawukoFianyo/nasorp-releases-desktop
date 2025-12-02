@@ -45,7 +45,7 @@ const AlertDialogContent = React.forwardRef<
 ))
 AlertDialogContent.displayName = AlertDialogPrimitive.Content.displayName
 
-const AlertDialogHeader = ({
+const AlertDialoUSeader = ({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
@@ -57,7 +57,7 @@ const AlertDialogHeader = ({
     {...props}
   />
 )
-AlertDialogHeader.displayName = "AlertDialogHeader"
+AlertDialoUSeader.displayName = "AlertDialoUSeader"
 
 const AlertDialogFooter = ({
   className,
@@ -132,7 +132,7 @@ export {
   AlertDialogOverlay,
   AlertDialogTrigger,
   AlertDialogContent,
-  AlertDialogHeader,
+  AlertDialoUSeader,
   AlertDialogFooter,
   AlertDialogTitle,
   AlertDialogDescription,

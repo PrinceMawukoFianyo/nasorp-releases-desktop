@@ -28,10 +28,3 @@ export interface Item extends PrismaItem {
   })[]
 }
 
-// types/auth.ts
-export interface AuthenticatedUser {
-  id: string;
-  email: string;
-  name: string;
-  orgId: string;
-}

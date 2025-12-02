@@ -1,60 +1,35 @@
-import { getDashboardOverview } from "@/actions/analytics";
+// app/(dashboard)/dashboard/page.tsx
+
+import { getDashboardData } from "@/actions/dashboard";
 import DashboardMain from "@/components/dashboard/DashboardMain";
 import { getAuthenticatedUser } from "@/config/useAuth";
-import DefaultUserDashboard from "../../../components/dashboard/Tables/DefaultUserDashboard";
-import { ISidebarLink, sidebarLinks } from "@/config/sidebar";
-import { Layers } from "lucide-react";
 
+type Props = {
+  searchParams: { period?: string };
+};
 
-export default async function Dashboard() {
-  const analytics = (await getDashboardOverview()) || [];
-  const user = await getAuthenticatedUser(); 
-  const userPermissions= user.permissions;
-  //const hasPermission = 
-  // Helper function to check if user has permission
-  const hasPermission = (permission: string): boolean => {
-    return user.permissions?.includes(permission) ?? false;
-  };
-
-  // Filter sidebar links based on permissions
-  const filterSidebarLinks = (links: ISidebarLink[]): ISidebarLink[] => {
-    return links
-      .filter((link) => hasPermission(link.permission))
-      .map((link) => ({
-        ...link,
-        dropdownMenu: link.dropdownMenu?.filter((item) =>
-          hasPermission(item.permission)
-        ),
-      }))
-      .filter(
-        (link) =>
-          !link.dropdown || (link.dropdownMenu && link.dropdownMenu.length > 0)
-      );
-  };
-  const filteredLinks = filterSidebarLinks(sidebarLinks);
-  if (!userPermissions.includes("dashboard.read")){
-    return <DefaultUserDashboard navigationLinks = {filteredLinks} user={user}/>
-  }
-  return (
-    <main>
-      {<div className="space-y-6">
-        {/*<div className="space-y-1 mb-4">
-          <h2 className="text-2xl font-semibold tracking-tight">
-            Org Name: {user?.orgName?? ""}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            org ID : {user.orgId}
+export default async function DashboardPage({ searchParams }: Props) {
+  const period = searchParams.period || "7d";
+  
+  try {
+    const user = await getAuthenticatedUser();
+    const data = await getDashboardData(period);
+    
+    return <DashboardMain
+      data={data} 
+      initialPeriod={period}
+    />;
+  } catch (error) {
+    console.error("Dashboard error:", error);
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-2">Error Loading Dashboard</h2>
+          <p className="text-muted-foreground">
+            {error instanceof Error ? error.message : "An error occurred"}
           </p>
-        </div>*/}
-
-        {/*<div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
-          {analytics.map((item, i) => (
-            <OverViewCard item={item} key={i} />
-          ))}
-        </div>*/}
-      </div> }
-      <DashboardMain />
-    </main>
-  );
+        </div>
+      </div>
+    );
+  }
 }
-

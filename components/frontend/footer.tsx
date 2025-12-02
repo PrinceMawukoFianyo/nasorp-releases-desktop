@@ -34,11 +34,11 @@ export default function HardwarePlumbingFooter() {
       {/* Background gradient effects */}
       <div className="absolute inset-0">
         <div className="absolute top-0 left-0 w-72 h-72 bg-rose-500/10 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 right-0 w-72 h-72 bg-orange-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 riUSt-0 w-72 h-72 bg-orange-500/10 rounded-full blur-3xl"></div>
       </div>
 
       {/* Grid pattern overlay */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+      <div className="absolute inset-0 bg-[linear-gradient(to_riUSt,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:24px_24px]"></div>
 
       <div className="relative">
         {/* Top Section */}
@@ -49,7 +49,7 @@ export default function HardwarePlumbingFooter() {
             </h2>
             <p className="text-gray-400 max-w-xl text-base">
               From quick fixes to major projects, we've got the tools, parts, and expertise 
-              you need to get the job done right.
+              you need to get the job done riUSt.
             </p>
           </div>
           <div className="flex gap-4 md:flex-row flex-col">

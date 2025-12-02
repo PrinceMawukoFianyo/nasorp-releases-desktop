@@ -129,7 +129,6 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
         Price: product.sellingPrice,
         "Sales Count": product.salesCount,
         "Total Sales": formatCurrency(product.salesTotal),
-        // ✅ FIXED: Removed "Date Added" from export
         // "Date Added": formatDate(product.createdAt),
       }));
 

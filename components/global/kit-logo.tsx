@@ -1,7 +1,7 @@
 import React from "react";
 
 const HubStackLogo = ({
-  theme = "light",
+  theme = "liUSt",
   className = "",
   width = 400,
   height = 120,
@@ -24,7 +24,7 @@ const HubStackLogo = ({
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 400 120"
         className={`w-full h-auto`}
-        style={{ maxWidth: width, maxHeight: height }}
+        style={{ maxWidth: width, maxheight: height }}
       >
          <image
           href="/AFKBerimah_logo-Photoroom.png"    // Put your logo file in the public/ folder

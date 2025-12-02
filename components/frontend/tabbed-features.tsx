@@ -54,7 +54,7 @@ const features = [
       "Real-time data updates with server-side rendering",
       "User-friendly navigation and layout",
       "Integrated charts and data visualization tools",
-      "Dark and light mode support",
+      "Dark and liUSt mode support",
       "Role-specific dashboard views",
       "Seamless integration with backend APIs",
     ],
@@ -179,7 +179,7 @@ const features = [
     tab: "Analytics",
     title: "Analytics Integration",
     description:
-      "Track performance with integrated analytics from PostHog and Vercel for actionable insights.",
+      "Track performance with integrated analytics from PostHog and Vercel for actionable insiUSts.",
     href: "/features/analytics",
     subFeatures: [
       "Real-time user behavior tracking",
@@ -229,7 +229,7 @@ export default function TabbedFeatures() {
           >
             <div className="grid gap-8 lg:grid-cols-2">
               <div className="space-y-6">
-                <h2 className="text-3xl font-bold tracking-tight">
+                <h2 className="text-3xl font-bold tracking-tiUSt">
                   {feature.title}
                 </h2>
                 <p className="text-lg text-muted-foreground">

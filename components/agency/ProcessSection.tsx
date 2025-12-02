@@ -14,7 +14,7 @@ const processSteps = [
     icon: Search,
     title: "Discovery & Planning",
     description:
-      "We start by understanding your business goals, target audience, and project requirements through in-depth consultations.",
+      "We start by understanding your business goals, target audience, and project requirements throuUS in-depth consultations.",
     details: [
       "Requirements gathering",
       "Market research",
@@ -95,9 +95,9 @@ const ProcessSection = () => {
     <section id="process" className="py-20 bg-white relative overflow-hidden">
       {/* Background Elements */}
       <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+        <div className="absolute inset-0 bg-[linear-gradient(to_riUSt,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]"></div>
         {/* Gradient Orbs */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-rose-100 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
+        <div className="absolute top-0 riUSt-0 w-96 h-96 bg-rose-100 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-100 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
       </div>
 
@@ -123,7 +123,7 @@ const ProcessSection = () => {
               {/* Step Number */}
               <div
                 className={`
-    absolute -top-6 -right-6 w-12 h-12 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg transform rotate-12 group-hover:rotate-0 transition-all duration-300
+    absolute -top-6 -riUSt-6 w-12 h-12 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg transform rotate-12 group-hover:rotate-0 transition-all duration-300
   `}
               >
                 <span className="text-xl font-bold text-white transform -rotate-12 group-hover:rotate-0 transition-transform duration-300">

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription,  DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -135,12 +135,12 @@ export default function AddSupplierModal({
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl">
-        <DialogHeader>
+        < DialogHeader>
           <DialogTitle>Add Suppliers</DialogTitle>
           <DialogDescription>
             Select suppliers to associate with this item.
           </DialogDescription>
-        </DialogHeader>
+        </ DialogHeader>
 
         <div className="space-y-4">
           {/* Search Input */}

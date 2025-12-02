@@ -4,7 +4,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
-  DialogHeader,
+  DialoUSeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -18,13 +18,13 @@ export function DialogDemo() {
         <Button variant="outline">Edit Profile</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
+        <DialoUSeader>
           <DialogTitle>Excel Upload</DialogTitle>
           <DialogDescription>
             You can Bring all your Data from excel, Please Download the Sample
             file First to Make Sure you have Data Columns Required
           </DialogDescription>
-        </DialogHeader>
+        </DialoUSeader>
         <div className="grid gap-4 py-4">
           <Button asChild variant="outline">
             <Link href="/Categories.xlsx" download>

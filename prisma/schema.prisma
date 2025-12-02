@@ -92,6 +92,7 @@ model User {
   approvedAdjustments    Adjustment[]    @relation("AdjustmentApprovedBy")
   receivedGoodsReceipts  GoodsReceipt[]  @relation("GoodsReceiptReceivedBy")
   Saving                 Saving[]
+  inventoryTransactions InventoryTransaction[]
 }
 
 model Organisation {
@@ -127,6 +128,7 @@ model Organisation {
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+  inventoryTransactions InventoryTransaction[]
 
   @@map("organisations")
 }
@@ -153,6 +155,7 @@ model Location {
   salesOrders       SalesOrder[]    @relation("SalesLocation")
   goodsReceipts     GoodsReceipt[]
   adjustments       Adjustment[]
+  inventoryTransactions InventoryTransaction[]
 }
 
 enum LocationType {
@@ -230,7 +233,7 @@ model Item {
   barcode            String?             @unique
   description        String?
   dimensions         String?
-  weight             Float?
+  weiUSt             Float?
   upc                String?
   ean                String?
   mpn                String?
@@ -269,6 +272,7 @@ model Item {
   transferLines      TransferLine[]
   adjustmentLines    AdjustmentLine[]
   goodsReceiptLines  GoodsReceiptLine[]
+  inventoryTransactions InventoryTransaction[]
 }
 
 model Supplier {
@@ -484,6 +488,7 @@ model Customer {
   isActive     Boolean      @default(true)
   organisation Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
   orgId        String
+  imageUrl      String?
   salesOrders  SalesOrder[]
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
@@ -497,6 +502,7 @@ model SalesOrder {
   orderNumber   String           @unique
   customerId    String?
   customer      Customer?        @relation(fields: [customerId], references: [id])
+  source        Source           @default(SALES_ORDER)
   locationId    String
   location      Location         @relation("SalesLocation", fields: [locationId], references: [id])
   status        SalesOrderStatus @default(DRAFT)
@@ -529,6 +535,11 @@ enum SalesOrderStatus {
   COMPLETED
   CANCELLED
   RETURNED
+}
+
+enum Source {
+  POS
+  SALES_ORDER
 }
 
 enum PaymentStatus {
@@ -748,4 +759,40 @@ model Showcase {
   userId      String
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
+}
+
+model InventoryTransaction {
+  id              String    @id @default(cuid())
+  itemId          String
+  locationId      String
+  type            TransactionType
+  quantity        Int       // Positive for incoming, negative for outgoing
+  referenceNumber String?   // Order number, transfer number, etc.
+  notes           String?
+  orgId           String
+  userId          String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  item         Item         @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  location     Location     @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  organisation Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@index([itemId])
+  @@index([locationId])
+  @@index([orgId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+enum TransactionType {
+  PURCHASE
+  SALE
+  TRANSFER_IN
+  TRANSFER_OUT
+  ADJUSTMENT_IN
+  ADJUSTMENT_OUT
+  RETURN
 }

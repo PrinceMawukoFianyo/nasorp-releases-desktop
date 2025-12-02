@@ -170,7 +170,7 @@ export default function SupplierDetailForm({
             <div>
               <h2 className="text-2xl font-bold text-foreground">{supplier.supplierName}</h2>
               <p className="text-sm text-muted-foreground mt-2">
-                Added on {new Date(supplier.addedDate).toLocaleDateString("en-US", {
+                Added on {new Date(supplier.addedDate).toLocaleDateString("en-GH", {
                   year: "numeric",
                   month: "short",
                   day: "numeric",

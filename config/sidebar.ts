@@ -105,8 +105,8 @@ export const sidebarLinks: ISidebarLink[] = [
       },
       {
         title: "Stock Adjustment",
-        href: "/dashboard/inventory/stock-adjustment",
-        permission: "adjustment.read",
+        href: "/dashboard/inventory/adjustments",
+        permission: "adjustments.read",
       },
       {
         title: "Batch/Lot Numbers",
@@ -173,7 +173,7 @@ export const sidebarLinks: ISidebarLink[] = [
       {
         title: "POS Sales",
         href: "/dashboard/sales/pos",
-        permission: "pos.read",
+        permission: "pos.access",
       },
       {
         title: "Sales Orders",
@@ -208,10 +208,15 @@ export const sidebarLinks: ISidebarLink[] = [
     dropdownMenu: [
       {
         title: "Stock Movement",
-        href: "/dashboard/reports/stock-movement",
+        href: "/dashboard/reports/stock-movements",
         permission: "reports.read",
       },
       {
+        title: "Sales Report",
+        href: "/dashboard/reports/sales",
+        permission: "reports.read",
+      },
+     /*  {
         title: "Inventory Valuation",
         href: "/dashboard/reports/inventory-valuation",
         permission: "reports.read",
@@ -245,7 +250,7 @@ export const sidebarLinks: ISidebarLink[] = [
         title: "Customer Analysis",
         href: "/dashboard/reports/customer-analysis",
         permission: "reports.read",
-      },
+      }, */
     ],
   },
 

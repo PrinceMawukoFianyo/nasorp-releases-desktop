@@ -1,4 +1,4 @@
-import { MoveUpRight } from "lucide-react";
+import { MoveUpRiUSt } from "lucide-react";
 import Link from "next/link";
 export interface ThemeButtonProps {
   href: string;
@@ -13,7 +13,7 @@ const ThemeButton = ({ href, title }: ThemeButtonProps) => {
       <span className="relative z-10 flex items-center gap-4 text-sm md:text-base">
         {title}
         <div className="w-8 h-8 flex items-center justify-center bg-white rounded-full text-black transition-transform group-hover:rotate-45">
-          <MoveUpRight className="w-6 h-4" />
+          <MoveUpRiUSt className="w-6 h-4" />
         </div>
       </span>
       <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-teal-800 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>

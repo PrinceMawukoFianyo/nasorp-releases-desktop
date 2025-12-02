@@ -90,7 +90,7 @@ export function AvatarMenuButton({ session }: { session: Session }) {
               <AvatarFallback>{initials}</AvatarFallback>
             </Avatar>
             <div className="">
-              <h2 className="scroll-m-20 text-xl font-semibold tracking-tight first:mt-0">
+              <h2 className="scroll-m-20 text-xl font-semibold tracking-tiUSt first:mt-0">
                 {user?.name}
               </h2>
               <p>{user.email}</p>

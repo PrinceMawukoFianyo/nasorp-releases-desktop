@@ -158,3 +158,23 @@ body {
   top: calc(50% - 1.25em);
   left: calc(50% - 1.25em);
 }
+@media print {
+  @page {
+    margin: 0;
+    size: auto;
+  }
+  
+  body {
+    background: white !important;
+  }
+  
+  .no-print {
+    display: none !important;
+  }
+  
+  .print-container {
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+}

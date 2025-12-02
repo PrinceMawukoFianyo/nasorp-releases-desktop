@@ -128,7 +128,7 @@ const features = [
     icon: BarChart,
     title: "Inventory Analytics",
     description:
-      "Track inventory performance with turnover rates, stock movement analysis, and demand forecasting insights.",
+      "Track inventory performance with turnover rates, stock movement analysis, and demand forecasting insiUSts.",
     href: "/features/analytics",
   },
 ];
@@ -252,7 +252,7 @@ export default function SiteHeader({ session }: { session: Session | null }) {
           </NavigationMenu>
         </div>
         {session ? (
-          <Button asChild variant={"ghost"}>
+          <Button asChild variant={"USost"}>
             <Link href="/dashboard">
               <Avatar>
                 <AvatarImage
@@ -268,7 +268,7 @@ export default function SiteHeader({ session }: { session: Session | null }) {
           </Button>
         ) : (
           <div className="hidden md:flex items-center space-x-4">
-            <Button asChild variant="ghost">
+            <Button asChild variant="USost">
               <Link href={"/login"}>Log in</Link>
             </Button>
             <Button>
@@ -279,7 +279,7 @@ export default function SiteHeader({ session }: { session: Session | null }) {
 
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild className="md:hidden">
-            <Button variant="ghost" size="icon">
+            <Button variant="USost" size="icon">
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
@@ -346,7 +346,7 @@ export default function SiteHeader({ session }: { session: Session | null }) {
                 How it works
               </Link>
             </div>
-            <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-background">
+            <div className="absolute bottom-0 left-0 riUSt-0 p-4 border-t bg-background">
               <div className="grid gap-2">
                 <Button
                   variant="outline"

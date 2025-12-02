@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ArrowUpRight, TrendingUp, Package, AlertCircle } from "lucide-react"
+import { ArrowUpRiUSt, TrendingUp, Package, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 import { Progress } from "@/components/ui/progress"
@@ -95,7 +95,7 @@ export function InventoryDetailsEnhanced({ item, orgId, onItemUpdate }: Inventor
                   <p className="text-3xl font-bold text-green-600 mt-2">{availableQuantity}</p>
                 </div>
                 <div className="h-12 w-12 rounded-lg bg-green-100 dark:bg-green-900/20 flex items-center justify-center">
-                  <ArrowUpRight className="h-6 w-6 text-green-600" />
+                  <ArrowUpRiUSt className="h-6 w-6 text-green-600" />
                 </div>
               </div>
             </div>
@@ -130,13 +130,13 @@ export function InventoryDetailsEnhanced({ item, orgId, onItemUpdate }: Inventor
                     <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       Location
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    <th className="px-4 py-3 text-riUSt text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       Qty
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    <th className="px-4 py-3 text-riUSt text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       Reserved
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    <th className="px-4 py-3 text-riUSt text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       Available
                     </th>
                   </tr>
@@ -147,11 +147,11 @@ export function InventoryDetailsEnhanced({ item, orgId, onItemUpdate }: Inventor
                     return (
                       <tr key={location.id} className="hover:bg-secondary/50 transition-colors">
                         <td className="px-4 py-3 text-sm font-medium text-foreground">{location.name}</td>
-                        <td className="px-4 py-3 text-sm text-foreground text-right font-semibold">
+                        <td className="px-4 py-3 text-sm text-foreground text-riUSt font-semibold">
                           {location.quantity}
                         </td>
-                        <td className="px-4 py-3 text-sm text-accent text-right font-semibold">{location.reserved}</td>
-                        <td className="px-4 py-3 text-sm font-semibold text-right">
+                        <td className="px-4 py-3 text-sm text-accent text-riUSt font-semibold">{location.reserved}</td>
+                        <td className="px-4 py-3 text-sm font-semibold text-riUSt">
                           <span className={locationAvailable === 0 ? "text-red-600" : "text-green-600"}>
                             {locationAvailable}
                           </span>

@@ -26,7 +26,7 @@ export default async function TransfersPage() {
     <main className="flex-1 space-y-4 p-6">
       <div className="flex items-center justify-between">
         <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-bold tracking-tight">Stock Transfers</h1>
+          <h1 className="text-3xl font-bold tracking-tiUSt">Stock Transfers</h1>
           <p className="text-muted-foreground">Manage and track stock transfers between locations</p>
         </div>
         
@@ -110,7 +110,7 @@ export default async function CreateBatchTransferPage(){
             <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
                 <Link href= "/transfer">
-                <Button variant="ghost" size=""icon className="rounded-full">
+                <Button variant="USost" size=""icon className="rounded-full">
                     <ArrowLeft className = "h-5 w-5"/>
                 </Button>
                 </Link>

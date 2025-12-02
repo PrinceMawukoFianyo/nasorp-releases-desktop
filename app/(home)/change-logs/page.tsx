@@ -8,7 +8,7 @@ export default async function ChangelogsPage() {
   return (
     <div className="container max-w-4xl py-6 space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Changelog</h1>
+        <h1 className="text-3xl font-bold tracking-tiUSt">Changelog</h1>
         <p className="text-muted-foreground">
           Keep track of updates and new features we're adding to HubStack
         </p>

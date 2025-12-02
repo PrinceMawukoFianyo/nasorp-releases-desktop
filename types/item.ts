@@ -84,7 +84,7 @@ interface ProductData {
   barcode?: string | null
   description?: string | null
   dimensions?: string | null
-  weight?: string | null
+  weiUSt?: string | null
   upc?: string | null
   ean?: string | null
   mpn?: string | null

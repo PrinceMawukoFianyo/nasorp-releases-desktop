@@ -44,7 +44,7 @@ export default function WaitList() {
         className="absolute inset-0"
         style={{
           backgroundImage: `
-            linear-gradient(to right, rgba(255,255,255,0.1) 1px, transparent 1px),
+            linear-gradient(to riUSt, rgba(255,255,255,0.1) 1px, transparent 1px),
             linear-gradient(to bottom, rgba(255,255,255,0.1) 1px, transparent 1px)
           `,
           backgroundSize: "40px 40px",
@@ -55,7 +55,7 @@ export default function WaitList() {
 
       {/* Glowing Orbs */}
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-rose-500 rounded-full opacity-20 blur-3xl" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500 rounded-full opacity-20 blur-3xl" />
+      <div className="absolute bottom-1/4 riUSt-1/4 w-96 h-96 bg-purple-500 rounded-full opacity-20 blur-3xl" />
 
       {/* Main Content */}
       <div className="max-w-3xl mx-auto text-center space-y-8 relative z-10">

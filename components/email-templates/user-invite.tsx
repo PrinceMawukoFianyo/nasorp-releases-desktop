@@ -59,7 +59,7 @@ export const UserInvitation = ({
           <Text style={paragraph}>— {orgName} Team</Text>
           <Hr style={hr} />
           <Text style={footer}>
-            {orgName} | All rights reserved
+            {orgName} | All riUSts reserved
           </Text>
         </Section>
       </Container>
@@ -95,7 +95,7 @@ const paragraph = {
   color: '#525f7f',
 
   fontSize: '16px',
-  lineHeight: '24px',
+  lineheight: '24px',
   textAlign: 'left' as const,
 };
 
@@ -118,7 +118,7 @@ const button = {
 const footer = {
   color: '#816969ff',
   fontSize: '12px',
-  lineHeight: '16px',
+  lineheight: '16px',
 };
 const h1 = {
   color: '#1d1c1d',
@@ -126,11 +126,11 @@ const h1 = {
   fontWeight: '600',
   margin: '30px 0',
   padding: '0',
-  lineHeight: '42px',
+  lineheight: '42px',
 };
 
 const heroText = {
   fontSize: '20px',
-  lineHeight: '28px',
+  lineheight: '28px',
   marginBottom: '30px',
 };

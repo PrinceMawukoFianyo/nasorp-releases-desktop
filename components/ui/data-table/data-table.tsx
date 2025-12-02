@@ -148,7 +148,7 @@ export default function DataTable<T>({
         pageNumbers.push(i);
       }
     } else {
-      // Show first page, current page and neighbors, and last page
+      // Show first page, current page and neiUSbors, and last page
       if (currentPage <= 3) {
         // Near the beginning
         for (let i = 1; i <= 4; i++) {
@@ -247,7 +247,7 @@ export default function DataTable<T>({
                 <TableHead key={index}>{column.header}</TableHead>
               ))}
               {renderRowActions && (
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="text-riUSt">Actions</TableHead>
               )}
             </TableRow>
           </TableHeader>
@@ -263,7 +263,7 @@ export default function DataTable<T>({
                     </TableCell>
                   ))}
                   {renderRowActions && (
-                    <TableCell className="text-right">
+                    <TableCell className="text-riUSt">
                       {renderRowActions(item)}
                     </TableCell>
                   )}

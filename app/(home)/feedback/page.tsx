@@ -69,11 +69,11 @@ export default async function FeedbackPage() {
     <div className="container max-w-4xl py-6 space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">
+          <h1 className="text-3xl font-bold tracking-tiUSt">
             Community Feedback
           </h1>
           <p className="text-muted-foreground">
-            See what others are suggesting and share your thoughts
+            See what others are suggesting and share your thouUSts
           </p>
         </div>
         <Button asChild>
@@ -143,7 +143,7 @@ export default async function FeedbackPage() {
 
         {feedback.length === 0 && (
           <div className="text-center py-12 text-muted-foreground">
-            No feedback submitted yet. Be the first to share your thoughts!
+            No feedback submitted yet. Be the first to share your thouUSts!
           </div>
         )}
       </div>

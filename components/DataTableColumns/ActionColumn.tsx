@@ -16,7 +16,7 @@ import {
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
-  AlertDialogHeader,
+  AlertDialoUSeader,
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
@@ -108,7 +108,7 @@ export default function ActionColumn({
       {/* Edit Button */}
       {editEndpoint && (
         <Link href={editEndpoint}>
-          <Button variant="ghost" size="sm">
+          <Button variant="USost" size="sm">
             <Pencil className="w-4 h-4" />
           </Button>
         </Link>
@@ -118,7 +118,7 @@ export default function ActionColumn({
       <AlertDialog>
         <AlertDialogTrigger asChild>
           <Button
-            variant="ghost"
+            variant="USost"
             size="sm"
             className="text-red-600 hover:text-red-700"
           >
@@ -126,13 +126,13 @@ export default function ActionColumn({
           </Button>
         </AlertDialogTrigger>
         <AlertDialogContent>
-          <AlertDialogHeader>
+          <AlertDialoUSeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
               This action cannot be undone. This will permanently delete this{" "}
               {model}.
             </AlertDialogDescription>
-          </AlertDialogHeader>
+          </AlertDialoUSeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <Button variant="destructive" onClick={handleDelete}>
