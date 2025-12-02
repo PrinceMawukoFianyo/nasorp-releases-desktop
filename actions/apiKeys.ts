@@ -14,6 +14,26 @@ export async function createAPIKey(name: string) {
         error: "You are Not Authorized",
       };
     }
+
+    // Debug: Check what orgId we have
+    console.log("User orgId:", user.orgId);
+    
+    // Verify the organization exists
+    const organisation = await db.organisation.findUnique({
+      where: { id: user.orgId },
+    });
+    
+    if (!organisation) {
+      console.error("❌ Organisation not found for orgId:", user.orgId);
+      return {
+        success: false,
+        data: null,
+        error: "Organization not found",
+      };
+    }
+    
+    console.log("✅ Organisation found:", organisation.name);
+
     const apiKey = generateAPIKey();
 
     const existingKey = await db.apiKey.findUnique({
@@ -27,15 +47,21 @@ export async function createAPIKey(name: string) {
         error: "This Key Already exists",
       };
     }
-    console.log(apiKey);
+    
+    console.log("Generated API key:", apiKey);
+    
+    // Create the API key
     const newApiKey = await db.apiKey.create({
       data: {
         orgId: user.orgId,
         key: apiKey,
         name,
-        isActive: true, // Make sure this field exists in your schema
+        isActive: true,
       },
     });
+    
+    console.log("✅ API key created successfully:", newApiKey.id);
+    
     revalidatePath("/dashboard/integrations/api");
 
     return {
@@ -43,12 +69,22 @@ export async function createAPIKey(name: string) {
       data: newApiKey,
       error: null,
     };
-  } catch (error) {
-    console.log(error);
+  } catch (error: any) {
+    console.error("❌ Error creating API key:", error);
+    
+    // More specific error messages
+    if (error.code === 'P2003') {
+      return {
+        success: false,
+        data: null,
+        error: "Organization not found. Please check your organization settings.",
+      };
+    }
+    
     return {
       success: false,
       data: null,
-      error: "Something went wrong",
+      error: "Something went wrong while creating the API key",
     };
   }
 }

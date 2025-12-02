@@ -52,7 +52,7 @@ export function UserDropdownMenu({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
-          variant="USost"
+          variant="ghost"
           className="relative h-12 w-full justify-start gap-2 px-4"
         >
           <Avatar className="h-8 w-8">

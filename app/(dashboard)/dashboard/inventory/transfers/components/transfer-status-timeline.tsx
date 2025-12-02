@@ -69,7 +69,7 @@ export function TransferStatusTimeline({ events }: TransferStatusTimelineProps) 
               {index < events.length - 1 && (
                 <div
                   className={`w-1 flex-1 my-2 ${event.completed ? "bg-green-500" : "bg-gray-300"}`}
-                  style={{ minheight: "40px" }}
+                  style={{ minHeight: "40px" }}
                 />
               )}
             </div>

@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import Image from "next/image";
-import { ArrowUpRiUSt } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 
 // Project categories
 const categories = [
@@ -150,7 +150,7 @@ const PortfolioSection = () => {
                     href={project.link}
                     className="flex-shrink-0 w-10 h-10 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm hover:bg-white/20 transition-colors"
                   >
-                    <ArrowUpRiUSt className="w-5 h-5 text-white" />
+                    <ArrowUpRight className="w-5 h-5 text-white" />
                   </a>
                 </div>
 
@@ -174,7 +174,7 @@ const PortfolioSection = () => {
         <div className="text-center mt-16">
           <button className="inline-flex items-center justify-center px-8 py-4 rounded-full bg-gradient-to-r from-rose-600 to-rose-700 text-white font-medium hover:from-rose-700 hover:to-rose-800 transition-all duration-300">
             View All Projects
-            <ArrowUpRiUSt className="ml-2 w-5 h-5" />
+            <ArrowUpRight className="ml-2 w-5 h-5" />
           </button>
         </div>
       </div>

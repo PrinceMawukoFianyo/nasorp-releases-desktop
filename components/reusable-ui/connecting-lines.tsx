@@ -14,7 +14,7 @@ const ConnectingLines: React.FC<ConnectingLinesProps> = ({
   return (
     <svg
       className="absolute inset-0 w-full h-full"
-      style={{ minheight: "600px" }}
+      style={{ minHeight: "600px" }}
     >
       <defs>
         <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">

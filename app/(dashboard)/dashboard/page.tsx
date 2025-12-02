@@ -5,11 +5,13 @@ import DashboardMain from "@/components/dashboard/DashboardMain";
 import { getAuthenticatedUser } from "@/config/useAuth";
 
 type Props = {
-  searchParams: { period?: string };
+  searchParams: Promise<{ period?: string }>; // Make it a Promise
 };
 
 export default async function DashboardPage({ searchParams }: Props) {
-  const period = searchParams.period || "7d";
+  // Await the searchParams first
+  const params = await searchParams;
+  const period = params.period || "7d";
   
   try {
     const user = await getAuthenticatedUser();

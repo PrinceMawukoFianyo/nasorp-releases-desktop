@@ -110,7 +110,7 @@ export default async function CreateBatchTransferPage(){
             <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
                 <Link href= "/transfer">
-                <Button variant="USost" size=""icon className="rounded-full">
+                <Button variant="ghost" size=""icon className="rounded-full">
                     <ArrowLeft className = "h-5 w-5"/>
                 </Button>
                 </Link>

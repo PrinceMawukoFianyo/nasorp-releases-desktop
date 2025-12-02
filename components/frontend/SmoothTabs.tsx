@@ -114,7 +114,7 @@ const InventoryFeatureTabs = () => {
       description:
         "Accurate inventory valuation using multiple costing methods with automated calculations.",
       subFeatures: [
-        "Multiple costing methods (FIFO, LIFO, WeiUSted Average)",
+        "Multiple costing methods (FIFO, LIFO, weighted Average)",
         "Real-time inventory value calculations",
         "Cost basis tracking for each product batch",
         "Profit margin analysis and pricing optimization",

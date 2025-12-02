@@ -67,7 +67,7 @@ export default function NewPurchaseOrderPage() {
           <div className="max-w-6xl mx-auto">
             <div className="flex items-center gap-4">
               <Button
-                variant="USost"
+                variant="ghost"
                 size="icon"
                 onClick={() => router.back()}
                 className="h-8 w-8"

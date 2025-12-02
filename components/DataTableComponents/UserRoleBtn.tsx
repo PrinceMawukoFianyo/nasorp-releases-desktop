@@ -5,7 +5,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
-  DialoUSeader,
+  DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -84,7 +84,7 @@ export default function UserRoleBtn({ user }: UserRoleBtnProps) {
         </button>
       </DialogTrigger>
       <DialogContent>
-        <DialoUSeader>
+        <DialogHeader>
           <DialogTitle>
             <h2 className="scroll-m-20 border-b pb-2 text-2xl font-semibold tracking-tiUSt first:mt-0">
               Change User Role
@@ -108,7 +108,7 @@ export default function UserRoleBtn({ user }: UserRoleBtnProps) {
               </DialogFooter>
             </form>
           </DialogDescription>
-        </DialoUSeader>
+        </DialogHeader>
       </DialogContent>
     </Dialog>
   );

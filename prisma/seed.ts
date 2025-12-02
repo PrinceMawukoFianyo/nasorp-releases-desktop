@@ -21,7 +21,7 @@ function generateSlug(text: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
-async function cleanDatabase() {
+/* async function cleanDatabase() {
   console.log("Cleaning up existing data...");
   try {
     // Use a transaction to ensure data consistency
@@ -92,7 +92,7 @@ async function cleanDatabase() {
     console.error("Error during cleanup:", error);
     throw error;
   }
-}
+} */
 
 async function seedDatabase() {
   try {
@@ -414,7 +414,7 @@ async function seedDatabase() {
         barcode: "1234567890001",
         description: "PVC Schedule 40 pipe, 1/2 inch diameter, 10ft length",
         dimensions: "10 x 0.5 x 0.5 ft",
-        weiUSt: 0.8,
+        weight: 0.8,
         categoryId: categories.find((c: { title: string }) => c.title === "Plumbing Pipes & Fittings")?.id,
         brandId: brands.find((b) => b.name === "SharkBite")?.id,
         unitId: units.find((u) => u.name === "Piece")?.id,
@@ -432,7 +432,7 @@ async function seedDatabase() {
         barcode: "1234567890002",
         description: "Type L copper pipe, 3/4 inch diameter, 10ft length",
         dimensions: "10 x 0.75 x 0.75 ft",
-        weiUSt: 2.5,
+        weight: 2.5,
         categoryId: categories.find((c: { title: string }) => c.title === "Plumbing Pipes & Fittings")?.id,
         brandId: brands.find((b) => b.name === "Ridgid")?.id,
         unitId: units.find((u) => u.name === "Piece")?.id,
@@ -450,7 +450,7 @@ async function seedDatabase() {
         barcode: "1234567890003",
         description: "Kohler undermount bathroom sink, white porcelain",
         dimensions: "20 x 16 x 8 inches",
-        weiUSt: 15.5,
+        weight: 15.5,
         categoryId: categories.find((c: { title: string }) => c.title === "Bathroom Fixtures")?.id,
         brandId: brands.find((b) => b.name === "Kohler")?.id,
         unitId: units.find((u) => u.name === "Piece")?.id,
@@ -468,7 +468,7 @@ async function seedDatabase() {
         barcode: "1234567890004",
         description: "American Standard two-piece toilet, elongated bowl, white",
         dimensions: "28 x 18 x 30 inches",
-        weiUSt: 90.0,
+        weight: 90.0,
         categoryId: categories.find((c: { title: string }) => c.title === "Bathroom Fixtures")?.id,
         brandId: brands.find((b) => b.name === "American Standard")?.id,
         unitId: units.find((u) => u.name === "Set")?.id,
@@ -486,7 +486,7 @@ async function seedDatabase() {
         barcode: "1234567890005",
         description: "Delta pull-down kitchen faucet, stainless steel finish",
         dimensions: "12 x 8 x 16 inches",
-        weiUSt: 4.5,
+        weight: 4.5,
         categoryId: categories.find((c: { title: string }) => c.title === "Kitchen Fixtures")?.id,
         brandId: brands.find((b) => b.name === "Delta Faucet")?.id,
         unitId: units.find((u) => u.name === "Set")?.id,
@@ -504,7 +504,7 @@ async function seedDatabase() {
         barcode: "1234567890006",
         description: "Rheem electric water heater, 50 gallon capacity, 240V",
         dimensions: "60 x 24 x 24 inches",
-        weiUSt: 125.0,
+        weight: 125.0,
         categoryId: categories.find((c: { title: string }) => c.title === "Water Heaters & Tanks")?.id,
         brandId: brands.find((b) => b.name === "Rheem")?.id,
         unitId: units.find((u) => u.name === "Piece")?.id,
@@ -522,7 +522,7 @@ async function seedDatabase() {
         barcode: "1234567890007",
         description: "Ridgid heavy-duty pipe wrench, 14 inch length",
         dimensions: "14 x 3 x 2 inches",
-        weiUSt: 2.8,
+        weight: 2.8,
         categoryId: categories.find((c: { title: string }) => c.title === "Tools & Equipment")?.id,
         brandId: brands.find((b) => b.name === "Ridgid")?.id,
         unitId: units.find((u) => u.name === "Piece")?.id,
@@ -540,7 +540,7 @@ async function seedDatabase() {
         barcode: "1234567890008",
         description: "SharkBite brass ball valve, 1 inch, full port",
         dimensions: "4 x 2 x 2 inches",
-        weiUSt: 0.75,
+        weight: 0.75,
         categoryId: categories.find((c: { title: string }) => c.title === "Valves & Taps")?.id,
         brandId: brands.find((b) => b.name === "SharkBite")?.id,
         unitId: units.find((u) => u.name === "Piece")?.id,
@@ -558,7 +558,7 @@ async function seedDatabase() {
         barcode: "1234567890009",
         description: "PVC drainage pipe, 4 inch diameter, 10ft length",
         dimensions: "10 x 4 x 4 inches",
-        weiUSt: 5.2,
+        weight: 5.2,
         categoryId: categories.find((c: { title: string }) => c.title === "Drainage & Sewage")?.id,
         brandId: brands.find((b) => b.name === "SharkBite")?.id,
         unitId: units.find((u) => u.name === "Piece")?.id,
@@ -576,7 +576,7 @@ async function seedDatabase() {
         barcode: "1234567890010",
         description: "Milwaukee stainless steel screws, assorted sizes, 100 pack",
         dimensions: "6 x 4 x 2 inches",
-        weiUSt: 1.2,
+        weight: 1.2,
         categoryId: categories.find((c: { title: string }) => c.title === "Hardware & Fasteners")?.id,
         brandId: brands.find((b) => b.name === "Milwaukee")?.id,
         unitId: units.find((u) => u.name === "Pack")?.id,
@@ -594,7 +594,7 @@ async function seedDatabase() {
         barcode: "1234567890011",
         description: "Moen rainfall shower head, chrome finish, 8 inch diameter",
         dimensions: "8 x 8 x 3 inches",
-        weiUSt: 1.8,
+        weight: 1.8,
         categoryId: categories.find((c: { title: string }) => c.title === "Bathroom Fixtures")?.id,
         brandId: brands.find((b) => b.name === "Moen")?.id,
         unitId: units.find((u) => u.name === "Piece")?.id,
@@ -612,7 +612,7 @@ async function seedDatabase() {
         barcode: "1234567890012",
         description: "SharkBite Teflon tape for pipe threads, 1/2 inch x 520 inches",
         dimensions: "3 x 3 x 0.5 inches",
-        weiUSt: 0.1,
+        weight: 0.1,
         categoryId: categories.find((c: { title: string }) => c.title === "Plumbing Pipes & Fittings")?.id,
         brandId: brands.find((b) => b.name === "SharkBite")?.id,
         unitId: units.find((u) => u.name === "Roll")?.id,
@@ -869,7 +869,7 @@ const customers = await Promise.all([
           if (poLine.item.isSerialTracked) {
             const serialNumbers = [];
             for (let j = 0; j < receivedQty; j++) {
-              const serialNum = `${poLine.item.sku}-${receipt.id.substring(0, 4)}-${String(j + 1).padStart(4, "0")}`;
+             const serialNum = `${poLine.item.sku}-${receipt.id.substring(0, 4)}-${String(j + 1).padStart(4, "0")}`;
               serialNumbers.push(serialNum);
 
               await db.serialNumber.create({
@@ -931,7 +931,7 @@ const customers = await Promise.all([
 async function main() {
   console.log("Starting database seed process...");
   try {
-    await cleanDatabase();
+    /* await cleanDatabase(); */
     await seedDatabase();
     console.log("Database seeding completed successfully!");
   } catch (error) {

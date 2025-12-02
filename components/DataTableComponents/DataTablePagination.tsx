@@ -3,7 +3,8 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   DoubleArrowLeftIcon,
-  Double ArrowRight Icon,
+  DoubleArrowRightIcon,
+
 } from "@radix-ui/react-icons";
 import { Table } from "@tanstack/react-table";
 import {
@@ -88,7 +89,7 @@ export function DataTablePagination<TData>({
             disabled={!table.getCanNextPage()}
           >
             <span className="sr-only">Go to last page</span>
-            <Double ArrowRight Icon className="h-4 w-4" />
+            <DoubleArrowRightIcon className="h-4 w-4" />
           </Button>
         </div>
       </div>

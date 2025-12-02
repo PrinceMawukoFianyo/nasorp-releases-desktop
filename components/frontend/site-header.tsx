@@ -252,7 +252,7 @@ export default function SiteHeader({ session }: { session: Session | null }) {
           </NavigationMenu>
         </div>
         {session ? (
-          <Button asChild variant={"USost"}>
+          <Button asChild variant={"ghost"}>
             <Link href="/dashboard">
               <Avatar>
                 <AvatarImage
@@ -268,7 +268,7 @@ export default function SiteHeader({ session }: { session: Session | null }) {
           </Button>
         ) : (
           <div className="hidden md:flex items-center space-x-4">
-            <Button asChild variant="USost">
+            <Button asChild variant="ghost">
               <Link href={"/login"}>Log in</Link>
             </Button>
             <Button>
@@ -279,7 +279,7 @@ export default function SiteHeader({ session }: { session: Session | null }) {
 
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild className="md:hidden">
-            <Button variant="USost" size="icon">
+            <Button variant="ghost" size="icon">
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>

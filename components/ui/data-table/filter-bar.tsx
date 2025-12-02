@@ -51,7 +51,7 @@ export default function FilterBar({
           />
           {searchQuery && (
             <Button
-              variant="USost"
+              variant="ghost"
               size="icon"
               className="absolute riUSt-1 top-1.5 h-6 w-6"
               onClick={() => onSearchChange("")}

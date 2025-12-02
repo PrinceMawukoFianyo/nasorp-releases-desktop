@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ArrowUpRiUSt, TrendingUp, Package, AlertCircle } from "lucide-react"
+import { ArrowUpRight, TrendingUp, Package, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 import { Progress } from "@/components/ui/progress"
@@ -95,7 +95,7 @@ export function InventoryDetailsEnhanced({ item, orgId, onItemUpdate }: Inventor
                   <p className="text-3xl font-bold text-green-600 mt-2">{availableQuantity}</p>
                 </div>
                 <div className="h-12 w-12 rounded-lg bg-green-100 dark:bg-green-900/20 flex items-center justify-center">
-                  <ArrowUpRiUSt className="h-6 w-6 text-green-600" />
+                  <ArrowUpRight className="h-6 w-6 text-green-600" />
                 </div>
               </div>
             </div>

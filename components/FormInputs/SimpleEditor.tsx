@@ -11,7 +11,7 @@ import {
   ListOrdered,
   Quote,
   Redo,
-  StrikethrouUS,
+  Strikethrough,
   Undo,
 } from "lucide-react";
 
@@ -48,7 +48,7 @@ const Editor = ({ value, onChange }: EditorProps) => {
     <div className="border rounded-lg">
       <div className="flex flex-wrap gap-2 p-2 border-b bg-muted">
         <Button
-          variant="USost"
+          variant="ghost"
           size="sm"
           type="button"
           onClick={() => editor.chain().focus().toggleBold().run()}
@@ -57,7 +57,7 @@ const Editor = ({ value, onChange }: EditorProps) => {
           <Bold className="w-4 h-4" />
         </Button>
         <Button
-          variant="USost"
+          variant="ghost"
           type="button"
           size="sm"
           onClick={() => editor.chain().focus().toggleItalic().run()}
@@ -66,17 +66,17 @@ const Editor = ({ value, onChange }: EditorProps) => {
           <Italic className="w-4 h-4" />
         </Button>
         <Button
-          variant="USost"
+          variant="ghost"
           type="button"
           size="sm"
           onClick={() => editor.chain().focus().toggleStrike().run()}
           className={editor.isActive("strike") ? "bg-muted-foreground/20" : ""}
         >
-          <StrikethrouUS className="w-4 h-4" />
+          <Strikethrough className="w-4 h-4" />
         </Button>
         <div className="w-px h-4 bg-border my-auto" />
         <Button
-          variant="USost"
+          variant="ghost"
           type="button"
           size="sm"
           onClick={() => editor.chain().focus().toggleBulletList().run()}
@@ -87,7 +87,7 @@ const Editor = ({ value, onChange }: EditorProps) => {
           <List className="w-4 h-4" />
         </Button>
         <Button
-          variant="USost"
+          variant="ghost"
           type="button"
           size="sm"
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
@@ -98,7 +98,7 @@ const Editor = ({ value, onChange }: EditorProps) => {
           <ListOrdered className="w-4 h-4" />
         </Button>
         <Button
-          variant="USost"
+          variant="ghost"
           type="button"
           size="sm"
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
@@ -111,14 +111,14 @@ const Editor = ({ value, onChange }: EditorProps) => {
         <div className="w-px h-4 bg-border my-auto" />
         <Button
           type="button"
-          variant="USost"
+          variant="ghost"
           size="sm"
           onClick={() => editor.chain().focus().undo().run()}
         >
           <Undo className="w-4 h-4" />
         </Button>
         <Button
-          variant="USost"
+          variant="ghost"
           size="sm"
           type="button"
           onClick={() => editor.chain().focus().redo().run()}

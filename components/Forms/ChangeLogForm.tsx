@@ -104,7 +104,7 @@ export function ChangelogForm() {
                 <FormItem>
                   <FormLabel>Content</FormLabel>
                   <FormControl>
-                    <Editor value={field.value} onChange={field.onChange} />
+                    <Editor value={field.value?? ""} onChange={field.onChange} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

@@ -6,7 +6,7 @@ import { Card, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
-  DialoUSeader,
+  DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -75,9 +75,9 @@ export function UnitForm({
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[625px]">
-        <DialoUSeader>
+        <DialogHeader>
           <DialogTitle>Create New Unit</DialogTitle>
-        </DialoUSeader>
+        </DialogHeader>
         <Card className="w-full border-0 shadow-none">
           <CardHeader>
             <CardTitle className="text-base">Unit Info</CardTitle>

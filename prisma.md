@@ -150,7 +150,7 @@ model Item {
   barcode           String?        @unique
   description       String?
   dimensions        String?
-  weiUSt            Float?
+  weight            Float?
   upc               String? //Twelve digit unique number associated with the bar code (Universal Product Code)
   ean               String? //Thirteen digit unique number (International Article Number)
   mpn               String? //Manufacturing Part Number unambiguously identifies a part design

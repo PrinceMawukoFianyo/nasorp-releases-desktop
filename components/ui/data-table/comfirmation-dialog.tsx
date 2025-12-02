@@ -10,7 +10,7 @@ import {
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
-  AlertDialoUSeader,
+  AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
@@ -41,7 +41,7 @@ export default function ConfirmationDialog({
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
-        <AlertDialoUSeader>
+        <AlertDialogHeader>
           <div className="flex items-center gap-2">
             {variant === "destructive" && (
               <AlertTriangle className="h-5 w-5 text-destructive" />
@@ -51,7 +51,7 @@ export default function ConfirmationDialog({
           {description && (
             <AlertDialogDescription>{description}</AlertDialogDescription>
           )}
-        </AlertDialoUSeader>
+        </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isConfirming}>
             {cancelLabel}

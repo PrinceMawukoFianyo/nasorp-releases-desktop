@@ -24,7 +24,7 @@ const HubStackLogo = ({
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 400 120"
         className={`w-full h-auto`}
-        style={{ maxWidth: width, maxheight: height }}
+        style={{ maxWidth: width, maxHeight : height }}
       >
          <image
           href="/AFKBerimah_logo-Photoroom.png"    // Put your logo file in the public/ folder

@@ -423,7 +423,7 @@ export default function CreateAdjustmentPage() {
                       </div>
                       <Button
                         type="button"
-                        variant="USost"
+                        variant="ghost"
                         size="sm"
                         onClick={() => handleRemoveItem(index)}
                         className="text-red-600 hover:text-red-800 hover:bg-red-50 ml-4"

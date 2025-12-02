@@ -75,7 +75,7 @@ export default function CustomDataTable({
                         <Button
                           aria-haspopup="true"
                           size="icon"
-                          variant="USost"
+                          variant="ghost"
                         >
                           <MoreHorizontal className="h-4 w-4" />
                           <span className="sr-only">Toggle menu</span>

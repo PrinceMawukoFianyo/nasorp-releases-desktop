@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialoUSeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -156,9 +156,9 @@ export function ReceiveInventoryModal({
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-md">
-          <DialoUSeader>
+          <DialogHeader>
             <DialogTitle>Receive Inventory</DialogTitle>
-          </DialoUSeader>
+          </DialogHeader>
           <Alert className="border-green-200 bg-green-50">
             <AlertCircle className="h-4 w-4 text-green-600" />
             <AlertDescription className="text-sm text-green-800">
@@ -176,7 +176,7 @@ export function ReceiveInventoryModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
-        <DialoUSeader>
+        <DialogHeader>
           <div className="flex items-center justify-between">
             <div>
               <DialogTitle className="text-lg font-semibold">Receive Inventory</DialogTitle>
@@ -185,7 +185,7 @@ export function ReceiveInventoryModal({
               </p>
             </div>
             <Button
-              variant="USost"
+              variant="ghost"
               size="icon"
               onClick={() => onOpenChange(false)}
               className="h-6 w-6"
@@ -193,7 +193,7 @@ export function ReceiveInventoryModal({
               <X className="h-4 w-4" />
             </Button>
           </div>
-        </DialoUSeader>
+        </DialogHeader>
 
         {validationErrors.length > 0 && (
           <Alert variant="destructive" className="mb-4">

@@ -143,7 +143,7 @@ export default function SalesOrderInvoicePage() {
                 justify-content: center;
                 color: white;
                 font-size: 16px;
-                font-weiUSt: bold;
+                font-weight: bold;
               }
               
               .company-info {
@@ -152,7 +152,7 @@ export default function SalesOrderInvoicePage() {
               
               .company-name {
                 font-size: 16px;
-                font-weiUSt: bold;
+                font-weight: bold;
                 margin-bottom: 4px;
                 color: #1f2937;
               }
@@ -171,7 +171,7 @@ export default function SalesOrderInvoicePage() {
               
               .invoice-title {
                 font-size: 24px;
-                font-weiUSt: bold;
+                font-weight: bold;
                 color: #1f2937;
                 margin-bottom: 6px;
               }
@@ -198,7 +198,7 @@ export default function SalesOrderInvoicePage() {
               
               .detail-section h3 {
                 font-size: 10px;
-                font-weiUSt: 700;
+                font-weight: 700;
                 color: #6b7280;
                 margin-bottom: 8px;
                 text-transform: uppercase;
@@ -212,7 +212,7 @@ export default function SalesOrderInvoicePage() {
               }
               
               .detail-section .name {
-                font-weiUSt: 700;
+                font-weight: 700;
                 font-size: 14px;
                 margin-bottom: 4px;
                 color: #111827;
@@ -232,7 +232,7 @@ export default function SalesOrderInvoicePage() {
               
               .dates-table h3 {
                 font-size: 10px;
-                font-weiUSt: 700;
+                font-weight: 700;
                 color: #6b7280;
                 text-transform: uppercase;
                 letter-spacing: 0.8px;
@@ -241,7 +241,7 @@ export default function SalesOrderInvoicePage() {
               
               .dates-table p {
                 font-size: 12px;
-                font-weiUSt: 600;
+                font-weight: 600;
                 color: #1f2937;
               }
               
@@ -262,7 +262,7 @@ export default function SalesOrderInvoicePage() {
                 color: white;
                 padding: 8px 10px;
                 text-align: left;
-                font-weiUSt: 700;
+                font-weight: 700;
                 font-size: 10px;
                 text-transform: uppercase;
                 letter-spacing: 0.5px;
@@ -299,7 +299,7 @@ export default function SalesOrderInvoicePage() {
               }
               
               .item-name {
-                font-weiUSt: 600;
+                font-weight: 600;
                 margin-bottom: 2px;
                 font-size: 11px;
                 color: #111827;
@@ -348,7 +348,7 @@ export default function SalesOrderInvoicePage() {
                 padding-top: 8px;
                 margin-top: 6px;
                 font-size: 12px;
-                font-weiUSt: bold;
+                font-weight: bold;
               }
               
               .total-row.balance {
@@ -358,23 +358,23 @@ export default function SalesOrderInvoicePage() {
                 margin: 8px -16px -16px -16px;
                 border-radius: 0 0 8px 8px;
                 font-size: 12px;
-                font-weiUSt: bold;
+                font-weight: bold;
               }
               
               .total-row .label {
                 color: #6b7280;
-                font-weiUSt: 500;
+                font-weight: 500;
               }
               
               .total-row .value {
-                font-weiUSt: 600;
+                font-weight: 600;
                 color: #1f2937;
               }
               
               .total-row.final .label,
               .total-row.balance .label {
                 color: #111827;
-                font-weiUSt: 700;
+                font-weight: 700;
               }
               
               .total-row.final .value,
@@ -395,7 +395,7 @@ export default function SalesOrderInvoicePage() {
               
               .notes-section h3 {
                 font-size: 11px;
-                font-weiUSt: 700;
+                font-weight: 700;
                 margin-bottom: 6px;
                 color: #92400e;
               }
@@ -417,7 +417,7 @@ export default function SalesOrderInvoicePage() {
               
               .terms-section h3 {
                 font-size: 11px;
-                font-weiUSt: 700;
+                font-weight: 700;
                 margin-bottom: 6px;
                 color: #1f2937;
               }

@@ -5,7 +5,7 @@ import {
   Twitter,
   Linkedin,
   Instagram,
-  ArrowUpRiUSt,
+  ArrowUpRight,
 } from "lucide-react";
 
 // Types
@@ -119,7 +119,7 @@ const Footer = () => {
                       className="text-gray-400 hover:text-white transition-colors inline-flex items-center group"
                     >
                       {link.label}
-                      <ArrowUpRiUSt className="w-4 h-4 ml-1 opacity-0 -translate-y-1 translate-x-1 group-hover:opacity-100 group-hover:translate-y-0 group-hover:translate-x-0 transition-all" />
+                      <ArrowUpRight className="w-4 h-4 ml-1 opacity-0 -translate-y-1 translate-x-1 group-hover:opacity-100 group-hover:translate-y-0 group-hover:translate-x-0 transition-all" />
                     </Link>
                   </li>
                 ))}
