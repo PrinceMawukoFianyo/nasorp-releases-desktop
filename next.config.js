@@ -10,8 +10,17 @@ const nextConfig = {
       },
     ],
   },
-  experimental: {
-    optimizeCss: false,
+  webpack: (config, { dev, isServer }) => {
+    // Disable CSS minification in production
+    if (!dev && !isServer) {
+      config.optimization.minimizer = config.optimization.minimizer.filter(
+        (minimizer) => {
+          // Remove CSS minimizer
+          return !minimizer.constructor.name.includes('CssMinimizerPlugin');
+        }
+      );
+    }
+    return config;
   },
 }
 
