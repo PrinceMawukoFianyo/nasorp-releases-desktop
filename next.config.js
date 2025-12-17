@@ -10,15 +10,15 @@ const nextConfig = {
       },
     ],
   },
-  // Completely disable minification to bypass CSS parsing errors
-  webpack: (config, { dev }) => {
-    if (!dev) {
-      config.optimization.minimize = false;
-    }
-    return config;
+  // Empty turbopack config to silence the warning
+  turbopack: {},
+  productionBrowserSourceMaps: false,
+  compiler: {
+    removeConsole: false,
   },
-  // Also disable SWC minification
-  swcMinify: false,
+  experimental: {
+    optimizeCss: false,
+  },
 }
 
 module.exports = nextConfig
