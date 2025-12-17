@@ -10,18 +10,15 @@ const nextConfig = {
       },
     ],
   },
-  webpack: (config, { dev, isServer }) => {
-    // Disable CSS minification in production
-    if (!dev && !isServer) {
-      config.optimization.minimizer = config.optimization.minimizer.filter(
-        (minimizer) => {
-          // Remove CSS minimizer
-          return !minimizer.constructor.name.includes('CssMinimizerPlugin');
-        }
-      );
+  // Completely disable minification to bypass CSS parsing errors
+  webpack: (config, { dev }) => {
+    if (!dev) {
+      config.optimization.minimize = false;
     }
     return config;
   },
+  // Also disable SWC minification
+  swcMinify: false,
 }
 
 module.exports = nextConfig
