@@ -180,79 +180,59 @@ export async function createUser(data: UserProps, orgData: OrgData) {
     };
   }
 }
-export async function  createInvitedUser(data: InvitedUserProps) {
-  const { email, password, firstName, lastName, name, phone, image, orgId, roleId,orgName, locationName, locationId } = data;
-
+export async function createInvitedUser(data: InvitedUserProps) {
+  console.log("🧪 SIMPLE TEST VERSION - Data:", data);
+  
   try {
-    // Use a transaction for atomic operations
-    return await db.$transaction(async (tx: PrismaClient) => {
-      // Check for existing users
-      const existingUserByEmail = await tx.user.findUnique({
-        where: { email },
-      });
-
-      const existingUserByPhone = await tx.user.findUnique({
-        where: { phone },
-      });
-
-      if (existingUserByEmail) {
-        return {
-          error: `This email ${email} is already in use`,
-          status: 409,
-          data: null,
-        };
-      }
-
-      if (existingUserByPhone) {
-        return {
-          error: `This Phone number ${phone} is already in use`,
-          status: 409,
-          data: null,
-        };
-      }
-
-      // Hash password
-      const hashedPassword = await bcrypt.hash(password, 10);
-      // Create user with role
-      const newUser = await tx.user.create({ 
-        data: {
-          email,
-          password: hashedPassword,
-          firstName,
-          lastName,
-          name,
-          orgId: orgId,
-          orgName: orgName,
-          phone,
-          locationId,
-          locationName,
-          image,
-          isVerified: true,
-          roles: {
-            connect: {
-              id: roleId,
-            },
+    // Simple version without transaction
+    const hashedPassword = await bcrypt.hash(data.password, 10);
+    
+    console.log("Creating user...");
+    const newUser = await db.user.create({ 
+      data: {
+        email: data.email,
+        password: hashedPassword,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        name: data.name,
+        orgId: data.orgId,
+        orgName: data.orgName,
+        phone: data.phone,
+        locationId: data.locationId,
+        locationName: data.locationName,
+        image: data.image,
+        isVerfied: true,
+        roles: {
+          connect: {
+            id: data.roleId,
           },
         },
-      }); 
-      //Update the status of the Invite
-      await db.invite.update({
-        where: {
-          email,
-        },data:{
-          status:true, 
-        }
-      })
-      return {
-        error: null,
-        status: 200,
-        data: {id:newUser.id, email: newUser.email},
-      };
+      },
     });
-  } catch (error) {
-    console.error("Error creating user:", error);
+    
+    console.log("User created:", newUser.id);
+    
+    // Update invite
+    await db.invite.updateMany({
+      where: {
+        email: data.email,
+        orgId: data.orgId,
+      },
+      data: {
+        status: true,
+      }
+    });
+    
     return {
-      error: `Something went wrong, Please try again`,
+      error: null,
+      status: 200,
+      data: {id: newUser.id, email: newUser.email},
+    };
+    
+  } catch (error: any) {
+    console.error("FULL ERROR:", error);
+    return {
+      error: `Database error: ${error.message}`,
       status: 500,
       data: null,
     };

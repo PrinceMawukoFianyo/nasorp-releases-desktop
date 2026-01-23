@@ -18,7 +18,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 
 import toast from "react-hot-toast";
-// import Editor from "../FormInputs/SimpleEditor";
 import { useState } from "react";
 import { createChangelog } from "@/actions/feedback";
 import Editor from "../FormInputs/SimpleEditor";
@@ -32,7 +31,11 @@ const changelogSchema = z.object({
 
 type ChangelogFormValues = z.infer<typeof changelogSchema>;
 
-export function ChangelogForm() {
+interface ChangelogFormProps {
+  onSuccess?: () => void;
+}
+
+export function ChangelogForm({ onSuccess }: ChangelogFormProps = {}) {
   const form = useForm<ChangelogFormValues>({
     resolver: zodResolver(changelogSchema),
     defaultValues: {
@@ -42,24 +45,34 @@ export function ChangelogForm() {
       isPublished: false,
     },
   });
+  
   const [loading, setLoading] = useState(false);
-  async function onSubmit(data: ChangelogFormValues) {
-    setLoading(true);
-    try {
-      const result = await createChangelog(data);
-      if (result.error) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Changelog Created Successfully");
-      form.reset();
-      setLoading(false);
-    } catch (error) {
-      console.log(error);
-      toast.error("Something went wrong");
-      setLoading(false);
+  
+  const onSubmit = async (formData: ChangelogFormValues) => {
+  setLoading(true);
+  try {
+    // Ensure all required fields are present
+    const data = {
+      title: formData.title,
+      version: formData.version,
+      content: formData.content,
+      isPublished: formData.isPublished,
+    };
+    
+    const result = await createChangelog(data);
+    if (result.error) {
+      toast.error(result.error);
+      return;
     }
+    toast.success("Changelog created successfully!");
+    form.reset();
+    onSuccess?.();
+  } catch (error) {
+    toast.error("Failed to create changelog");
+  } finally {
+    setLoading(false);
   }
+};
 
   return (
     <Card>
@@ -104,7 +117,7 @@ export function ChangelogForm() {
                 <FormItem>
                   <FormLabel>Content</FormLabel>
                   <FormControl>
-                    <Editor value={field.value?? ""} onChange={field.onChange} />
+                    <Editor value={field.value ?? ""} onChange={field.onChange} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

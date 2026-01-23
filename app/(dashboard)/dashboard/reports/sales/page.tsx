@@ -3,7 +3,6 @@ import { getSalesReport } from "@/actions/sales-reports";
 import SalesReportDashboard from "./SalesReportDashboard";
 import { ReportSkeleton } from "../stock-movements/components/ReportSkeleton";
 
-
 export const metadata = {
   title: "Sales Report",
   description: "Comprehensive sales analytics and performance metrics",

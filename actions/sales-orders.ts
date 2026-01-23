@@ -865,7 +865,7 @@ export async function sendSOToCustomer(
 
     // Send email to customer
     const res = await resend.emails.send({
-      from: "Business Inventory <noreply@kidstarschristianacademy.com>",
+      from: "Business Inventory <noreply@afkberimah.inventpmf.com>",
       to: emailData.customer.email??  "",
       subject: `Sales Order Confirmation ${emailData.salesOrder.orderNumber}`,
       react: SalesOrderEmail(emailData),

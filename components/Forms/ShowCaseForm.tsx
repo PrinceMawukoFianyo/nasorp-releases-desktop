@@ -84,18 +84,21 @@ export function ShowcaseForm({ userId }: { userId: string }) {
 
     setLoading(true);
     try {
-      // Ensure technology array is included
+      // Create properly typed data object
       const submitData = {
-        ...data,
-        userId,
-        technology: technologies, // Make sure this is included
+        title: data.title,
+        description: data.description,
+        projectUrl: data.projectUrl,
+        githubUrl: data.githubUrl || "",
+        imageUrl: data.imageUrl,
+        technology: technologies,
+        userId: userId,
       };
 
       const result = await createShowcase(submitData);
 
       if (result.error) {
         toast.error(result.error);
-        setLoading(false);
         return;
       }
 

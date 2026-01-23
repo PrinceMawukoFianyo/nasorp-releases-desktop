@@ -228,27 +228,50 @@ export default function StockMovementReport({
 
   return (
     <div className="space-y-6 p-6">
-      {/* Header with filter */}
-      <PageHeader 
-        title="Stock Movement Report"
-        description="Track stock transfers between locations and inventory adjustments"
-      >
-        <div className="flex items-center gap-4">
-          <DateRangeFilter 
-            onDateRangeChange={handleDateRangeChange}
-            onPeriodChange={handlePeriodChange}
-          />
-          <DownloadButton 
-            onExport={handleExport} 
-            onRefresh={handleRefresh} 
-            isLoading={isLoading} 
-          />
-        </div>
-      </PageHeader>
+      {/* Title Section */}
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Stock Movement Report</h1>
+        <p className="text-muted-foreground mt-2">
+          Track stock transfers between locations and inventory adjustments
+        </p>
+      </div>
 
-      {/* Quick Stats Banner */}
-      <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border">
-        <div className="flex items-center justify-between">
+      {/* Date Range Filter Section - First Row */}
+      <div className="bg-card rounded-lg border p-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          {/* Left: Date Range Controls */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium whitespace-nowrap">Period</span>
+              <DateRangeFilter 
+                onDateRangeChange={handleDateRangeChange}
+                onPeriodChange={handlePeriodChange}
+              />
+            </div>
+            
+            {/* Current Date Range Display */}
+            <div className="flex items-center gap-2 text-sm">
+              <span className="font-medium whitespace-nowrap">Showing:</span>
+              <span className="text-muted-foreground">
+                {dateRange.from.toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric', 
+                  year: 'numeric' 
+                })} - {dateRange.to.toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric', 
+                  year: 'numeric' 
+                })}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Action Buttons Section - Second Row */}
+      <div className="bg-card rounded-lg border p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          {/* Left: Quick Stats */}
           <div className="flex items-center gap-6">
             <div className="text-center">
               <p className="text-2xl font-bold text-blue-700">{safeData.summary.totalTransfers}</p>
@@ -265,18 +288,51 @@ export default function StockMovementReport({
               <p className="text-sm text-muted-foreground">Items Transferred</p>
             </div>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => handleQuickAction("export")}
-              className="px-4 py-2 text-sm bg-white border rounded-lg hover:bg-gray-50 transition-colors"
+
+          {/* Right: Action Buttons */}
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={handleRefresh}
+              variant="outline"
+              className="flex items-center gap-2"
+              disabled={isLoading}
             >
-              Quick Export
-            </button>
+              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button className="bg-pink-600 hover:bg-pink-700 flex items-center gap-2">
+                  <Download className="h-4 w-4" />
+                  Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleExport("pdf")} className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Export as PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport("excel")} className="flex items-center gap-2">
+                  <FileSpreadsheet className="h-4 w-4" />
+                  Export as Excel
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport("csv")} className="flex items-center gap-2">
+                  <FileDown className="h-4 w-4" />
+                  Export as CSV
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Additional Actions */}
             <button
               onClick={() => handleQuickAction("share")}
-              className="px-4 py-2 text-sm bg-white border rounded-lg hover:bg-gray-50 transition-colors"
+              className="px-3 py-2 text-sm bg-white border rounded-md hover:bg-gray-50 transition-colors flex items-center gap-1.5"
             >
-              Share Report
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+              </svg>
+              Share
             </button>
           </div>
         </div>

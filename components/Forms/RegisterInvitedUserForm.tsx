@@ -74,7 +74,7 @@ export default function RegisterInvitedUserForm({userEmail, orgId, orgName, role
       <div className="flex items-center justify-center py-12">
         <div className="mx-auto grid  gap-6 mt-10 md:mt-0">
           <div className="grid gap-2  mt-10 md:mt-0">
-            <h1 className="text-3xl font-bold">Welcome to ${orgName} </h1>
+            <h1 className="text-3xl font-bold">Welcome to {orgName} </h1>
             <p className="text-muted-foreground text-sm">
               Please customize your account to get started
             </p>

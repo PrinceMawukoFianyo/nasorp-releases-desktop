@@ -47,21 +47,29 @@ export function FeedbackForm({ userId }: { userId: string }) {
     },
   });
   const [loading, setLoading] = useState(false);
+  
   async function onSubmit(data: FeedbackFormValues) {
     try {
       setLoading(true);
-      data.userId = userId;
-      const result = await createFeedback(data);
+      // Create a properly typed object
+      const feedbackData = {
+        type: data.type,
+        title: data.title,
+        content: data.content,
+        userId: userId,
+      };
+      
+      const result = await createFeedback(feedbackData);
       if (result.error) {
         toast.error(result.error);
         return;
       }
       toast.success("Feedback submitted successfully and pending review");
       form.reset();
-      setLoading(false);
     } catch (error) {
       console.log(error);
       toast.error("Something went wrong");
+    } finally {
       setLoading(false);
     }
   }

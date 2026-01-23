@@ -64,7 +64,7 @@ const NotFound = () => {
 
         <CardFooter className="justify-center pb-16 pt-12">
           <p className="text-sm text-gray-500">
-            © {new Date().getFullYear()} NextAdmin. All riUSts reserved.
+            © {new Date().getFullYear()} NextAdmin. All rights reserved.
           </p>
         </CardFooter>
       </Card>

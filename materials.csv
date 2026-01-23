@@ -1,0 +1,121 @@
+name,sku,barcode,description,category,brand,unit,taxRate,costPrice,sellingPrice,minStock,maxStock,weight
+PVC Pipe 1/2",PVC-PIPE-050,PLM001,PVC pipe 1/2 inch diameter,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,3.50,5.99,50,200,0.8
+PVC Pipe 3/4",PVC-PIPE-075,PLM002,PVC pipe 3/4 inch diameter,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,4.50,7.99,50,200,1.0
+PVC Pipe 1-1/4",PVC-PIPE-125,PLM003,PVC pipe 1-1/4 inch diameter,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,6.50,10.99,40,150,1.5
+PVC Pipe 1-1/2",PVC-PIPE-150,PLM004,PVC pipe 1-1/2 inch diameter,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,7.50,12.99,40,150,2.0
+PVC Pipe 2",PVC-PIPE-200,PLM005,PVC pipe 2 inch diameter,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,9.50,15.99,30,120,2.5
+PVC Pipe 3",PVC-PIPE-300,PLM006,PVC pipe 3 inch diameter,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,15.00,24.99,25,100,4.0
+PVC Pipe 4",PVC-PIPE-400,PLM007,PVC pipe 4 inch diameter,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,18.00,29.99,20,80,5.2
+PVC Pipe 6",PVC-PIPE-600,PLM008,PVC pipe 6 inch diameter,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,28.00,45.99,15,60,8.0
+PVC Bend 1/2" (90°),PVC-BEND-050,PLM009,PVC 90 degree bend 1/2 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,0.80,1.49,100,400,0.1
+PVC Bend 3/4" (90°),PVC-BEND-075,PLM010,PVC 90 degree bend 3/4 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,1.00,1.99,100,400,0.15
+PVC Bend 1-1/4" (90°),PVC-BEND-125,PLM011,PVC 90 degree bend 1-1/4 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,1.50,2.99,80,300,0.2
+PVC Bend 1-1/2" (90°),PVC-BEND-150,PLM012,PVC 90 degree bend 1-1/2 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,2.00,3.99,80,300,0.3
+PVC Bend 2" (90°),PVC-BEND-200,PLM013,PVC 90 degree bend 2 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,2.50,4.99,60,250,0.4
+PVC Bend 3" (90°),PVC-BEND-300,PLM014,PVC 90 degree bend 3 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,4.50,7.99,50,200,0.7
+PVC Bend 4" (90°),PVC-BEND-400,PLM015,PVC 90 degree bend 4 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,5.50,9.99,40,150,1.0
+PVC Bend 6" (90°),PVC-BEND-600,PLM016,PVC 90 degree bend 6 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,9.00,14.99,30,120,1.8
+PVC Tee 1/2",PVC-TEE-050,PLM017,PVC T-joint 1/2 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,1.00,1.99,100,400,0.15
+PVC Tee 3/4",PVC-TEE-075,PLM018,PVC T-joint 3/4 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,1.20,2.49,100,400,0.2
+PVC Tee 1-1/4",PVC-TEE-125,PLM019,PVC T-joint 1-1/4 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,1.80,3.49,80,300,0.3
+PVC Tee 1-1/2",PVC-TEE-150,PLM020,PVC T-joint 1-1/2 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,2.50,4.49,80,300,0.4
+PVC Tee 2",PVC-TEE-200,PLM021,PVC T-joint 2 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,3.00,5.49,60,250,0.5
+PVC Tee 3",PVC-TEE-300,PLM022,PVC T-joint 3 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,5.50,9.49,50,200,0.9
+PVC Tee 4",PVC-TEE-400,PLM023,PVC T-joint 4 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,7.00,11.99,40,150,1.2
+PVC Tee 6",PVC-TEE-600,PLM024,PVC T-joint 6 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,11.00,18.99,30,120,2.0
+PVC 45° Bend 2",PVC-45BND-200,PLM025,PVC 45 degree bend 2 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,2.00,3.99,60,250,0.35
+PVC 45° Bend 3",PVC-45BND-300,PLM026,PVC 45 degree bend 3 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,3.50,6.49,50,200,0.6
+PVC 45° Bend 4",PVC-45BND-400,PLM027,PVC 45 degree bend 4 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,4.50,7.99,40,150,0.8
+PVC 45° Bend 6",PVC-45BND-600,PLM028,PVC 45 degree bend 6 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,7.50,12.99,30,120,1.5
+PVC Slow Bend 2",PVC-SLWBND-200,PLM029,PVC long radius bend 2 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,3.50,5.99,40,150,0.6
+PVC Slow Bend 3",PVC-SLWBND-300,PLM030,PVC long radius bend 3 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,6.00,9.99,35,120,1.0
+PVC Slow Bend 4",PVC-SLWBND-400,PLM031,PVC long radius bend 4 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,8.00,13.99,30,100,1.5
+PVC Slow Bend 6",PVC-SLWBND-600,PLM032,PVC long radius bend 6 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,12.00,19.99,25,80,2.5
+PVC Sweep Tee 2",PVC-SWPTEE-200,PLM033,PVC sweep tee 2 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,4.50,7.99,40,150,0.7
+PVC Sweep Tee 3",PVC-SWPTEE-300,PLM034,PVC sweep tee 3 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,7.50,12.99,35,120,1.2
+PVC Sweep Tee 4",PVC-SWPTEE-400,PLM035,PVC sweep tee 4 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,9.50,15.99,30,100,1.6
+PVC Sweep Tee 6",PVC-SWPTEE-600,PLM036,PVC sweep tee 6 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,15.00,24.99,25,80,2.8
+PVC Reducer 1/2" x 3/4",PVC-RED-050X075,PLM037,PVC reducer 1/2 to 3/4 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,0.80,1.49,80,300,0.1
+PVC Reducer 2" x 1-1/4",PVC-RED-200X125,PLM038,PVC reducer 2 to 1-1/4 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,2.00,3.99,60,250,0.3
+PVC Reducer 2" x 1-1/2",PVC-RED-200X150,PLM039,PVC reducer 2 to 1-1/2 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,2.20,4.29,60,250,0.35
+PVC Reducer 3" x 2",PVC-RED-300X200,PLM040,PVC reducer 3 to 2 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,3.50,6.49,50,200,0.5
+PVC Reducer 4" x 3",PVC-RED-400X300,PLM041,PVC reducer 4 to 3 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,4.50,7.99,40,150,0.7
+PVC Reducer 4" x 2",PVC-RED-400X200,PLM042,PVC reducer 4 to 2 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,4.80,8.49,40,150,0.8
+PVC Reducer 6" x 4",PVC-RED-600X400,PLM043,PVC reducer 6 to 4 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,8.50,14.99,30,100,1.5
+Silicon Clear Sealant,SIL-CLR-001,PLM044,Clear silicone sealant waterproof,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,3.50,5.99,50,200,0.3
+Silicon Black Sealant,SIL-BLK-001,PLM045,Black silicone sealant waterproof,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,3.50,5.99,50,200,0.3
+Silicon White Sealant,SIL-WHT-001,PLM046,White silicone sealant waterproof,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,3.50,5.99,50,200,0.3
+S-100 Big,S100-BIG-001,PLM047,S-100 PVC solvent cement large,Plumbing Pipes & Fittings,Tangit,Piece,Standard Rate,12.00,18.99,30,120,1.0
+S-100 Small,S100-SML-001,PLM048,S-100 PVC solvent cement small,Plumbing Pipes & Fittings,Tangit,Piece,Standard Rate,6.00,9.99,50,200,0.5
+Tangit Pressure Cement,TANGIT-PRS-001,PLM049,Tangit pressure PVC cement,Plumbing Pipes & Fittings,Tangit,Piece,Standard Rate,15.00,24.99,25,100,1.2
+Thread Tape,THD-TAPE-001,PLM050,Teflon thread seal tape,Plumbing Pipes & Fittings,SharkBite,Roll,Reduced Rate,0.80,1.99,100,500,0.1
+Flexible Trap 1-1/4",FLEX-TRAP-125,PLM051,Flexible trap 1-1/4 inch,Drainage & Sewage,SharkBite,Piece,Standard Rate,4.50,7.99,40,150,0.5
+Flexible Trap 1-1/2",FLEX-TRAP-150,PLM052,Flexible trap 1-1/2 inch,Drainage & Sewage,SharkBite,Piece,Standard Rate,5.00,8.99,40,150,0.6
+Flexible Tube M/F Short,FLEX-MF-SHORT,PLM053,Flexible connector male/female short,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,3.00,5.49,60,250,0.2
+Flexible Tube M/F Long,FLEX-MF-LONG,PLM054,Flexible connector male/female long,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,4.00,6.99,60,250,0.3
+Flexible Tube F/F Short,FLEX-FF-SHORT,PLM055,Flexible connector female/female short,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,3.00,5.49,60,250,0.2
+Flexible Tube F/F Long,FLEX-FF-LONG,PLM056,Flexible connector female/female long,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,4.00,6.99,60,250,0.3
+Air Valve PVC 3/4",AIR-VLV-PVC-075,PLM057,Air valve PVC 3/4 inch,Valves & Taps,SharkBite,Piece,Standard Rate,5.00,8.99,40,150,0.3
+Air Valve PVC 1/2",AIR-VLV-PVC-050,PLM058,Air valve PVC 1/2 inch,Valves & Taps,SharkBite,Piece,Standard Rate,4.50,7.99,40,150,0.25
+Air Valve Metal 1/2",AIR-VLV-MTL-050,PLM059,Air valve metal 1/2 inch,Valves & Taps,Moen,Piece,Standard Rate,8.00,13.99,30,120,0.4
+Air Valve Metal 3/4",AIR-VLV-MTL-075,PLM060,Air valve metal 3/4 inch,Valves & Taps,Moen,Piece,Standard Rate,9.00,15.99,30,120,0.5
+Non-Return Valve 1/2",NRV-050,PLM061,Non-return valve 1/2 inch,Valves & Taps,SharkBite,Piece,Standard Rate,6.00,10.99,50,200,0.3
+Non-Return Valve 3/4",NRV-075,PLM062,Non-return valve 3/4 inch,Valves & Taps,SharkBite,Piece,Standard Rate,7.00,12.99,50,200,0.4
+Non-Return Valve 2",NRV-200,PLM063,Non-return valve 2 inch,Valves & Taps,SharkBite,Piece,Standard Rate,12.00,19.99,30,120,0.8
+Non-Return Valve 3",NRV-300,PLM064,Non-return valve 3 inch,Valves & Taps,SharkBite,Piece,Standard Rate,18.00,29.99,25,100,1.2
+Non-Return Valve 4",NRV-400,PLM065,Non-return valve 4 inch,Valves & Taps,SharkBite,Piece,Standard Rate,25.00,39.99,20,80,1.8
+Non-Return Valve 6",NRV-600,PLM066,Non-return valve 6 inch,Valves & Taps,SharkBite,Piece,Standard Rate,40.00,64.99,15,60,3.0
+Chrome Cock Pegler,PEGLER-CHR-001,PLM067,Chrome cock Pegler brand,Valves & Taps,Pegler,Piece,Premium Rate,15.00,24.99,25,100,0.5
+Pegler K-1,PEGLER-K1,PLM068,Pegler K-1 valve,Valves & Taps,Pegler,Piece,Premium Rate,12.00,19.99,30,120,0.4
+Pegler K-2,PEGLER-K2,PLM069,Pegler K-2 valve,Valves & Taps,Pegler,Piece,Premium Rate,13.00,21.99,30,120,0.4
+Pegler K-26,PEGLER-K26,PLM070,Pegler K-26 valve,Valves & Taps,Pegler,Piece,Premium Rate,16.00,26.99,25,100,0.5
+Pegler K-28,PEGLER-K28,PLM071,Pegler K-28 valve,Valves & Taps,Pegler,Piece,Premium Rate,17.00,28.99,25,100,0.5
+Pegler K-54 1/2",PEGLER-K54-050,PLM072,Pegler K-54 valve 1/2 inch,Valves & Taps,Pegler,Piece,Premium Rate,14.00,23.99,30,120,0.4
+Pegler K-54 3/4",PEGLER-K54-075,PLM073,Pegler K-54 valve 3/4 inch,Valves & Taps,Pegler,Piece,Premium Rate,15.00,24.99,30,120,0.45
+Pegler K-55 1/2",PEGLER-K55-050,PLM074,Pegler K-55 valve 1/2 inch,Valves & Taps,Pegler,Piece,Premium Rate,14.00,23.99,30,120,0.4
+Pegler K-55 3/4",PEGLER-K55-075,PLM075,Pegler K-55 valve 3/4 inch,Valves & Taps,Pegler,Piece,Premium Rate,15.00,24.99,30,120,0.45
+Tap Pegler 1/2",TAP-PEGLER-050,PLM076,Pegler tap 1/2 inch,Kitchen Fixtures,Pegler,Piece,Premium Rate,18.00,29.99,25,100,0.6
+Tap Pegler 3/4",TAP-PEGLER-075,PLM077,Pegler tap 3/4 inch,Kitchen Fixtures,Pegler,Piece,Premium Rate,20.00,32.99,25,100,0.7
+Valve Socket 1/2",VLV-SOCK-050,PLM078,Valve socket 1/2 inch,Valves & Taps,SharkBite,Piece,Standard Rate,2.50,4.49,60,250,0.1
+Valve Socket 3/4",VLV-SOCK-075,PLM079,Valve socket 3/4 inch,Valves & Taps,SharkBite,Piece,Standard Rate,2.80,4.99,60,250,0.15
+Valve Socket 1",VLV-SOCK-100,PLM080,Valve socket 1 inch,Valves & Taps,SharkBite,Piece,Standard Rate,3.20,5.49,50,200,0.2
+Valve Socket 1-1/4",VLV-SOCK-125,PLM081,Valve socket 1-1/4 inch,Valves & Taps,SharkBite,Piece,Standard Rate,3.80,6.49,50,200,0.25
+Basin Tap Lifted,BASIN-TAP-LIFT,PLM082,Basin tap lifted type,Bathroom Fixtures,Moen,Piece,Premium Rate,35.00,59.99,20,80,1.2
+Basin Tap L/D,BASIN-TAP-LD,PLM083,Basin tap L/D type,Bathroom Fixtures,Moen,Piece,Premium Rate,32.00,54.99,20,80,1.1
+Sink Tap,SINK-TAP-001,PLM084,Kitchen sink tap,Kitchen Fixtures,Delta Faucet,Piece,Premium Rate,45.00,74.99,15,60,1.5
+End Cup 1/2",END-CUP-050,PLM085,End cup 1/2 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,0.60,1.29,100,400,0.05
+End Cup 3/4",END-CUP-075,PLM086,End cup 3/4 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,0.70,1.49,100,400,0.08
+End Cup 1-1/4",END-CUP-125,PLM087,End cup 1-1/4 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,0.90,1.79,80,300,0.1
+End Cup 1-1/2",END-CUP-150,PLM088,End cup 1-1/2 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,1.00,1.99,80,300,0.12
+End Cup 2",END-CUP-200,PLM089,End cup 2 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,1.20,2.29,60,250,0.15
+End Cup 3",END-CUP-300,PLM090,End cup 3 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,2.00,3.49,50,200,0.25
+End Cup 4",END-CUP-400,PLM091,End cup 4 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,2.50,4.49,40,150,0.35
+Clean Out 2",CLEAN-OUT-200,PLM092,Clean out 2 inch,Drainage & Sewage,SharkBite,Piece,Standard Rate,3.50,6.49,40,150,0.4
+Clean Out 3",CLEAN-OUT-300,PLM093,Clean out 3 inch,Drainage & Sewage,SharkBite,Piece,Standard Rate,5.00,8.99,35,120,0.6
+Clean Out 4",CLEAN-OUT-400,PLM094,Clean out 4 inch,Drainage & Sewage,SharkBite,Piece,Standard Rate,6.50,11.99,30,100,0.9
+Clean Out 6",CLEAN-OUT-600,PLM095,Clean out 6 inch,Drainage & Sewage,SharkBite,Piece,Standard Rate,12.00,19.99,25,80,1.5
+Vent Cup 2",VENT-CUP-200,PLM096,Vent cup 2 inch,Drainage & Sewage,SharkBite,Piece,Standard Rate,3.00,5.49,40,150,0.3
+Vent Cup 3",VENT-CUP-300,PLM097,Vent cup 3 inch,Drainage & Sewage,SharkBite,Piece,Standard Rate,4.50,7.99,35,120,0.5
+Vent Cup 4",VENT-CUP-400,PLM098,Vent cup 4 inch,Drainage & Sewage,SharkBite,Piece,Standard Rate,6.00,10.99,30,100,0.8
+Vent Cup 6",VENT-CUP-600,PLM099,Vent cup 6 inch,Drainage & Sewage,SharkBite,Piece,Standard Rate,10.00,16.99,25,80,1.3
+Bushing 3" x 4",BUSHING-300X400,PLM100,Bushing 3 to 4 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,2.50,4.49,50,200,0.2
+Bushing 2" x 4",BUSHING-200X400,PLM101,Bushing 2 to 4 inch,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,2.50,4.49,50,200,0.2
+Filter 3/4",FILTER-075,PLM102,Water filter 3/4 inch,Valves & Taps,SharkBite,Piece,Standard Rate,15.00,24.99,25,100,0.8
+Filter 1",FILTER-100,PLM103,Water filter 1 inch,Valves & Taps,SharkBite,Piece,Standard Rate,18.00,29.99,25,100,1.0
+Filter Candle,FILTER-CANDLE,PLM104,Replacement filter candle,Valves & Taps,SharkBite,Piece,Standard Rate,8.00,13.99,40,150,0.3
+W/C Close Couple (S),WC-CC-S,PLM105,Water closet close couple S-trap,Bathroom Fixtures,American Standard,Set,Premium Rate,180.00,279.99,10,40,90.0
+W/C Close Couple (P),WC-CC-P,PLM106,Water closet close couple P-trap,Bathroom Fixtures,American Standard,Set,Premium Rate,180.00,279.99,10,40,90.0
+WC Stand Only,WC-STAND,PLM107,Water closet stand only,Bathroom Fixtures,American Standard,Piece,Premium Rate,120.00,189.99,8,30,70.0
+Basin C18,BASIN-C18,PLM108,Ceramic basin C18 model,Bathroom Fixtures,Kohler,Piece,Premium Rate,85.00,129.99,15,50,15.5
+Basin C16,BASIN-C16,PLM109,Ceramic basin C16 model,Bathroom Fixtures,Kohler,Piece,Premium Rate,80.00,124.99,15,50,15.0
+Basin C14,BASIN-C14,PLM110,Ceramic basin C14 model,Bathroom Fixtures,Kohler,Piece,Premium Rate,75.00,119.99,15,50,14.5
+Basin Screw,BASIN-SCREW,PLM111,Basin mounting screw set,Hardware & Fasteners,Milwaukee,Pack,Standard Rate,2.50,4.99,80,300,0.1
+WC Screw,WC-SCREW,PLM112,WC mounting screw set,Hardware & Fasteners,Milwaukee,Pack,Standard Rate,3.00,5.49,80,300,0.15
+Shower Arm,SHOWER-ARM,PLM113,Shower arm chrome,Bathroom Fixtures,Moen,Piece,Premium Rate,12.00,19.99,30,120,0.4
+Telephone Shower,TEL-SHOWER,PLM114,Telephone shower head,Bathroom Fixtures,Moen,Piece,Premium Rate,35.00,59.99,20,80,1.2
+Towel Bar,TOWEL-BAR,PLM115,Towel bar chrome,Bathroom Fixtures,Moen,Piece,Premium Rate,25.00,39.99,25,100,1.5
+Soap Dish,SOAP-DISH,PLM116,Soap dish ceramic,Bathroom Fixtures,Kohler,Piece,Standard Rate,8.00,14.99,40,150,0.5
+T-Roll Holder,TROLL-HOLD,PLM117,Toilet roll holder chrome,Bathroom Fixtures,Moen,Piece,Premium Rate,15.00,24.99,30,120,0.6
+Pot Adopted,POT-ADOPT,PLM118,Pot adapter fitting,Plumbing Pipes & Fittings,SharkBite,Piece,Standard Rate,3.50,6.49,50,200,0.2
+Sink Double Drainer,SINK-DS,PLM119,Kitchen sink double drainer,Kitchen Fixtures,Delta Faucet,Piece,Premium Rate,120.00,189.99,10,40,25.0
+Combined Trap,COMB-TRAP,PLM120,Combined trap assembly,Drainage & Sewage,SharkBite,Piece,Standard Rate,8.50,14.99,40,150,0.8

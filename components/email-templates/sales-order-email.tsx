@@ -452,7 +452,7 @@ export default function SalesOrderEmail(props: SalesOrderEmailProps){
               </Text>
               <Hr className="border-gray-700 my-[16px]" />
               <Text className="text-gray-500 text-[11px] text-center m-0">
-                © 2025 {companyName}. All riUSts reserved.
+                © 2025 {companyName}. All rights reserved.
               </Text>
             </Section>
           </Container>

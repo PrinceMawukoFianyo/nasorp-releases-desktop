@@ -1,23 +1,24 @@
+// next.config.js
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'images.unsplash.com',
-        port: '',
-        pathname: '/**',
+        hostname: '**',
       },
     ],
   },
-  // Empty turbopack config to silence the warning
-  turbopack: {},
-  productionBrowserSourceMaps: false,
+  // Disable all optimizations
+  swcMinify: false,
   compiler: {
     removeConsole: false,
   },
-  experimental: {
-    optimizeCss: false,
+  webpack: (config, { dev }) => {
+    if (!dev) {
+      config.optimization.minimize = false;
+    }
+    return config;
   },
 }
 

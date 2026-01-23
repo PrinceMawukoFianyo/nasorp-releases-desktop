@@ -1,3 +1,4 @@
+// components/email-templates/verify-email.tsx - COMPLETE
 import {
   Body,
   Container,
@@ -15,6 +16,7 @@ import {
 interface AWSVerifyEmailProps {
   verificationCode?: string;
 }
+
 export default function VerifyEmail({
   verificationCode, 
 }: AWSVerifyEmailProps) {
@@ -27,14 +29,15 @@ export default function VerifyEmail({
           <Section style={coverSection}>
             <Section style={imageSection}>
               <Img
-                src={"https://3mkq65v2if.ufs.sh/f/nEsxSqMfLeqNug1Ds6iXAi0V4oKpMjE5ngydflZmc6e1FXhC"}
-                width="500"
-                height="150"
-                alt="AFKBerimah's Logo"
+                src="https://via.placeholder.com/200x60/3b82f6/ffffff?text=Business+Inventory"
+                width="200"
+                height="60"
+                alt="Business Inventory Logo"
+                style={logo}
               />
             </Section>
             <Section style={upperSection}>
-              <Heading style={h1}>Business Inventory Email Verification </Heading>
+              <Heading style={h1}>Email Verification Required</Heading>
               <Text style={mainText}>
                 Thanks for starting the new Business account creation process. We
                 want to make sure it's really you. Please enter the following
@@ -42,15 +45,14 @@ export default function VerifyEmail({
                 create an account, you can ignore this message.
               </Text>
               <Section style={verificationSection}>
-                <Text style={verifyText}>Verification code</Text>
-
+                <Text style={verifyText}>Your Verification Code</Text>
                 <Text style={codeText}>{verificationCode}</Text>
                 <Text style={validityText}>
                   (This code is valid for 10 minutes)
                 </Text>
               </Section>
             </Section>
-            <Hr />
+            <Hr style={hr} />
             <Section style={lowerSection}>
               <Text style={cautionText}>
                 Business Inventory will never email you and ask you to disclose
@@ -60,14 +62,9 @@ export default function VerifyEmail({
           </Section>
           <Text style={footerText}>
             This message was produced and distributed by Business Inventory,
-            Inc., 410 Terry Ave. North, Seattle, WA 98109. © 2022, Amazon Web
-            Services, Inc.. All riUSts reserved. FMP is a registered trademark
-            of{' '}
-            <Link href="https://businessinventory.com" target="_blank" style={link}>
-              BusinessInventory.com
-            </Link>
-            , Inc. View our{' '}
-            <Link href="https://businessinventory.com" target="_blank" style={link}>
+            Inc. © {new Date().getFullYear()}, Business Inventory. All rights reserved.
+            View our{' '}
+            <Link href="https://businessinventory.com/privacy" target="_blank" style={link}>
               privacy policy
             </Link>
             .
@@ -85,64 +82,80 @@ VerifyEmail.PreviewProps = {
 const main = {
   backgroundColor: '#fff',
   color: '#212121',
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
 };
 
 const container = {
   padding: '20px',
   margin: '0 auto',
-  backgroundColor: '#eee',
+  maxWidth: '600px',
+  backgroundColor: '#f9fafb',
+};
+
+const logo = {
+  margin: '0 auto',
+  display: 'block',
 };
 
 const h1 = {
-  color: '#333',
-  fontFamily:
-    "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif",
-  fontSize: '20px',
+  color: '#1f2937',
+  fontSize: '24px',
   fontWeight: 'bold',
   marginBottom: '15px',
+  textAlign: 'center' as const,
 };
 
 const link = {
-  color: '#2754C5',
-  fontFamily:
-    "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif",
+  color: '#3b82f6',
   fontSize: '14px',
   textDecoration: 'underline',
 };
 
 const text = {
-  color: '#333',
-  fontFamily:
-    "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif",
-  fontSize: '14px',
-  margin: '24px 0',
+  color: '#4b5563',
+  fontSize: '16px',
+  lineHeight: '1.6',
+  margin: '16px 0',
 };
 
 const imageSection = {
-  backgroundColor: '#252f3d',
-  display: 'flex',
+  backgroundColor: '#ffffff',
   padding: '20px 0',
-  alignItems: 'center',
-  justifyContent: 'center',
+  textAlign: 'center' as const,
+  borderBottom: '1px solid #e5e7eb',
 };
 
-const coverSection = { backgroundColor: '#fff' };
+const coverSection = { 
+  backgroundColor: '#ffffff',
+  borderRadius: '8px',
+  overflow: 'hidden',
+};
 
-const upperSection = { padding: '25px 35px' };
+const upperSection = { 
+  padding: '30px',
+  backgroundColor: '#ffffff',
+};
 
-const lowerSection = { padding: '25px 35px' };
+const lowerSection = { 
+  padding: '20px 30px',
+  backgroundColor: '#fef3c7',
+  borderRadius: '0 0 8px 8px',
+};
 
 const footerText = {
   ...text,
   fontSize: '12px',
-  padding: '0 20px',
+  color: '#6b7280',
+  padding: '20px 0 0',
+  textAlign: 'center' as const,
 };
 
 const verifyText = {
   ...text,
-  margin: 0,
+  margin: '0',
   fontWeight: 'bold',
   textAlign: 'center' as const,
+  color: '#1f2937',
 };
 
 const codeText = {
@@ -151,20 +164,44 @@ const codeText = {
   fontSize: '36px',
   margin: '10px 0',
   textAlign: 'center' as const,
+  color: '#3b82f6',
+  letterSpacing: '8px',
 };
 
 const validityText = {
   ...text,
-  margin: '0px',
+  margin: '0',
   textAlign: 'center' as const,
+  fontSize: '14px',
+  color: '#6b7280',
 };
 
 const verificationSection = {
   display: 'flex',
+  flexDirection: 'column' as const,
   alignItems: 'center',
   justifyContent: 'center',
+  backgroundColor: '#f3f4f6',
+  padding: '30px',
+  borderRadius: '8px',
+  margin: '30px 0',
 };
 
-const mainText = { ...text, marginBottom: '14px' };
+const mainText = { 
+  ...text, 
+  marginBottom: '20px',
+  textAlign: 'center' as const,
+};
 
-const cautionText = { ...text, margin: '0px' };
+const cautionText = { 
+  ...text, 
+  margin: '0',
+  fontSize: '14px',
+  color: '#92400e',
+  textAlign: 'center' as const,
+};
+
+const hr = {
+  borderColor: '#e5e7eb',
+  margin: '20px 0',
+};

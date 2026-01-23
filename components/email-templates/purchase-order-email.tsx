@@ -88,13 +88,13 @@ export default function PurchaseOrderEmail(props: PurchaseOrderEmailProps){
   const formatDate = (date: any) => {
     if (!date) return 'N/A';
     const d = new Date(date);
-    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    return d.toLocaleDateString('en-GH', { year: 'numeric', month: 'long', day: 'numeric' });
   };
 
   // Format currency helper
   const formatCurrency = (amount: any) => {
     if (amount === null || amount === undefined) return '0.00';
-    return Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return Number(amount).toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   // Status badge color helper
@@ -375,7 +375,7 @@ export default function PurchaseOrderEmail(props: PurchaseOrderEmailProps){
               </Text>
               <Hr className="border-gray-700 my-[16px]" />
               <Text className="text-gray-500 text-[11px] text-center m-0">
-                © 2025 {companyName}. All riUSts reserved.
+                © 2025 {companyName}. All rights reserved.
               </Text>
             </Section>
           </Container>

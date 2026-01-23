@@ -7,26 +7,23 @@ import { Card, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Loader2, Plus, PlusCircle, UserPlus } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { Loader2, UserPlus } from "lucide-react";
 import { useState } from "react";
-import {toast} from "sonner";
+import { toast } from "sonner";
 
 export type InviteData = {
-    email: string;
-    orgId: string;
-    orgName: string;
-    roleId: string;
-    roleName: string; 
-    locationId: string;
-    locationName: string; 
+  email: string;
+  orgId: string;
+  orgName: string;
+  roleId: string;
+  roleName: string;
+  locationId: string;
+  locationName: string;
 }
 
 export function UserInvitationForm({
@@ -34,7 +31,6 @@ export function UserInvitationForm({
   roles,
   orgId,
   orgName,
-  
 }: {
   locations: {
     label: string;
@@ -50,104 +46,131 @@ export function UserInvitationForm({
   const [email, setEmail] = useState("");
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<any>(roles[0]);
-  const [selectedLocation, setSelectedLocation] = useState<any>(roles[0]);
-  const router = useRouter();
+  const [selectedRole, setSelectedRole] = useState(roles[0]);
+  const [selectedLocation, setSelectedLocation] = useState(locations[0] || roles[0]);
+  const [open, setOpen] = useState(false);
+
   const sendInvitation = async () => {
     setLoading(true);
+    setErr("");
+
+    // Validation
     if (!email.trim()) {
-      setErr("Title is required");
+      setErr("Email is required");
+      setLoading(false);
       return;
     }
-    const data:InviteData = {
-      email,
+
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setErr("Please enter a valid email address");
+      setLoading(false);
+      return;
+    }
+
+    const data: InviteData = {
+      email: email.trim(),
       orgId,
       orgName,
       roleName: selectedRole.label,
-      roleId: selectedRole.value as string,
-      locationName: selectedLocation.label,
-      locationId: selectedLocation.value as string,
+      roleId: selectedRole.value,
+      locationName: selectedLocation?.label || "",
+      locationId: selectedLocation?.value || "",
     };
-    console.log(data);
+
+    console.log("Sending invite data:", data);
+
     try {
       const res = await sendInvite(data);
-      console.log(res);
-      
-      if (res !== 0 && res.status !== 200) {
-        setLoading(false); 
+      console.log("Invite response:", res);
+
+      // Check if response exists and has error
+      if (res && res.error) {
         toast.error(res.error);
-      } else if (res !== 0 && res.status === 200) {
-        setLoading(false);
-        toast.success("Invite sent successfully");
-        setErr(res.error?? "");
-        // handle success
-      } else {
-        setLoading(false);
-        toast.error("Something went wrong");
+      } 
+      // Check if response exists and is successful
+      else if (res && res.status === 200) {
+        toast.success("Invite sent successfully!");
+        setEmail(""); // Clear form
+        setOpen(false); // Close dialog
+      } 
+      // Handle other cases
+      else {
+        toast.error("Failed to send invitation");
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Invite error:", error);
+      toast.error(error.message || "Something went wrong");
+    } finally {
       setLoading(false);
-      console.log(error);
     }
   };
+
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm" className="h-8 gap-1">
           <UserPlus className="h-3.5 w-3.5" />
           <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
             Invite User
           </span>
-          <span className="md:sr-only">Add</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[625px]">
         <DialogHeader>
-          <DialogTitle></DialogTitle>
+          <DialogTitle>Invite New User</DialogTitle>
         </DialogHeader>
-        <Card className="w-full ">
+        <Card className="w-full border-0 shadow-none">
           <CardHeader>
-            <CardTitle>Invite New User</CardTitle>
+            <CardTitle className="text-lg">Enter User Details</CardTitle>
           </CardHeader>
-          <CardFooter className="flex flex-col gap-4">
-            <div className="flex flex-col w-full gap-2">
-              <Input
-                className= "block w-full rounded-md border-0 py-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-rose-600 sm:text-sm sm:leading-6 text-sm"
-                type="email"
-                placeholder="example-user@gmail.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && sendInvitation()}
-              />
-              {err && <p className="text-red-500 -mt-1">{err}</p>}
+          <CardFooter className="flex flex-col gap-4 px-6">
+            <div className="flex flex-col w-full gap-3">
+              <div>
+                <Input
+                  className="w-full"
+                  type="email"
+                  placeholder="user@example.com"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setErr("");
+                  }}
+                  onKeyPress={(e) => e.key === "Enter" && sendInvitation()}
+                  disabled={loading}
+                />
+                {err && <p className="text-red-500 text-sm mt-1">{err}</p>}
+              </div>
+
               <FormSelectInput
-                label="User Location"
+                label="Select Location"
                 options={locations}
                 option={selectedLocation}
                 setOption={setSelectedLocation}
               />
+
               <FormSelectInput
-                label="User Role"
+                label="Select Role"
                 options={roles}
                 option={selectedRole}
                 setOption={setSelectedRole}
               />
+
               {loading ? (
-                <Button disabled>
+                <Button disabled className="w-full">
                   <Loader2 className="animate-spin mr-2 h-4 w-4" />
-                  Please wait...
+                  Sending Invite...
                 </Button>
               ) : (
-                <Button onClick={sendInvitation}>
-                  <Plus className="mr-2 h-4 w-4" /> Invite User
+                <Button onClick={sendInvitation} className="w-full" disabled={loading}>
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Send Invitation
                 </Button>
               )}
             </div>
           </CardFooter>
         </Card>
-        {/* <DialogFooter>
-          <Button type="submit">Save changes</Button>
-        </DialogFooter> */}
       </DialogContent>
     </Dialog>
   );

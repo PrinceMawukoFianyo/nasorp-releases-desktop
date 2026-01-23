@@ -6,41 +6,43 @@ import {
   Hr,
   Html,
   Img,
-  Link,
+  Link as EmailLink,
   Preview,
   Section,
   Text,
 } from '@react-email/components';
-import { Heading } from 'lucide-react';
+import { Heading } from '@react-email/components';
 
-const baseUrl = process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}`
-  : '';
+interface UserInvitationProps {
+  roleName: string;
+  orgName: string;
+  linkUrl: string;
+  orgLogo?: string; // Optional logo URL
+}
 
 export const UserInvitation = ({
   roleName,
   orgName,
   linkUrl,
-}: {
-  roleName: string;
-  orgName: string;
-  linkUrl: string;
-}) => (
+  orgLogo = "/logo.svg", // Default to your logo
+}: UserInvitationProps) => (
   <Html>
     <Head />
     <Body style={main}>
       <Preview>You're invited to join {orgName} as {roleName}</Preview>
       <Container style={container}>
         <Section style={box}>
+          {/* Using your logo */}
           <Img
-                src={"https://3mkq65v2if.ufs.sh/f/nEsxSqMfLeqNug1Ds6iXAi0V4oKpMjE5ngydflZmc6e1FXhC"}
-                width="500"
-                height="150"
-                alt={orgName}
-              />
+            src={orgLogo.startsWith('http') ? orgLogo : `https://yourdomain.com${orgLogo}`}
+            width="180"
+            height="60"
+            alt={orgName}
+            style={logo}
+          />
           <Heading style={h1}>You're Invited to Join Our Team</Heading>
           <Text style={heroText}>
-           Hello
+            Hello,
           </Text>
           <Text style={heroText}>
             You've been invited to join <strong>{orgName}</strong> as a <strong>{roleName}</strong>.
@@ -48,9 +50,12 @@ export const UserInvitation = ({
           <Text style={paragraph}>
             Complete your account setup to get started and begin collaborating with the team.
           </Text>
+          
+          {/* THE INVITE BUTTON - This is where the link goes */}
           <Button style={button} href={linkUrl}>
             Set Up Your Account
           </Button>
+          
           <Hr style={hr} />
           <Text style={paragraph}>
             This link will expire in 7 days. If you didn't expect this invitation, 
@@ -59,7 +64,7 @@ export const UserInvitation = ({
           <Text style={paragraph}>— {orgName} Team</Text>
           <Hr style={hr} />
           <Text style={footer}>
-            {orgName} | All riUSts reserved
+            {orgName} | All rights reserved
           </Text>
         </Section>
       </Container>
@@ -80,10 +85,17 @@ const container = {
   margin: '0 auto',
   padding: '20px 0 48px',
   marginBottom: '64px',
+  borderRadius: '8px',
+  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
 };
 
 const box = {
   padding: '0 48px',
+};
+
+const logo = {
+  margin: '0 auto 30px auto',
+  display: 'block',
 };
 
 const hr = {
@@ -93,14 +105,9 @@ const hr = {
 
 const paragraph = {
   color: '#525f7f',
-
   fontSize: '16px',
-  lineheight: '24px',
+  lineHeight: '24px',
   textAlign: 'left' as const,
-};
-
-const anchor = {
-  color: '#8d1515ff',
 };
 
 const button = {
@@ -112,25 +119,30 @@ const button = {
   textDecoration: 'none',
   textAlign: 'center' as const,
   display: 'block',
-  padding: '10px',
+  padding: '12px 24px',
+  margin: '30px 0',
 };
 
 const footer = {
-  color: '#816969ff',
+  color: '#816969',
   fontSize: '12px',
-  lineheight: '16px',
+  lineHeight: '16px',
+  textAlign: 'center' as const,
 };
+
 const h1 = {
   color: '#1d1c1d',
-  fontSize: '30px',
+  fontSize: '28px',
   fontWeight: '600',
-  margin: '30px 0',
+  margin: '0 0 20px 0',
   padding: '0',
-  lineheight: '42px',
+  lineHeight: '36px',
+  textAlign: 'center' as const,
 };
 
 const heroText = {
-  fontSize: '20px',
-  lineheight: '28px',
-  marginBottom: '30px',
+  fontSize: '16px',
+  lineHeight: '24px',
+  marginBottom: '20px',
+  color: '#333',
 };

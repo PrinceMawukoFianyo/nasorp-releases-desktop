@@ -21,79 +21,6 @@ function generateSlug(text: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
-/* async function cleanDatabase() {
-  console.log("Cleaning up existing data...");
-  try {
-    // Use a transaction to ensure data consistency
-    await db.$transaction(async (tx) => {
-      // Get all users
-      const users = await tx.user.findMany({
-        include: {
-          roles: true,
-        },
-      });
-      // Disconnect all roles from users
-      for (const user of users) {
-        if (user.roles.length > 0) {
-          await tx.user.update({
-            where: { id: user.id },
-            data: {
-              roles: {
-                disconnect: user.roles.map((role) => ({ id: role.id })),
-              },
-            },
-          });
-        }
-      }
-      // Delete transaction data first
-      await tx.adjustmentLine.deleteMany({});
-      await tx.adjustment.deleteMany({});
-      await tx.transferLine.deleteMany({});
-      await tx.transfer.deleteMany({});
-      await tx.salesOrderLine.deleteMany({});
-      await tx.salesOrder.deleteMany({});
-      await tx.customer.deleteMany({});
-      await tx.goodsReceiptLine.deleteMany({});
-      await tx.goodsReceipt.deleteMany({});
-      await tx.purchaseOrderLine.deleteMany({});
-      await tx.purchaseOrder.deleteMany({});
-
-      // Delete inventory data
-      await tx.serialNumber.deleteMany({});
-      await tx.inventory.deleteMany({});
-
-      // Delete master data
-      await tx.itemSupplier.deleteMany({});
-      await tx.apiKey.deleteMany({});
-      await tx.category.deleteMany({});
-      await tx.brand.deleteMany({});
-      await tx.unit.deleteMany({});
-      await tx.supplier.deleteMany({});
-      await tx.taxRate.deleteMany({});
-      await tx.item.deleteMany({});
-      await tx.location.deleteMany({});
-      await tx.organisation.deleteMany({});
-
-      // Delete session data
-      await tx.session.deleteMany({});
-      await tx.account.deleteMany({});
-
-      // Now safely delete all users
-      const deleteUsers = await tx.user.deleteMany({});
-      console.log("Deleted users:", deleteUsers.count);
-
-      // Finally delete all roles
-      const deleteRoles = await tx.role.deleteMany({});
-      console.log("Deleted roles:", deleteRoles.count);
-    });
-
-    console.log("Database cleanup completed.");
-  } catch (error) {
-    console.error("Error during cleanup:", error);
-    throw error;
-  }
-} */
-
 async function seedDatabase() {
   try {
     console.log("Starting to seed new data...");
@@ -102,14 +29,14 @@ async function seedDatabase() {
     console.log("Creating organization...");
     const org = await db.organisation.create({
       data: {
-        name: "Default Organisation",
-        slug: "default-organisation",
-        industry: "Retail",
-        country: "United States",
-        region: "California",
-        address: "123 Main St, San Francisco, CA 94105",
-        currency: "USS",
-        timezone: "America/Los_Angeles",
+        name: "Ghana Hardware Store",
+        slug: "ghana-hardware-store",
+        industry: "Hardware & Construction",
+        country: "Ghana",
+        region: "Greater Accra",
+        address: "123 Hardware Street, Accra, Ghana",
+        currency: "GHS",
+        timezone: "Africa/Accra",
         inventoryStartDate: new Date(),
         fiscalYear: 1,
       },
@@ -162,41 +89,21 @@ async function seedDatabase() {
     });
     console.log(`Created roles: ${adminRole.displayName}, ${managerRole.displayName}, ${userRole.displayName}`);
     
-    // Create locations
-    console.log("Creating locations...");
-    const locations = await Promise.all([
-      db.location.create({
-        data: {
-          name: "Main Warehouse",
-          type: "WAREHOUSE",
-          address: "456 Warehouse Blvd, San Francisco, CA 94105",
-          phone: "+1-555-123-4567",
-          email: "warehouse@example.com",
-          orgId: org.id,
-        },
-      }),
-      db.location.create({
-        data: {
-          name: "Downtown Store",
-          type: "SHOP",
-          address: "789 Retail St, San Francisco, CA 94105",
-          phone: "+1-555-987-6543",
-          email: "downtown@example.com",
-          orgId: org.id,
-        },
-      }),
-      db.location.create({
-        data: {
-          name: "Online Store",
-          type: "VIRTUAL",
-          orgId: org.id,
-        },
-      }),
-    ]);
+    // Create ONLY Main Warehouse location
+    console.log("Creating Main Warehouse...");
+    const mainWarehouse = await db.location.create({
+      data: {
+        name: "Main Warehouse",
+        type: "WAREHOUSE",
+        address: "456 Warehouse Road, Industrial Area, Accra, Ghana",
+        phone: "+233-20-123-4567",
+        email: "warehouse@ghhardware.com",
+        orgId: org.id,
+      },
+    });
+    console.log(`Created Main Warehouse: ${mainWarehouse.name}`);
 
-    console.log(`Created ${locations.length} locations`);
-
-    // Create users
+    // Create users - all assigned to Main Warehouse
     const adminPassword = `Admin@${currentYear}`;
     const hashedAdminPassword = await bcrypt.hash(adminPassword, 10);
     const managerPassword = `Manager@${currentYear}`;
@@ -215,8 +122,8 @@ async function seedDatabase() {
         orgName: org.name,
         password: hashedAdminPassword,
         orgId: org.id,
-        locationId: locations[0].id,
-        locationName: locations[0].name,
+        locationId: mainWarehouse.id,
+        locationName: mainWarehouse.name,
         roles: {
           connect: { id: adminRole.id },
         },
@@ -234,8 +141,8 @@ async function seedDatabase() {
         orgName: org.name,
         password: hashedManagerPassword,
         orgId: org.id,
-        locationId: locations[1].id,
-        locationName: locations[1].name,
+        locationId: mainWarehouse.id,
+        locationName: mainWarehouse.name,
         roles: {
           connect: { id: managerRole.id },
         },
@@ -253,8 +160,8 @@ async function seedDatabase() {
         isVerfied: true,
         password: hashedUserPassword,
         orgId: org.id,
-        locationId: locations[1].id,
-        locationName: locations[1].name,
+        locationId: mainWarehouse.id,
+        locationName: mainWarehouse.name,
         roles: {
           connect: { id: userRole.id },
         },
@@ -269,14 +176,10 @@ async function seedDatabase() {
     // Create brands
     const brands = await Promise.all(
       [
-        "American Standard",
-        "Kohler",
-        "Moen",
-        "Delta Faucet",
-        "Rheem",
-        "SharkBite",
-        "Ridgid",
-        "Milwaukee",
+        "Local Supplier",
+        "Import Steel",
+        "Ghana Steel",
+        "Quality Metals",
       ].map((name) =>
         db.brand.create({
           data: {
@@ -293,13 +196,8 @@ async function seedDatabase() {
     const units = await Promise.all(
       [
         { name: "Piece", symbol: "pc" },
-        { name: "Meter", symbol: "m" },
-        { name: "Foot", symbol: "ft" },
-        { name: "Set", symbol: "set" },
-        { name: "Box", symbol: "box" },
-        { name: "Pack", symbol: "pack" },
-        { name: "Roll", symbol: "roll" },
-        { name: "Kilogram", symbol: "kg" },
+        { name: "Bundle", symbol: "bdl" },
+        { name: "Length", symbol: "len" },
       ].map((unit) =>
         db.unit.create({
           data: {
@@ -314,10 +212,8 @@ async function seedDatabase() {
     // Create tax rates
     const taxRates = await Promise.all(
       [
-        { name: "No Tax", rate: 0 },
+        { name: "Standard Rate", rate: 15 },
         { name: "Reduced Rate", rate: 5 },
-        { name: "Standard Rate", rate: 10 },
-        { name: "Premium Rate", rate: 15 },
       ].map((tax) =>
         db.taxRate.create({
           data: {
@@ -333,44 +229,28 @@ async function seedDatabase() {
     const suppliers = await Promise.all(
       [
         {
-          name: "National Pipe & Fittings Co.",
-          contactPerson: "Robert Thompson",
-          email: "sales@nationalpipe.com",
-          phone: "+1-555-100-2000",
-          address: "1200 Industrial Park, Houston, TX 77001",
+          name: "Ghana Steel Company",
+          contactPerson: "Kwame Mensah",
+          email: "sales@ghanasteel.com",
+          phone: "+233-20-100-2000",
+          address: "Industrial Area, Tema, Ghana",
           paymentTerms: 30,
         },
         {
-          name: "ProPlumb Wholesale",
-          contactPerson: "Sarah Chen",
-          email: "orders@proplumb.com",
-          phone: "+1-555-100-2001",
-          address: "3400 Supply Road, Los Angeles, CA 90001",
+          name: "Accra Metal Works",
+          contactPerson: "Ama Ofori",
+          email: "orders@accrametal.com",
+          phone: "+233-20-100-2001",
+          address: "Spintex Road, Accra, Ghana",
           paymentTerms: 45,
         },
         {
-          name: "Hardware Solutions Inc.",
-          contactPerson: "Michael Davidson",
-          email: "contact@hardwaresolutions.com",
-          phone: "+1-555-100-2002",
-          address: "890 Builder Street, Phoenix, AZ 85001",
+          name: "West Africa Metals",
+          contactPerson: "Kofi Asante",
+          email: "contact@wametals.com",
+          phone: "+233-20-100-2002",
+          address: "Kaneshie Market, Accra, Ghana",
           paymentTerms: 30,
-        },
-        {
-          name: "Fixture Depot International",
-          contactPerson: "Lisa Anderson",
-          email: "info@fixturedepot.com",
-          phone: "+1-555-100-2003",
-          address: "567 Commerce Blvd, Seattle, WA 98101",
-          paymentTerms: 60,
-        },
-        {
-          name: "Tool Masters Supply",
-          contactPerson: "James Wilson",
-          email: "sales@toolmasters.com",
-          phone: "+1-555-100-2004",
-          address: "2300 Equipment Ave, Denver, CO 80201",
-          paymentTerms: 15,
         },
       ].map((supplier) =>
         db.supplier.create({
@@ -386,14 +266,11 @@ async function seedDatabase() {
     // Create categories
     const categories = await Promise.all(
       [
-        { title: "Plumbing Pipes & Fittings" },
-        { title: "Bathroom Fixtures" },
-        { title: "Kitchen Fixtures" },
-        { title: "Water Heaters & Tanks" },
-        { title: "Tools & Equipment" },
-        { title: "Valves & Taps" },
-        { title: "Drainage & Sewage" },
-        { title: "Hardware & Fasteners" },
+        { title: "Steel Bars" },
+        { title: "Angle Irons" },
+        { title: "Plates" },
+        { title: "Pipes" },
+        { title: "Rods" },
       ].map((category) =>
         db.category.create({
           data: {
@@ -406,222 +283,743 @@ async function seedDatabase() {
     );
     console.log(`Created ${categories.length} categories`);
 
-    // Create items (keeping your existing items array - truncated for brevity)
+    // Create items from the images provided
     const items = [
+      // Flat bars from first image
       {
-        name: "PVC Pipe 1/2 inch",
-        sku: "PVC-PIPE-050",
-        barcode: "1234567890001",
-        description: "PVC Schedule 40 pipe, 1/2 inch diameter, 10ft length",
-        dimensions: "10 x 0.5 x 0.5 ft",
-        weight: 0.8,
-        categoryId: categories.find((c: { title: string }) => c.title === "Plumbing Pipes & Fittings")?.id,
-        brandId: brands.find((b) => b.name === "SharkBite")?.id,
+        name: "3/8 Flatbar",
+        sku: "FLAT-038",
+        barcode: "GH001",
+        description: "3/8 inch flatbar for construction",
+        categoryId: categories.find((c: { title: string }) => c.title === "Steel Bars")?.id,
+        brandId: brands.find((b) => b.name === "Local Supplier")?.id,
         unitId: units.find((u) => u.name === "Piece")?.id,
         taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
-        tax: 10,
-        costPrice: 3.50,
-        sellingPrice: 5.99,
+        tax: 15,
+        costPrice: 15.00,
+        sellingPrice: 21.00,
         minStockLevel: 50,
+        maxStockLevel: 300,
+        isSerialTracked: false,
+      },
+      {
+        name: "3/4 Flatbar Gav",
+        sku: "FLAT-034-GAV",
+        barcode: "GH002",
+        description: "3/4 inch flatbar galvanized",
+        categoryId: categories.find((c: { title: string }) => c.title === "Steel Bars")?.id,
+        brandId: brands.find((b) => b.name === "Local Supplier")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 15.00,
+        sellingPrice: 18.00,
+        minStockLevel: 40,
+        maxStockLevel: 250,
+        isSerialTracked: false,
+      },
+      {
+        name: "3/4 Flatbar Thick",
+        sku: "FLAT-034-THK",
+        barcode: "GH003",
+        description: "3/4 inch flatbar thick gauge",
+        categoryId: categories.find((c: { title: string }) => c.title === "Steel Bars")?.id,
+        brandId: brands.find((b) => b.name === "Local Supplier")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 28.00,
+        sellingPrice: 40.00,
+        minStockLevel: 30,
         maxStockLevel: 200,
         isSerialTracked: false,
       },
       {
-        name: "Copper Pipe 3/4 inch",
-        sku: "COP-PIPE-075",
-        barcode: "1234567890002",
-        description: "Type L copper pipe, 3/4 inch diameter, 10ft length",
-        dimensions: "10 x 0.75 x 0.75 ft",
-        weight: 2.5,
-        categoryId: categories.find((c: { title: string }) => c.title === "Plumbing Pipes & Fittings")?.id,
-        brandId: brands.find((b) => b.name === "Ridgid")?.id,
+        name: "1\" Flatbar",
+        sku: "FLAT-100",
+        barcode: "GH004",
+        description: "1 inch flatbar for construction",
+        categoryId: categories.find((c: { title: string }) => c.title === "Steel Bars")?.id,
+        brandId: brands.find((b) => b.name === "Local Supplier")?.id,
         unitId: units.find((u) => u.name === "Piece")?.id,
         taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
-        tax: 10,
-        costPrice: 28.00,
-        sellingPrice: 42.99,
-        minStockLevel: 30,
-        maxStockLevel: 100,
-        isSerialTracked: false,
-      },
-      {
-        name: "Kohler Bathroom Sink",
-        sku: "KOH-SINK-001",
-        barcode: "1234567890003",
-        description: "Kohler undermount bathroom sink, white porcelain",
-        dimensions: "20 x 16 x 8 inches",
-        weight: 15.5,
-        categoryId: categories.find((c: { title: string }) => c.title === "Bathroom Fixtures")?.id,
-        brandId: brands.find((b) => b.name === "Kohler")?.id,
-        unitId: units.find((u) => u.name === "Piece")?.id,
-        taxRateId: taxRates.find((t) => t.name === "Premium Rate")?.id,
         tax: 15,
-        costPrice: 85.00,
-        sellingPrice: 129.99,
-        minStockLevel: 5,
-        maxStockLevel: 20,
-        isSerialTracked: true,
-      },
-      {
-        name: "American Standard Toilet",
-        sku: "AMS-TOIL-001",
-        barcode: "1234567890004",
-        description: "American Standard two-piece toilet, elongated bowl, white",
-        dimensions: "28 x 18 x 30 inches",
-        weight: 90.0,
-        categoryId: categories.find((c: { title: string }) => c.title === "Bathroom Fixtures")?.id,
-        brandId: brands.find((b) => b.name === "American Standard")?.id,
-        unitId: units.find((u) => u.name === "Set")?.id,
-        taxRateId: taxRates.find((t) => t.name === "Premium Rate")?.id,
-        tax: 15,
-        costPrice: 180.00,
-        sellingPrice: 279.99,
-        minStockLevel: 3,
-        maxStockLevel: 15,
-        isSerialTracked: true,
-      },
-      {
-        name: "Delta Kitchen Faucet",
-        sku: "DEL-FAUC-001",
-        barcode: "1234567890005",
-        description: "Delta pull-down kitchen faucet, stainless steel finish",
-        dimensions: "12 x 8 x 16 inches",
-        weight: 4.5,
-        categoryId: categories.find((c: { title: string }) => c.title === "Kitchen Fixtures")?.id,
-        brandId: brands.find((b) => b.name === "Delta Faucet")?.id,
-        unitId: units.find((u) => u.name === "Set")?.id,
-        taxRateId: taxRates.find((t) => t.name === "Premium Rate")?.id,
-        tax: 15,
-        costPrice: 95.00,
-        sellingPrice: 149.99,
-        minStockLevel: 8,
-        maxStockLevel: 25,
-        isSerialTracked: true,
-      },
-      {
-        name: "Rheem 50 Gallon Water Heater",
-        sku: "RHE-HEAT-050",
-        barcode: "1234567890006",
-        description: "Rheem electric water heater, 50 gallon capacity, 240V",
-        dimensions: "60 x 24 x 24 inches",
-        weight: 125.0,
-        categoryId: categories.find((c: { title: string }) => c.title === "Water Heaters & Tanks")?.id,
-        brandId: brands.find((b) => b.name === "Rheem")?.id,
-        unitId: units.find((u) => u.name === "Piece")?.id,
-        taxRateId: taxRates.find((t) => t.name === "Premium Rate")?.id,
-        tax: 15,
-        costPrice: 380.00,
-        sellingPrice: 599.99,
-        minStockLevel: 2,
-        maxStockLevel: 10,
-        isSerialTracked: true,
-      },
-      {
-        name: "Pipe Wrench 14 inch",
-        sku: "RID-WRCH-014",
-        barcode: "1234567890007",
-        description: "Ridgid heavy-duty pipe wrench, 14 inch length",
-        dimensions: "14 x 3 x 2 inches",
-        weight: 2.8,
-        categoryId: categories.find((c: { title: string }) => c.title === "Tools & Equipment")?.id,
-        brandId: brands.find((b) => b.name === "Ridgid")?.id,
-        unitId: units.find((u) => u.name === "Piece")?.id,
-        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
-        tax: 10,
         costPrice: 32.00,
-        sellingPrice: 49.99,
-        minStockLevel: 10,
-        maxStockLevel: 30,
-        isSerialTracked: false,
-      },
-      {
-        name: "Ball Valve 1 inch",
-        sku: "SHA-VALV-100",
-        barcode: "1234567890008",
-        description: "SharkBite brass ball valve, 1 inch, full port",
-        dimensions: "4 x 2 x 2 inches",
-        weight: 0.75,
-        categoryId: categories.find((c: { title: string }) => c.title === "Valves & Taps")?.id,
-        brandId: brands.find((b) => b.name === "SharkBite")?.id,
-        unitId: units.find((u) => u.name === "Piece")?.id,
-        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
-        tax: 10,
-        costPrice: 12.00,
-        sellingPrice: 19.99,
-        minStockLevel: 25,
-        maxStockLevel: 100,
-        isSerialTracked: false,
-      },
-      {
-        name: "PVC Drainage Pipe 4 inch",
-        sku: "PVC-DRAI-400",
-        barcode: "1234567890009",
-        description: "PVC drainage pipe, 4 inch diameter, 10ft length",
-        dimensions: "10 x 4 x 4 inches",
-        weight: 5.2,
-        categoryId: categories.find((c: { title: string }) => c.title === "Drainage & Sewage")?.id,
-        brandId: brands.find((b) => b.name === "SharkBite")?.id,
-        unitId: units.find((u) => u.name === "Piece")?.id,
-        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
-        tax: 10,
-        costPrice: 18.00,
-        sellingPrice: 29.99,
+        sellingPrice: 45.00,
         minStockLevel: 20,
-        maxStockLevel: 80,
+        maxStockLevel: 150,
         isSerialTracked: false,
       },
       {
-        name: "Stainless Steel Screws Pack",
-        sku: "MIL-SCRE-PKG",
-        barcode: "1234567890010",
-        description: "Milwaukee stainless steel screws, assorted sizes, 100 pack",
-        dimensions: "6 x 4 x 2 inches",
-        weight: 1.2,
-        categoryId: categories.find((c: { title: string }) => c.title === "Hardware & Fasteners")?.id,
-        brandId: brands.find((b) => b.name === "Milwaukee")?.id,
-        unitId: units.find((u) => u.name === "Pack")?.id,
+        name: "1½ Flatbar",
+        sku: "FLAT-150",
+        barcode: "GH005",
+        description: "1½ inch flatbar for construction",
+        categoryId: categories.find((c: { title: string }) => c.title === "Steel Bars")?.id,
+        brandId: brands.find((b) => b.name === "Local Supplier")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
         taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
-        tax: 10,
-        costPrice: 8.50,
-        sellingPrice: 14.99,
+        tax: 15,
+        costPrice: 16.00,
+        sellingPrice: 22.00,
+        minStockLevel: 100,
+        maxStockLevel: 500,
+        isSerialTracked: false,
+      },
+
+      // Square bars
+      {
+        name: "3/4 S# Light",
+        sku: "SQR-034-LT",
+        barcode: "GH006",
+        description: "3/4 inch square bar light gauge",
+        categoryId: categories.find((c: { title: string }) => c.title === "Steel Bars")?.id,
+        brandId: brands.find((b) => b.name === "Local Supplier")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 18.00,
+        sellingPrice: 25.00,
+        minStockLevel: 50,
+        maxStockLevel: 300,
+        isSerialTracked: false,
+      },
+      {
+        name: "3/4 S# Round M",
+        sku: "SQR-034-RM",
+        barcode: "GH007",
+        description: "3/4 inch square bar round medium",
+        categoryId: categories.find((c: { title: string }) => c.title === "Steel Bars")?.id,
+        brandId: brands.find((b) => b.name === "Local Supplier")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 46.00,
+        sellingPrice: 65.00,
+        minStockLevel: 50,
+        maxStockLevel: 300,
+        isSerialTracked: false,
+      },
+      {
+        name: "3/4 S# Thick",
+        sku: "SQR-034-THK",
+        barcode: "GH008",
+        description: "3/4 inch square bar thick gauge",
+        categoryId: categories.find((c: { title: string }) => c.title === "Steel Bars")?.id,
+        brandId: brands.find((b) => b.name === "Local Supplier")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 22.00,
+        sellingPrice: 30.00,
+        minStockLevel: 40,
+        maxStockLevel: 250,
+        isSerialTracked: false,
+      },
+
+      // 1" series
+      {
+        name: "1×1 Light",
+        sku: "BAR-101-LT",
+        barcode: "GH009",
+        description: "1×1 inch bar light gauge",
+        categoryId: categories.find((c: { title: string }) => c.title === "Steel Bars")?.id,
+        brandId: brands.find((b) => b.name === "Local Supplier")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 25.00,
+        sellingPrice: 35.00,
         minStockLevel: 30,
+        maxStockLevel: 200,
+        isSerialTracked: false,
+      },
+      {
+        name: "1×1 Thick",
+        sku: "BAR-101-THK",
+        barcode: "GH010",
+        description: "1×1 inch bar thick gauge",
+        categoryId: categories.find((c: { title: string }) => c.title === "Steel Bars")?.id,
+        brandId: brands.find((b) => b.name === "Local Supplier")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 32.00,
+        sellingPrice: 45.00,
+        minStockLevel: 30,
+        maxStockLevel: 200,
+        isSerialTracked: false,
+      },
+
+      // Larger sizes
+      {
+        name: "30×30",
+        sku: "BAR-3030",
+        barcode: "GH011",
+        description: "30×30mm square bar",
+        categoryId: categories.find((c: { title: string }) => c.title === "Steel Bars")?.id,
+        brandId: brands.find((b) => b.name === "Local Supplier")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 32.00,
+        sellingPrice: 45.00,
+        minStockLevel: 30,
+        maxStockLevel: 200,
+        isSerialTracked: false,
+      },
+      {
+        name: "3/4×1½",
+        sku: "BAR-034-150",
+        barcode: "GH012",
+        description: "3/4×1½ inch rectangular bar",
+        categoryId: categories.find((c: { title: string }) => c.title === "Steel Bars")?.id,
+        brandId: brands.find((b) => b.name === "Local Supplier")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 42.00,
+        sellingPrice: 58.00,
+        minStockLevel: 50,
+        maxStockLevel: 300,
+        isSerialTracked: false,
+      },
+      {
+        name: "40×40 Light",
+        sku: "BAR-4040-LT",
+        barcode: "GH013",
+        description: "40×40mm square bar light gauge",
+        categoryId: categories.find((c: { title: string }) => c.title === "Steel Bars")?.id,
+        brandId: brands.find((b) => b.name === "Local Supplier")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 86.00,
+        sellingPrice: 120.00,
+        minStockLevel: 30,
+        maxStockLevel: 200,
+        isSerialTracked: false,
+      },
+      {
+        name: "40×40 Thick",
+        sku: "BAR-4040-THK",
+        barcode: "GH014",
+        description: "40×40mm square bar thick gauge",
+        categoryId: categories.find((c: { title: string }) => c.title === "Steel Bars")?.id,
+        brandId: brands.find((b) => b.name === "Local Supplier")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 42.00,
+        sellingPrice: 58.00,
+        minStockLevel: 30,
+        maxStockLevel: 200,
+        isSerialTracked: false,
+      },
+      {
+        name: "1×2 Light",
+        sku: "BAR-102-LT",
+        barcode: "GH015",
+        description: "1×2 inch rectangular bar light gauge",
+        categoryId: categories.find((c: { title: string }) => c.title === "Steel Bars")?.id,
+        brandId: brands.find((b) => b.name === "Local Supplier")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 86.00,
+        sellingPrice: 120.00,
+        minStockLevel: 25,
+        maxStockLevel: 150,
+        isSerialTracked: false,
+      },
+      {
+        name: "1×2 Thick",
+        sku: "BAR-102-THK",
+        barcode: "GH016",
+        description: "1×2 inch rectangular bar thick gauge",
+        categoryId: categories.find((c: { title: string }) => c.title === "Steel Bars")?.id,
+        brandId: brands.find((b) => b.name === "Local Supplier")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 100.00,
+        sellingPrice: 140.00,
+        minStockLevel: 30,
+        maxStockLevel: 150,
+        isSerialTracked: false,
+      },
+
+      // Pipes from second image
+      {
+        name: "50×50 Light",
+        sku: "PIPE-5050-LT",
+        barcode: "GH017",
+        description: "50×50mm pipe light gauge",
+        categoryId: categories.find((c: { title: string }) => c.title === "Pipes")?.id,
+        brandId: brands.find((b) => b.name === "Import Steel")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 60.00,
+        sellingPrice: 85.00,
+        minStockLevel: 30,
+        maxStockLevel: 150,
+        isSerialTracked: false,
+      },
+      {
+        name: "50×50 M",
+        sku: "PIPE-5050-M",
+        barcode: "GH018",
+        description: "50×50mm pipe medium gauge",
+        categoryId: categories.find((c: { title: string }) => c.title === "Pipes")?.id,
+        brandId: brands.find((b) => b.name === "Import Steel")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 100.00,
+        sellingPrice: 140.00,
+        minStockLevel: 30,
+        maxStockLevel: 150,
+        isSerialTracked: false,
+      },
+      {
+        name: "50×50 Thick",
+        sku: "PIPE-5050-THK",
+        barcode: "GH019",
+        description: "50×50mm pipe thick gauge",
+        categoryId: categories.find((c: { title: string }) => c.title === "Pipes")?.id,
+        brandId: brands.find((b) => b.name === "Import Steel")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 114.00,
+        sellingPrice: 160.00,
+        minStockLevel: 25,
         maxStockLevel: 120,
         isSerialTracked: false,
       },
       {
-        name: "Moen Shower Head",
-        sku: "MOE-SHOW-001",
-        barcode: "1234567890011",
-        description: "Moen rainfall shower head, chrome finish, 8 inch diameter",
-        dimensions: "8 x 8 x 3 inches",
-        weight: 1.8,
-        categoryId: categories.find((c: { title: string }) => c.title === "Bathroom Fixtures")?.id,
-        brandId: brands.find((b) => b.name === "Moen")?.id,
+        name: "60×60 M",
+        sku: "PIPE-6060-M",
+        barcode: "GH020",
+        description: "60×60mm pipe medium gauge",
+        categoryId: categories.find((c: { title: string }) => c.title === "Pipes")?.id,
+        brandId: brands.find((b) => b.name === "Import Steel")?.id,
         unitId: units.find((u) => u.name === "Piece")?.id,
-        taxRateId: taxRates.find((t) => t.name === "Premium Rate")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
         tax: 15,
-        costPrice: 45.00,
-        sellingPrice: 79.99,
-        minStockLevel: 12,
-        maxStockLevel: 40,
+        costPrice: 128.00,
+        sellingPrice: 180.00,
+        minStockLevel: 20,
+        maxStockLevel: 100,
         isSerialTracked: false,
       },
       {
-        name: "Teflon Tape Roll",
-        sku: "SHA-TEFL-ROL",
-        barcode: "1234567890012",
-        description: "SharkBite Teflon tape for pipe threads, 1/2 inch x 520 inches",
-        dimensions: "3 x 3 x 0.5 inches",
-        weight: 0.1,
-        categoryId: categories.find((c: { title: string }) => c.title === "Plumbing Pipes & Fittings")?.id,
-        brandId: brands.find((b) => b.name === "SharkBite")?.id,
-        unitId: units.find((u) => u.name === "Roll")?.id,
-        taxRateId: taxRates.find((t) => t.name === "Reduced Rate")?.id,
-        tax: 5,
-        costPrice: 0.80,
-        sellingPrice: 1.99,
-        minStockLevel: 100,
-        maxStockLevel: 500,
+        name: "60×60 Thick",
+        sku: "PIPE-6060-THK",
+        barcode: "GH021",
+        description: "60×60mm pipe thick gauge",
+        categoryId: categories.find((c: { title: string }) => c.title === "Pipes")?.id,
+        brandId: brands.find((b) => b.name === "Import Steel")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 190.00,
+        sellingPrice: 265.00,
+        minStockLevel: 15,
+        maxStockLevel: 80,
+        isSerialTracked: false,
+      },
+      {
+        name: "40×80",
+        sku: "PIPE-4080",
+        barcode: "GH022",
+        description: "40×80mm rectangular pipe",
+        categoryId: categories.find((c: { title: string }) => c.title === "Pipes")?.id,
+        brandId: brands.find((b) => b.name === "Import Steel")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 128.00,
+        sellingPrice: 180.00,
+        minStockLevel: 20,
+        maxStockLevel: 100,
+        isSerialTracked: false,
+      },
+      {
+        name: "50×100",
+        sku: "PIPE-50100",
+        barcode: "GH023",
+        description: "50×100mm rectangular pipe",
+        categoryId: categories.find((c: { title: string }) => c.title === "Pipes")?.id,
+        brandId: brands.find((b) => b.name === "Import Steel")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 214.00,
+        sellingPrice: 300.00,
+        minStockLevel: 15,
+        maxStockLevel: 80,
+        isSerialTracked: false,
+      },
+
+      // Round pipes from second image
+      {
+        name: "3/4 Round Pipe",
+        sku: "RND-PIPE-034",
+        barcode: "GH024",
+        description: "3/4 inch round pipe",
+        categoryId: categories.find((c: { title: string }) => c.title === "Pipes")?.id,
+        brandId: brands.find((b) => b.name === "Import Steel")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 22.00,
+        sellingPrice: 31.00,
+        minStockLevel: 50,
+        maxStockLevel: 300,
+        isSerialTracked: false,
+      },
+      {
+        name: "1\" Round Pipe",
+        sku: "RND-PIPE-100",
+        barcode: "GH025",
+        description: "1 inch round pipe",
+        categoryId: categories.find((c: { title: string }) => c.title === "Pipes")?.id,
+        brandId: brands.find((b) => b.name === "Import Steel")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 32.00,
+        sellingPrice: 45.00,
+        minStockLevel: 40,
+        maxStockLevel: 250,
+        isSerialTracked: false,
+      },
+      {
+        name: "1½ Round Pipe",
+        sku: "RND-PIPE-150",
+        barcode: "GH026",
+        description: "1½ inch round pipe",
+        categoryId: categories.find((c: { title: string }) => c.title === "Pipes")?.id,
+        brandId: brands.find((b) => b.name === "Import Steel")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 50.00,
+        sellingPrice: 70.00,
+        minStockLevel: 30,
+        maxStockLevel: 180,
+        isSerialTracked: false,
+      },
+      {
+        name: "1¾ Round Pipe",
+        sku: "RND-PIPE-175",
+        barcode: "GH027",
+        description: "1¾ inch round pipe",
+        categoryId: categories.find((c: { title: string }) => c.title === "Pipes")?.id,
+        brandId: brands.find((b) => b.name === "Import Steel")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 60.00,
+        sellingPrice: 85.00,
+        minStockLevel: 25,
+        maxStockLevel: 150,
+        isSerialTracked: false,
+      },
+      {
+        name: "2\" Round Pipe (L)",
+        sku: "RND-PIPE-200-L",
+        barcode: "GH028",
+        description: "2 inch round pipe large",
+        categoryId: categories.find((c: { title: string }) => c.title === "Pipes")?.id,
+        brandId: brands.find((b) => b.name === "Import Steel")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 86.00,
+        sellingPrice: 120.00,
+        minStockLevel: 20,
+        maxStockLevel: 120,
+        isSerialTracked: false,
+      },
+      {
+        name: "2\" Round Pipe Thick",
+        sku: "RND-PIPE-200-THK",
+        barcode: "GH029",
+        description: "2 inch round pipe thick gauge",
+        categoryId: categories.find((c: { title: string }) => c.title === "Pipes")?.id,
+        brandId: brands.find((b) => b.name === "Import Steel")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 100.00,
+        sellingPrice: 140.00,
+        minStockLevel: 15,
+        maxStockLevel: 100,
+        isSerialTracked: false,
+      },
+      {
+        name: "2½ Round Pipe",
+        sku: "RND-PIPE-250",
+        barcode: "GH030",
+        description: "2½ inch round pipe",
+        categoryId: categories.find((c: { title: string }) => c.title === "Pipes")?.id,
+        brandId: brands.find((b) => b.name === "Import Steel")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 143.00,
+        sellingPrice: 200.00,
+        minStockLevel: 12,
+        maxStockLevel: 80,
+        isSerialTracked: false,
+      },
+
+      // Angle irons from first image
+      {
+        name: "1\" Angle Iron",
+        sku: "ANG-IRON-100",
+        barcode: "GH031",
+        description: "1 inch angle iron",
+        categoryId: categories.find((c: { title: string }) => c.title === "Angle Irons")?.id,
+        brandId: brands.find((b) => b.name === "Local Supplier")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 39.00,
+        sellingPrice: 55.00,
+        minStockLevel: 25,
+        maxStockLevel: 150,
+        isSerialTracked: false,
+      },
+      {
+        name: "1¼ Angle Iron",
+        sku: "ANG-IRON-125",
+        barcode: "GH032",
+        description: "1¼ inch angle iron",
+        categoryId: categories.find((c: { title: string }) => c.title === "Angle Irons")?.id,
+        brandId: brands.find((b) => b.name === "Local Supplier")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 46.00,
+        sellingPrice: 65.00,
+        minStockLevel: 20,
+        maxStockLevel: 120,
+        isSerialTracked: false,
+      },
+      {
+        name: "1½ Angle Iron (L)",
+        sku: "ANG-IRON-150-L",
+        barcode: "GH033",
+        description: "1½ inch angle iron large",
+        categoryId: categories.find((c: { title: string }) => c.title === "Angle Irons")?.id,
+        brandId: brands.find((b) => b.name === "Local Supplier")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 57.00,
+        sellingPrice: 80.00,
+        minStockLevel: 18,
+        maxStockLevel: 100,
+        isSerialTracked: false,
+      },
+      {
+        name: "1½ Angle Iron (Thick)",
+        sku: "ANG-IRON-150-THK",
+        barcode: "GH034",
+        description: "1½ inch angle iron thick gauge",
+        categoryId: categories.find((c: { title: string }) => c.title === "Angle Irons")?.id,
+        brandId: brands.find((b) => b.name === "Local Supplier")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 93.00,
+        sellingPrice: 130.00,
+        minStockLevel: 15,
+        maxStockLevel: 90,
+        isSerialTracked: false,
+      },
+      {
+        name: "2\" Angle Iron (L)",
+        sku: "ANG-IRON-200-L",
+        barcode: "GH035",
+        description: "2 inch angle iron large",
+        categoryId: categories.find((c: { title: string }) => c.title === "Angle Irons")?.id,
+        brandId: brands.find((b) => b.name === "Local Supplier")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 100.00,
+        sellingPrice: 140.00,
+        minStockLevel: 12,
+        maxStockLevel: 80,
+        isSerialTracked: false,
+      },
+      {
+        name: "2\" Angle Iron (M)",
+        sku: "ANG-IRON-200-M",
+        barcode: "GH036",
+        description: "2 inch angle iron medium",
+        categoryId: categories.find((c: { title: string }) => c.title === "Angle Irons")?.id,
+        brandId: brands.find((b) => b.name === "Local Supplier")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 121.00,
+        sellingPrice: 170.00,
+        minStockLevel: 10,
+        maxStockLevel: 70,
+        isSerialTracked: false,
+      },
+      {
+        name: "2\" Angle Iron (Thick)",
+        sku: "ANG-IRON-200-THK",
+        barcode: "GH037",
+        description: "2 inch angle iron thick gauge",
+        categoryId: categories.find((c: { title: string }) => c.title === "Angle Irons")?.id,
+        brandId: brands.find((b) => b.name === "Local Supplier")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 179.00,
+        sellingPrice: 250.00,
+        minStockLevel: 8,
+        maxStockLevel: 60,
+        isSerialTracked: false,
+      },
+
+      // Plates from first image
+      {
+        name: "Jump Plate (Light)",
+        sku: "JMP-PLT-LT",
+        barcode: "GH038",
+        description: "Jump plate light gauge",
+        categoryId: categories.find((c: { title: string }) => c.title === "Plates")?.id,
+        brandId: brands.find((b) => b.name === "Local Supplier")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 129.00,
+        sellingPrice: 180.00,
+        minStockLevel: 15,
+        maxStockLevel: 90,
+        isSerialTracked: false,
+      },
+      {
+        name: "Jump Plate (Thick)",
+        sku: "JMP-PLT-THK",
+        barcode: "GH039",
+        description: "Jump plate thick gauge",
+        categoryId: categories.find((c: { title: string }) => c.title === "Plates")?.id,
+        brandId: brands.find((b) => b.name === "Local Supplier")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 136.00,
+        sellingPrice: 190.00,
+        minStockLevel: 12,
+        maxStockLevel: 80,
+        isSerialTracked: false,
+      },
+      {
+        name: "1.25 Plate",
+        sku: "PLT-125",
+        barcode: "GH040",
+        description: "1.25 inch metal plate",
+        categoryId: categories.find((c: { title: string }) => c.title === "Plates")?.id,
+        brandId: brands.find((b) => b.name === "Local Supplier")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 200.00,
+        sellingPrice: 280.00,
+        minStockLevel: 10,
+        maxStockLevel: 60,
+        isSerialTracked: false,
+      },
+      {
+        name: "1.16 Plate",
+        sku: "PLT-116",
+        barcode: "GH041",
+        description: "1.16 inch metal plate",
+        categoryId: categories.find((c: { title: string }) => c.title === "Plates")?.id,
+        brandId: brands.find((b) => b.name === "Local Supplier")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 271.00,
+        sellingPrice: 380.00,
+        minStockLevel: 8,
+        maxStockLevel: 50,
+        isSerialTracked: false,
+      },
+      {
+        name: "China Door Plate",
+        sku: "PLT-CHN-DR",
+        barcode: "GH042",
+        description: "China door plate",
+        categoryId: categories.find((c: { title: string }) => c.title === "Plates")?.id,
+        brandId: brands.find((b) => b.name === "Local Supplier")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 179.00,
+        sellingPrice: 250.00,
+        minStockLevel: 10,
+        maxStockLevel: 70,
+        isSerialTracked: false,
+      },
+      {
+        name: "Nat Plate",
+        sku: "PLT-NAT",
+        barcode: "GH043",
+        description: "Natural metal plate",
+        categoryId: categories.find((c: { title: string }) => c.title === "Plates")?.id,
+        brandId: brands.find((b) => b.name === "Local Supplier")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 171.00,
+        sellingPrice: 240.00,
+        minStockLevel: 10,
+        maxStockLevel: 70,
+        isSerialTracked: false,
+      },
+
+      // Rods from first image
+      {
+        name: "Roof Iron Rod (Big)",
+        sku: "ROOF-ROD-BIG",
+        barcode: "GH044",
+        description: "Roof iron rod large size",
+        categoryId: categories.find((c: { title: string }) => c.title === "Rods")?.id,
+        brandId: brands.find((b) => b.name === "Local Supplier")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 86.00,
+        sellingPrice: 120.00,
+        minStockLevel: 15,
+        maxStockLevel: 100,
+        isSerialTracked: false,
+      },
+      {
+        name: "Iron Rod (Small)",
+        sku: "IRON-ROD-SML",
+        barcode: "GH045",
+        description: "Iron rod small size",
+        categoryId: categories.find((c: { title: string }) => c.title === "Rods")?.id,
+        brandId: brands.find((b) => b.name === "Local Supplier")?.id,
+        unitId: units.find((u) => u.name === "Piece")?.id,
+        taxRateId: taxRates.find((t) => t.name === "Standard Rate")?.id,
+        tax: 15,
+        costPrice: 36.00,
+        sellingPrice: 50.00,
+        minStockLevel: 20,
+        maxStockLevel: 150,
         isSerialTracked: false,
       },
     ];
@@ -658,270 +1056,97 @@ async function seedDatabase() {
       }
     }
 
-    // Create inventory records
-    console.log("Creating inventory records...");
+    // Create inventory records ONLY in Main Warehouse
+    console.log("Creating inventory records in Main Warehouse...");
     const inventoryRecords = [];
     for (const item of createdItems) {
-      for (const location of locations) {
-        const baseQuantity = location.type === "WAREHOUSE" ? 50 : 10;
-        const quantity = Math.floor(Math.random() * baseQuantity) + 5;
-        inventoryRecords.push(
-          db.inventory.create({
-            data: {
-              itemId: item.id,
-              locationId: location.id,
-              quantity: quantity,
-              reservedQuantity: 0,
-              orgId: org.id,
-            },
-          })
-        );
-      }
+      // All items go only to Main Warehouse
+      const quantity = Math.floor(Math.random() * 50) + 10; // 10-60 pieces each
+      inventoryRecords.push(
+        db.inventory.create({
+          data: {
+            itemId: item.id,
+            locationId: mainWarehouse.id,
+            quantity: quantity,
+            reservedQuantity: 0,
+            orgId: org.id,
+          },
+        })
+      );
     }
     await Promise.all(inventoryRecords);
-    console.log(`Created ${inventoryRecords.length} inventory records`);
+    console.log(`Created ${inventoryRecords.length} inventory records in Main Warehouse`);
 
-    // Skip initial serial number creation - they will be created during transactions
-    console.log("Skipping initial serial number creation...");
-
-   // Create customers
-console.log("Creating customers...");
-const customers = await Promise.all([
-  db.customer.create({
-    data: {
-      name: "BuildRiUSt Construction",
-      email: "purchasing@buildriUSt.com",
-      phone: "+1-555-BILD-123",
-      address: "123 Builder Blvd, San Francisco, CA 94105",
-      taxId: "BRC-123456",
-      notes: "Large construction company, regular orders",
-      orgId: org.id,
-    },
-  }),
-  db.customer.create({
-    data: {
-      name: "HomeRepair Services",
-      email: "orders@homerepair.com",
-      phone: "+1-555-HOME-456",
-      address: "456 Repair Ave, San Francisco, CA 94105",
-      taxId: "HRS-654321",
-      notes: "Home repair and maintenance contractor",
-      orgId: org.id,
-    },
-  }),
-  db.customer.create({
-    data: {
-      name: "Pacific Plumbing Co.",
-      email: "procurement@pacificplumbing.com",
-      phone: "+1-555-PLMB-789",
-      address: "789 Plumber Dr, San Francisco, CA 94105",
-      taxId: "PPC-789012",
-      notes: "Professional plumbing contractor",
-      orgId: org.id,
-    },
-  }),
-  db.customer.create({
-    data: {
-      name: "Mike's Handyman Service",
-      email: "mike@handyman.com",
-      phone: "+1-555-HNDY-321",
-      address: "321 Fix-It Lane, San Francisco, CA 94105",
-      notes: "Independent contractor, cash customer",
-      orgId: org.id,
-    },
-  }),
-  db.customer.create({
-    data: {
-      name: "Property Management Group",
-      email: "facilities@propmanage.com",
-      phone: "+1-555-PROP-654",
-      address: "654 Rental Rd, San Francisco, CA 94105",
-      taxId: "PMG-345678",
-      notes: "Property management, bulk orders",
-      orgId: org.id,
-    },
-  }),
-]);
+    // Create customers
+    console.log("Creating customers...");
+    const customers = await Promise.all([
+      db.customer.create({
+        data: {
+          name: "Ghana Construction Ltd",
+          email: "purchasing@ghanaconstruction.com",
+          phone: "+233-20-BUILD-123",
+          address: "123 Construction Avenue, Accra, Ghana",
+          taxId: "GCL-123456",
+          notes: "Large construction company, regular orders",
+          orgId: org.id,
+        },
+      }),
+      db.customer.create({
+        data: {
+          name: "Accra Builders",
+          email: "orders@accrabuilders.com",
+          phone: "+233-20-HOME-456",
+          address: "456 Builder Road, Accra, Ghana",
+          taxId: "ABD-654321",
+          notes: "Local building contractor",
+          orgId: org.id,
+        },
+      }),
+      db.customer.create({
+        data: {
+          name: "Tema Steel Works",
+          email: "procurement@temasteel.com",
+          phone: "+233-20-PLMB-789",
+          address: "789 Steel Street, Tema, Ghana",
+          taxId: "TSW-789012",
+          notes: "Steel fabrication company",
+          orgId: org.id,
+        },
+      }),
+      db.customer.create({
+        data: {
+          name: "Kofi's Hardware Shop",
+          email: "kofi@hardwareshop.com",
+          phone: "+233-20-HNDY-321",
+          address: "321 Market Square, Kumasi, Ghana",
+          notes: "Retail hardware shop",
+          orgId: org.id,
+        },
+      }),
+      db.customer.create({
+        data: {
+          name: "Property Developers Ghana",
+          email: "facilities@propertydev.com",
+          phone: "+233-20-PROP-654",
+          address: "654 Development Road, Accra, Ghana",
+          taxId: "PDG-345678",
+          notes: "Property development company",
+          orgId: org.id,
+        },
+      }),
+    ]);
     console.log(`Created ${customers.length} customers`);
 
-    // Create purchase orders
-    console.log("Creating purchase orders...");
-    const poNumbers = Array.from({ length: 5 }, (_, i) => `PO-${String(i + 1).padStart(6, "0")}`);
-    
-    // FIX: Properly type the statuses array
-    const statuses: PurchaseOrderStatus[] = [
-      PurchaseOrderStatus.DRAFT,
-      PurchaseOrderStatus.PENDING,
-      PurchaseOrderStatus.APPROVED,
-      PurchaseOrderStatus.PARTIALLY_RECEIVED,
-      PurchaseOrderStatus.RECEIVED,
-    ];
-
-    const purchaseOrders = [];
-    for (let i = 0; i < 5; i++) {
-      const poDate = new Date();
-      poDate.setDate(poDate.getDate() - (30 - i * 5));
-      const supplier = suppliers[i % suppliers.length];
-      const deliveryLocation = locations[0];
-      const pt = supplier.paymentTerms ?? 0;
-      const expectedDeliveryDate = new Date(poDate);
-      expectedDeliveryDate.setDate(expectedDeliveryDate.getDate() + pt);
-
-      const po = await db.purchaseOrder.create({
-        data: {
-          poNumber: poNumbers[i],
-          date: poDate,
-          supplierId: supplier.id,
-          deliveryLocationId: deliveryLocation.id,
-          status: statuses[i], // FIX: No need for 'as' anymore
-          subtotal: 0,
-          taxAmount: 0,
-          notes: `Purchase order for ${supplier.name} inventory replenishment`,
-          paymentTerms: `Net ${supplier.paymentTerms}`,
-          expectedDeliveryDate: expectedDeliveryDate,
-          orgId: org.id,
-          createdById: adminUser.id,
-          approvedById: i >= 2 ? adminUser.id : null,
-          address: "123 Main Street, City, Country", 
-        },
-      });
-
-      purchaseOrders.push(po);
-
-      // Add items to purchase order
-      const itemCount = Math.floor(Math.random() * 3) + 3;
-      const selectedItems = createdItems.sort(() => 0.5 - Math.random()).slice(0, itemCount);
-      let subtotal = 0;
-      let taxAmount = 0;
-
-      for (const item of selectedItems) {
-        const quantity = Math.floor(Math.random() * 10) + 5;
-        const unitPrice = item.costPrice;
-        const lineTotal = quantity * unitPrice;
-        const lineTaxAmount = (lineTotal * (item.tax ?? 0)) / 100;
-
-        await db.purchaseOrderLine.create({
-          data: {
-            purchaseOrderId: po.id,
-            itemId: item.id,
-            quantity: quantity,
-            unitPrice: unitPrice,
-            taxRate: item.tax ?? 0,
-            taxAmount: lineTaxAmount,
-            total: lineTotal + lineTaxAmount,
-            notes: `Standard order for ${item.name}`,
-            receivedQuantity: i >= 3 ? (i === 3 ? Math.floor(quantity * 0.7) : quantity) : 0,
-          },
-        });
-
-        subtotal += lineTotal;
-        taxAmount += lineTaxAmount;
-      }
-
-      await db.purchaseOrder.update({
-        where: { id: po.id },
-        data: { subtotal, taxAmount },
-      });
-    }
-    console.log(`Created ${purchaseOrders.length} purchase orders`);
-
-    // Create goods receipts - FIX: Use purchaseOrders array instead of PurchaseOrderStatus
-    console.log("Creating goods receipts...");
-    const receiptNumbers = Array.from({ length: 2 }, (_, i) => `GR-${String(i + 1).padStart(6, "0")}`);
-
-    for (let i = 3; i < 5; i++) {
-      const po = purchaseOrders[i]; // FIX: Access from purchaseOrders array
-      const receiptDate = new Date(po.date);
-      receiptDate.setDate(receiptDate.getDate() + 5);
-
-      const receipt = await db.goodsReceipt.create({
-        data: {
-          receiptNumber: receiptNumbers[i - 3],
-          receivedDate: receiptDate,
-          purchaseOrderId: po.id,
-          locationId: po.deliveryLocationId,
-          status: "COMPLETED",
-          notes: `Goods receipt for purchase order ${po.poNumber}`,
-          orgId: org.id,
-          receivedById: managerUser.id,
-        },
-      });
-
-      const poLines = await db.purchaseOrderLine.findMany({
-        where: { purchaseOrderId: po.id },
-        include: { item: true },
-      });
-
-      for (const poLine of poLines) {
-        const receivedQty = poLine.receivedQuantity;
-        if (receivedQty > 0) {
-          const receiptLine = await db.goodsReceiptLine.create({
-            data: {
-              goodsReceiptId: receipt.id,
-              purchaseOrderLineId: poLine.id,
-              itemId: poLine.itemId,
-              receivedQuantity: receivedQty,
-              notes: `Received ${receivedQty} of ${poLine.quantity} ordered`,
-              serialNumbers: [],
-            },
-          });
-
-          if (poLine.item.isSerialTracked) {
-            const serialNumbers = [];
-            for (let j = 0; j < receivedQty; j++) {
-             const serialNum = `${poLine.item.sku}-${receipt.id.substring(0, 4)}-${String(j + 1).padStart(4, "0")}`;
-              serialNumbers.push(serialNum);
-
-              await db.serialNumber.create({
-                data: {
-                  serialNumber: serialNum,
-                  itemId: poLine.itemId,
-                  status: "IN_STOCK",
-                  locationId: receipt.locationId,
-                  purchaseOrderId: po.id,
-                  notes: `Received with goods receipt ${receipt.receiptNumber}`,
-                },
-              });
-            }
-
-            await db.goodsReceiptLine.update({
-              where: { id: receiptLine.id },
-              data: { serialNumbers },
-            });
-          }
-
-          const inventoryRecord = await db.inventory.findFirst({
-            where: {
-              itemId: poLine.itemId,
-              locationId: receipt.locationId,
-            },
-          });
-
-          if (inventoryRecord) {
-            await db.inventory.update({
-              where: { id: inventoryRecord.id },
-              data: { quantity: inventoryRecord.quantity + receivedQty },
-            });
-          } else {
-            await db.inventory.create({
-              data: {
-                itemId: poLine.itemId,
-                locationId: receipt.locationId,
-                quantity: receivedQty,
-                reservedQuantity: 0,
-                orgId: org.id,
-              },
-            });
-          }
-        }
-      }
-    }
-    console.log("Created goods receipts for received purchase orders");
-
     console.log("Seed completed successfully!");
-    console.log("Admin credentials:", { email: "admin@admin.com", password: adminPassword });
-    console.log("Manager credentials:", { email: "manager@example.com", password: managerPassword });
-    console.log("User credentials:", { email: "user@user.com", password: userPassword });
+    console.log("=== IMPORTANT INFORMATION ===");
+    console.log("1. Location created: ONLY Main Warehouse");
+    console.log("2. All inventory is in Main Warehouse only");
+    console.log("3. You can create additional stores later and transfer stock");
+    console.log("4. User credentials:");
+    console.log("   Admin:", { email: "admin@admin.com", password: adminPassword });
+    console.log("   Manager:", { email: "manager@example.com", password: managerPassword });
+    console.log("   User:", { email: "user@user.com", password: userPassword });
+    console.log("5. Total items created: 45 hardware products");
   } catch (error) {
     console.error("Error during seeding:", error);
     throw error;
@@ -931,7 +1156,6 @@ const customers = await Promise.all([
 async function main() {
   console.log("Starting database seed process...");
   try {
-    /* await cleanDatabase(); */
     await seedDatabase();
     console.log("Database seeding completed successfully!");
   } catch (error) {

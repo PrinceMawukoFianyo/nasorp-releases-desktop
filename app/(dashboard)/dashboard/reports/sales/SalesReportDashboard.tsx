@@ -5,7 +5,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Download, Printer } from "lucide-react";
 
-
 import type { SalesReportData } from "@/actions/sales-reports";
 import { toast } from "sonner";
 import { PageHeader } from "../stock-movements/components/PageHeader";
@@ -110,10 +109,7 @@ export default function SalesReportDashboard({ data }: SalesReportDashboardProps
 
         {/* Sales by Customer Tab */}
         <TabsContent value="customers" className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2">
-            <SalesSummaryCards summary={summary} />
-          </div>
-          
+          {/* REMOVED DUPLICATE SALES SUMMARY CARDS */}
           <TopPerformersChart
             data={topCustomers}
             title="Top Customers by Revenue"
@@ -126,10 +122,7 @@ export default function SalesReportDashboard({ data }: SalesReportDashboardProps
 
         {/* Sales by Item Tab */}
         <TabsContent value="items" className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2">
-            <SalesSummaryCards summary={summary} />
-          </div>
-
+          {/* REMOVED DUPLICATE SALES SUMMARY CARDS */}
           <TopPerformersChart
             data={topItems}
             title="Top Products by Revenue"

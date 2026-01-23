@@ -594,6 +594,8 @@ model Invite {
   name         String?
   email        String       @unique
   orgId        String
+  roleId    String?  // Add this line
+  locationId String?
   status       Boolean      @default(false)
   createdAt    DateTime     @default(now()) @map("created_at")
   updatedAt    DateTime     @updatedAt @map("updated_at")

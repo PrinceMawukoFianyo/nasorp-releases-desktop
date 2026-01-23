@@ -1,4 +1,4 @@
-// app/dashboard/sales/pos/components/pos-detail-view.tsx
+// app/dashboard/sales/pos/components/details/pos-detail-view.tsx
 "use client"
 
 import { useState } from "react"
@@ -59,7 +59,7 @@ export default function POSDetailView({
   const customerInfo = transaction.customer
 
   const handlePrintReceipt = () => {
-    // Navigate to the receipt page
+    // FIXED: Correct path to simple receipt
     router.push(`/dashboard/sales/orders/${transaction.id}/simple-receipt`)
   }
 

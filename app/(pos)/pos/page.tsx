@@ -325,7 +325,7 @@ export default function POSPage() {
             {lastOrderId && (
               <div className="flex items-center gap-2 bg-blue-50 rounded-lg p-2 border border-blue-200">
                 <Button
-                  onClick={() => window.open(`/dashboard/sales/order/${lastOrderId}/simple-receipt`, '_blank')}
+                  onClick={() => window.open(`/dashboard/sales/orders/${lastOrderId}/simple-receipt`, '_blank')}
                   size="sm"
                   variant="ghost"
                   className="h-8 gap-1 text-blue-700 hover:text-blue-800 hover:bg-blue-100"
@@ -335,7 +335,7 @@ export default function POSPage() {
                 </Button>
                 <div className="h-4 w-px bg-blue-300"></div>
                 <Button
-                  onClick={() => window.open(`/dashboard/sales/order/${lastOrderId}/invoice`, '_blank')}
+                  onClick={() => window.open(`/dashboard/sales/orders/${lastOrderId}/invoice`, '_blank')}
                   size="sm"
                   variant="ghost"
                   className="h-8 gap-1 text-blue-700 hover:text-blue-800 hover:bg-blue-100"
@@ -361,7 +361,7 @@ export default function POSPage() {
               <button
                 onClick={() => {
                   if (lastOrderId) {
-                    window.open(`/dashboard/sales/order/${lastOrderId}/simple-receipt`, '_blank')
+                    window.open(`/dashboard/sales/orders/${lastOrderId}/simple-receipt`, '_blank')
                   }
                 }}
                 className={`text-sm font-semibold ${
@@ -525,30 +525,30 @@ export default function POSPage() {
         <div className="w-[420px] bg-white border-l flex flex-col shadow-xl">
           <div className="p-4 border-b bg-gradient-to-r from-blue-500 to-blue-600">
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <ShoppingCart className="w-5 h-5" />
+              <ShoppingCart className="w-4 h-4" />
               Order List ({cart.length} items)
             </h2>
           </div>
 
-          {/* Customer Info in Cart */}
+          {/* Customer Info in Cart - COMPRESSED */}
           {(selectedCustomerData || selectedCustomer === "") && (
-            <div className="p-4 bg-blue-50 border-b">
+            <div className="p-2 bg-blue-50 border-b">
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-slate-900 text-sm truncate">
+                  <p className="font-semibold text-slate-900 text-xs truncate">
                     {selectedCustomerData ? selectedCustomerData.name : "Walk-in Customer"}
                   </p>
                   {selectedCustomerData ? (
                     <>
                       {selectedCustomerData.email && (
-                        <p className="text-xs text-slate-600 truncate">{selectedCustomerData.email}</p>
+                        <p className="text-[10px] text-slate-600 truncate">{selectedCustomerData.email}</p>
                       )}
                       {selectedCustomerData.phone && (
-                        <p className="text-xs text-slate-600">{selectedCustomerData.phone}</p>
+                        <p className="text-[10px] text-slate-600">{selectedCustomerData.phone}</p>
                       )}
                     </>
                   ) : (
-                    <p className="text-xs text-slate-600">No customer details recorded</p>
+                    <p className="text-[10px] text-slate-600">No customer details</p>
                   )}
                 </div>
                 {selectedCustomer && (
@@ -556,16 +556,16 @@ export default function POSPage() {
                     variant="ghost"
                     size="sm"
                     onClick={() => setSelectedCustomer("")}
-                    className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600"
+                    className="h-6 w-6 p-0 hover:bg-red-50 hover:text-red-600"
                   >
-                    <X className="w-4 h-4" />
+                    <X className="w-3 h-3" />
                   </Button>
                 )}
               </div>
             </div>
           )}
 
-          {/* Cart Items */}
+          {/* Cart Items - COMPRESSED */}
           <ScrollArea className="flex-1">
             {cart.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8">
@@ -574,36 +574,36 @@ export default function POSPage() {
                 <p className="text-sm text-center mt-2">Add products to get started</p>
               </div>
             ) : (
-              <div className="p-4 space-y-3">
+              <div className="p-3 space-y-2">
                 {cart.map(item => (
                   <Card key={item.id} className="p-2 hover:shadow-md transition-shadow">
-                    <div className="flex items-start gap-3">
-                      <div className="w-12 h-12 bg-slate-100 rounded flex items-center justify-center flex-shrink-0">
-                        <span className="text-2xl">📦</span>
+                    <div className="flex items-start gap-2">
+                      <div className="w-10 h-10 bg-slate-100 rounded flex items-center justify-center flex-shrink-0">
+                        <span className="text-xl">📦</span>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-sm text-slate-900 truncate">
+                        <h4 className="font-semibold text-xs text-slate-900 line-clamp-2 leading-tight mb-0.5">
                           {item.name}
                         </h4>
-                        <p className="text-xs text-slate-500">{item.sku}</p>
-                        <div className="mt-2 flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-1">
+                        <p className="text-[10px] text-slate-500 mb-2">{item.sku}</p>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1 bg-slate-50 rounded p-0.5">
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                              className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600"
+                              className="h-6 w-6 p-0 hover:bg-red-50 hover:text-red-600"
                             >
                               <Minus className="w-3 h-3" />
                             </Button>
-                            <span className="w-8 text-center font-semibold text-sm">
+                            <span className="w-7 text-center font-semibold text-xs">
                               {item.quantity}
                             </span>
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                              className="h-7 w-7 p-0 hover:bg-green-50 hover:text-green-600"
+                              className="h-6 w-6 p-0 hover:bg-green-50 hover:text-green-600"
                             >
                               <Plus className="w-3 h-3" />
                             </Button>
@@ -612,18 +612,18 @@ export default function POSPage() {
                             variant="ghost"
                             size="sm"
                             onClick={() => removeFromCart(item.id)}
-                            className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
+                            className="h-6 w-6 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3 h-3" />
                           </Button>
                         </div>
                       </div>
                     </div>
-                    <div className="mt-3 pt-3 border-t flex items-center justify-between">
-                      <span className="text-xs text-slate-600">
+                    <div className="mt-2 pt-2 border-t flex items-center justify-between">
+                      <span className="text-[10px] text-slate-600">
                         GHS{item.price.toFixed(2)} × {item.quantity}
                       </span>
-                      <span className="font-bold text-blue-600">
+                      <span className="font-bold text-xs text-blue-600">
                         GHS{(item.price * item.quantity).toFixed(2)}
                       </span>
                     </div>
@@ -633,84 +633,61 @@ export default function POSPage() {
             )}
           </ScrollArea>
 
-          {/* Cart Summary */}
+          {/* Cart Summary - COMPRESSED */}
           {cart.length > 0 && (
             <div className="border-t bg-slate-50">
-              <div className="p-4 space-y-3">
-                {/* Additional Charges */}
-                <div className="space-y-2">
-                  {/* <div className="flex items-center gap-2">
-                    <Label className="text-xs text-slate-600 w-20">Shipping GHS</Label>
-                    <Input
-                      type="number"
-                      value={shipping}
-                      onChange={(e) => setShipping(Number(e.target.value))}
-                      className="h-9 text-sm"
-                      placeholder="0.00"
-                      min="0"
-                      step="0.01"
-                    />
-                  </div> */}
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-slate-600 w-20">Discount GHS</Label>
-                    <Input
-                      type="number"
-                      value={discount}
-                      onChange={(e) => setDiscount(Number(e.target.value))}
-                      className="h-9 text-sm"
-                      placeholder="0.00"
-                      min="0"
-                      step="0.01"
-                    />
-                  </div>
+              <div className="p-3 space-y-2">
+                {/* Discount Input - COMPRESSED */}
+                <div className="flex items-center gap-2">
+                  <Label className="text-[10px] text-slate-600 w-16">Discount</Label>
+                  <Input
+                    type="number"
+                    value={discount}
+                    onChange={(e) => setDiscount(Number(e.target.value))}
+                    className="h-8 text-xs"
+                    placeholder="0.00"
+                    min="0"
+                    step="0.01"
+                  />
                 </div>
 
-                {/* Totals */}
-                <div className="space-y-2 pt-3 border-t">
-                  <div className="flex justify-between text-sm">
+                {/* Totals - COMPRESSED */}
+                <div className="space-y-1 pt-2 border-t">
+                  <div className="flex justify-between text-xs">
                     <span className="text-slate-600">Sub-Total:</span>
                     <span className="font-semibold">GHS{calculateSubtotal().toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-xs">
                     <span className="text-slate-600">Tax:</span>
                     <span className="font-semibold">GHS{calculateTax().toFixed(2)}</span>
                   </div>
-                  {/* {shipping > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-600">Shipping:</span>
-                      <span className="font-semibold">GHS{shipping.toFixed(2)}</span>
-                    </div>
-                  )} */}
                   {discount > 0 && (
-                    <div className="flex justify-between text-sm">
+                    <div className="flex justify-between text-xs">
                       <span className="text-slate-600">Discount:</span>
                       <span className="font-semibold text-red-600">-GHS{discount.toFixed(2)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between pt-3 border-t-2 border-slate-300">
-                    <span className="font-bold text-slate-900">Total:</span>
-                    <span className="font-bold text-xl text-blue-600">
+                  <div className="flex justify-between pt-2 border-t border-slate-300">
+                    <span className="font-bold text-slate-900 text-sm">Total:</span>
+                    <span className="font-bold text-lg text-blue-600">
                       GHS{calculateTotal().toFixed(2)}
                     </span>
                   </div>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex gap-2 pt-2">
+                {/* Action Buttons - COMPRESSED */}
+                <div className="flex gap-2 pt-1">
                   <Button
                     variant="outline"
                     onClick={() => setCart([])}
-                    className="flex-1 hover:bg-red-50 hover:text-red-600 hover:border-red-300"
+                    className="flex-1 h-9 text-xs hover:bg-red-50 hover:text-red-600 hover:border-red-300"
                   >
                     Reset
                   </Button>
                   <Button
                     onClick={() => setShowPaymentModal(true)}
-                    className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-lg"
+                    className="flex-1 h-9 text-xs bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-lg"
                   >
-                    <span className="font-bold text-x0 text-white-600">
-                      GHS
-                    </span>
                     Pay Now
                   </Button>
                 </div>
@@ -958,7 +935,7 @@ export default function POSPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Success Modal with Receipt Options */}
+      {/* Success Modal with Receipt Options - FIXED ROUTES */}
       <Dialog open={showInvoiceModal} onOpenChange={setShowInvoiceModal}>
         <DialogContent className="sm:max-w-[450px]">
           <div className="p-6 text-center">
@@ -978,14 +955,14 @@ export default function POSPage() {
 
             <div className="space-y-3">
               <Button
-                onClick={() => window.open(`/dashboard/sales/order/${lastOrderId}/simple-receipt`, '_blank')}
+                onClick={() => window.open(`/dashboard/sales/orders/${lastOrderId}/simple-receipt`, '_blank')}
                 className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
               >
                 <Receipt className="w-4 h-4 mr-2" />
                 View Simple Receipt
               </Button>
               <Button
-                onClick={() => window.open(`/dashboard/sales/order/${lastOrderId}/invoice`, '_blank')}
+                onClick={() => window.open(`/dashboard/sales/orders/${lastOrderId}/invoice`, '_blank')}
                 variant="outline"
                 className="w-full"
               >

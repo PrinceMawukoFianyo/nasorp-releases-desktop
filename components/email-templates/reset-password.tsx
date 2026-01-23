@@ -26,7 +26,7 @@ export const ResetPasswordEmail = ({
   return (
     <Html>
       <Head />
-      <Preview>NextAdmin reset your password</Preview>
+      <Preview>Business Inventory reset your password</Preview>
       <Body style={main}>
         <Container style={container}>
           <Heading style={textrose} className="text-center ">
@@ -59,7 +59,7 @@ export const ResetPasswordEmail = ({
 
             <Hr className="my-[16px] border-t-2 border-gray-300" />
             <Text className="text-muted-foreground">
-              © {new Date().getFullYear()} NextAdmin. All riUSts reserved.
+              © {new Date().getFullYear()} Business Inventory. All rights reserved.
             </Text>
           </Section>
         </Container>
