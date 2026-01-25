@@ -1,8 +1,7 @@
 "use client";
 
-import RegisterForm from "@/components/Forms/RegisterForm";
-import VerifyOTPForm from "@/components/Forms/VerifyForms";
-import { GridBackground } from "@/components/reusable-ui/grid-background";
+import VerifyOTPForm from "../../../../components/Forms/VerifyForms";
+import { GridBackground } from "../../../../components/reusable-ui/grid-background";
 import React from "react";
 
 export default async function Page({
@@ -13,7 +12,8 @@ export default async function Page({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
   const {userId} = await params;
-  const email =  (await searchParams).email as string
+  const email = (await searchParams).email as string;
+  
   return (
     <GridBackground>
       <div className="px-4">

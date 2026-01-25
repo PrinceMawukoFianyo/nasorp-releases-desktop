@@ -1,7 +1,7 @@
 "use client";
 
-import RegisterForm from "@/components/Forms/RegisterForm";
-import { GridBackground } from "@/components/reusable-ui/grid-background";
+import RegisterForm from "../../../components/Forms/RegisterForm";
+import { GridBackground } from "../../../components/reusable-ui/grid-background";
 import React from "react";
 
 export default function Page() {

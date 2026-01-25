@@ -15,6 +15,7 @@ import FormSelectInput from "../FormInputs/FormSelectInput";
 import Logo from "../global/Logo";
 import countries from "@/countries";
 import { generateSlug } from "@/lib/generateSlug";
+
 export type OrgData={
     name: string;
     slug: string;
@@ -22,9 +23,31 @@ export type OrgData={
     currency: string | undefined;
     timezone: string | undefined;
 }
-export default function RegisterInvitedUserForm({userEmail, orgId, orgName, roleId, locationName, locationId}: {userEmail:string, orgId: string, orgName: string, roleId: string,  locationId: string, locationName: string,}) {
+
+export default function RegisterInvitedUserForm({
+  userEmail, 
+  orgId, 
+  orgName, 
+  roleId, 
+  locationName, 
+  locationId
+}: {
+  userEmail: string;
+  orgId: string;
+  orgName: string;
+  roleId: string;
+  locationId: string;
+  locationName: string;
+}) {
   const [loading, setLoading] = useState(false);
   const [emailErr, setEmailErr] = useState<string | null>(null);
+  
+  // Debug: Log the email prop
+  console.log("📧 User Email received:", userEmail);
+  console.log("🏢 Org ID:", orgId);
+  console.log("👤 Role ID:", roleId);
+  console.log("📍 Location ID:", locationId);
+  
   const {
     handleSubmit,
     register,
@@ -32,22 +55,22 @@ export default function RegisterInvitedUserForm({userEmail, orgId, orgName, role
     reset,
   } = useForm<InvitedUserProps>({
     defaultValues:{
-      email:userEmail,
+      email: userEmail,
     },
   });
+  
   const router = useRouter();
+  
   async function onSubmit(data: InvitedUserProps) {
     setLoading(true);
-    (data.orgId=orgId),
-    (data.roleId=roleId),
-    (data.locationId=locationId),
+    data.orgId = orgId;
+    data.roleId = roleId;
+    data.locationId = locationId;
     data.name = `${data.firstName} ${data.lastName}`;
-    data.orgName = orgName
-    data.locationName = locationName
-    data.image =
-      "https://utfs.io/f/59b606d1-9148-4f50-ae1c-e9d02322e834-2558r.png";
+    data.orgName = orgName;
+    data.locationName = locationName;
+    data.image = "https://utfs.io/f/59b606d1-9148-4f50-ae1c-e9d02322e834-2558r.png";
      
-  
     try {
       const res = await createInvitedUser(data);
       if (res.status === 409) {
@@ -56,7 +79,7 @@ export default function RegisterInvitedUserForm({userEmail, orgId, orgName, role
       } else if (res.status === 200) {
         setLoading(false);
         toast.success("Account Created successfully", {
-          description: "Your account has been created, successfully Please Login"
+          description: "Your account has been created successfully. Please login."
         });
         router.push(`/login`);
       } else {
@@ -66,19 +89,21 @@ export default function RegisterInvitedUserForm({userEmail, orgId, orgName, role
     } catch (error) {
       setLoading(false);
       console.error("Network Error:", error);
-      toast.error("Its seems something is wrong, try again");
+      toast.error("It seems something is wrong, try again");
     }
   }
+  
   return (
-    <div className="w-full lg:grid h-screen lg:min-h-[600px] lg:grid-cols-2 relative ">
+    <div className="w-full lg:grid h-screen lg:min-h-[600px] lg:grid-cols-2 relative">
       <div className="flex items-center justify-center py-12">
-        <div className="mx-auto grid  gap-6 mt-10 md:mt-0">
-          <div className="grid gap-2  mt-10 md:mt-0">
-            <h1 className="text-3xl font-bold">Welcome to {orgName} </h1>
+        <div className="mx-auto grid gap-6 mt-10 md:mt-0">
+          <div className="grid gap-2 mt-10 md:mt-0">
+            <h1 className="text-3xl font-bold">Welcome to {orgName}</h1>
             <p className="text-muted-foreground text-sm">
               Please customize your account to get started
             </p>
           </div>
+          
           <div className="">
             <form className="space-y-3" onSubmit={handleSubmit(onSubmit)}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -99,6 +124,7 @@ export default function RegisterInvitedUserForm({userEmail, orgId, orgName, role
                   placeholder="last Name"
                 />
               </div>
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <TextInput
                   register={register}
@@ -111,15 +137,16 @@ export default function RegisterInvitedUserForm({userEmail, orgId, orgName, role
                 <div className="">
                   <TextInput
                     type="email"
-                    readonly = {true}
                     register={register}
                     errors={errors}
                     label="Email Address"
                     name="email"
                     icon={Mail}
                     placeholder="email"
-                    isRequired={false}
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Pre-filled from invitation. You can change if needed.
+                  </p>
                 </div>
               </div>
 
@@ -132,11 +159,13 @@ export default function RegisterInvitedUserForm({userEmail, orgId, orgName, role
                 placeholder="password"
                 type="password"
               />
+              
               <div className="">
                 {emailErr && (
                   <p className="text-red-500 text-xs mt-2">{emailErr}</p>
                 )}
               </div>
+              
               <div>
                 <SubmitButton
                   title="Sign Up"
@@ -148,32 +177,9 @@ export default function RegisterInvitedUserForm({userEmail, orgId, orgName, role
                 />
               </div>
             </form>
-           {/* <div className="flex items-center py-4 justify-center space-x-1 text-slate-900">
-              <div className="h-[1px] w-full bg-slate-200"></div>
-              <div className="uppercase">Or</div>
-              <div className="h-[1px] w-full bg-slate-200"></div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <Button
-                onClick={() => signIn("google")}
-                variant={"outline"}
-                className="w-full"
-              >
-                <FaGoogle className="mr-2 w-6 h-6 text-red-500" />
-                Login with Google
-              </Button>
-              <Button
-                onClick={() => signIn("github")}
-                variant={"outline"}
-                className="w-full"
-              >
-                <FaGithub className="mr-2 w-6 h-6 text-slate-900 dark:text-white" />
-                Login with Github
-              </Button>
-            </div>*/}
+            
             <p className="mt-6 text-sm text-gray-500">
-              Already Registered ?{" "}
+              Already Registered?{" "}
               <Link
                 href="/login"
                 className="font-semibold leading-6 text-rose-600 hover:text-rose-500"
@@ -184,6 +190,7 @@ export default function RegisterInvitedUserForm({userEmail, orgId, orgName, role
           </div>
         </div>
       </div>
+      
       <div className="hidden bg-muted lg:block relative">
         <CustomCarousel />
       </div>

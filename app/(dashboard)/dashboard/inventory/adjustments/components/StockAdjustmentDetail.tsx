@@ -5,18 +5,19 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { format } from "date-fns"
 import { ArrowLeft, CheckCircle, XCircle, Printer, Package, Calendar, MapPin, User, FileText, Loader2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"  
-import { ConfirmationDialog } from "@/components/ui/data-table"
+
+import { Card, CardContent, CardHeader, CardTitle } from "../../../../../../components/ui/card"
+import { Badge } from "../../../../../../components/ui/badge"
+import { Separator } from "../../../../../../components/ui/separator"  
+import { ConfirmationDialog } from "../../../../../../components/ui/data-table"
 import { toast } from "sonner"
-import { approveAdjustment, cancelAdjustment } from "@/actions/stock-adjustments"
+import { approveAdjustment, cancelAdjustment } from "../../../../../../actions/stock-adjustments"
 import { 
   DetailedAdjustmentResponse, 
   adjustmentTypeLabels, 
   adjustmentStatusColors 
 } from "@/types/stockAdjustments"
+import { Button } from "@/components/ui/button"
 
 interface AdjustmentDetailProps {
   adjustment: DetailedAdjustmentResponse

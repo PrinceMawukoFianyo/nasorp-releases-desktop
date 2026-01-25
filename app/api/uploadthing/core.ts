@@ -1,7 +1,7 @@
 // app/api/uploadthing/core.ts
 import { createUploadthing } from "uploadthing/next";
 import type { FileRouter } from "uploadthing/next";
-import { getServerSession } from "next-auth";
+import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/config/auth";
 
 const f = createUploadthing();

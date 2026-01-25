@@ -2,7 +2,8 @@ import ForgotPasswordForm from "@/components/Forms/ForgotPasswordForm";
 import LoginForm from "@/components/Forms/LoginForm";
 import { GridBackground } from "@/components/reusable-ui/grid-background";
 import { authOptions } from "@/config/auth";
-import { getServerSession } from "next-auth";
+import { getServerSession } from "next-auth/next";
+
 import { redirect } from "next/navigation";
 import React from "react";
 

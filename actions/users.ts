@@ -149,7 +149,7 @@ export async function createUser(data: UserProps, orgData: OrgData) {
       // Send the verification email
       const verificationCode = newUser.token ?? "";
       const { data: emailData, error: emailError } = await resend.emails.send({
-        from: "FMP Inventory <info@kidstarschristianacademy.com>",
+        from: process.env.EMAIL_FROM as string, // ✅ FIXED: Use environment variable
         to: email,
         subject: "Verify your Account",
         react: VerifyEmail({ verificationCode }),
@@ -180,6 +180,7 @@ export async function createUser(data: UserProps, orgData: OrgData) {
     };
   }
 }
+
 export async function createInvitedUser(data: InvitedUserProps) {
   console.log("🧪 SIMPLE TEST VERSION - Data:", data);
   
@@ -238,6 +239,7 @@ export async function createInvitedUser(data: InvitedUserProps) {
     };
   }
 }
+
 export async function getAllMembers() {
   try {
     const members = await db.user.findMany({
@@ -249,9 +251,10 @@ export async function getAllMembers() {
     return members;
   } catch (error) {
     console.error("Error fetching the count:", error);
-    return 0;
+    return [];  // ✅ FIXED: Return empty array instead of 0
   }
 }
+
 export async function getAllUsers() {
   try {
     const users = await db.user.findMany({
@@ -264,14 +267,14 @@ export async function getAllUsers() {
     });
     return users;
   } catch (error) {
-    console.error("Error fetching the count:", error);
-    return 0;
+    console.error("Error fetching users:", error);
+    return [];  // ✅ FIXED: Return empty array instead of 0
   }
 }
 
 export async function getOrgInvites(orgId:string) {
   try {
-    const users = await db.invite.findMany({
+    const invites = await db.invite.findMany({
       orderBy: {
         createdAt: "desc",
       },
@@ -286,10 +289,10 @@ export async function getOrgInvites(orgId:string) {
         status: true,
       }
     });
-    return users;
+    return invites;
   } catch (error) {
-    console.error("Error fetching the count:", error);
-    return 0;
+    console.error("Error fetching invites:", error);
+    return [];  // ✅ FIXED: Return empty array instead of 0
   }
 }
 
@@ -308,8 +311,8 @@ export async function getOrgUsers(orgId:string) {
     });
     return users;
   } catch (error) {
-    console.error("Error fetching the count:", error);
-    return 0;
+    console.error("Error fetching org users:", error);
+    return [];  // ✅ FIXED: Return empty array instead of 0
   }
 }
 
@@ -323,16 +326,22 @@ export async function deleteUser(id: string) {
         email:true,
       },
     })
-    await db.invite.delete({
-      where:{
-        email: user?.email,
-      },
-    })
+    
+    // ✅ FIXED: Only delete invite if user exists and has email
+    if (user?.email) {
+      await db.invite.deleteMany({  // ✅ FIXED: Use deleteMany instead of delete
+        where:{
+          email: user.email,
+        },
+      })
+    }
+    
     const deleted = await db.user.delete({
       where: {
         id,
       },
     });
+    
     revalidatePath("/dashboard/settings/users")
     return {
       ok: true,
@@ -340,6 +349,10 @@ export async function deleteUser(id: string) {
     };
   } catch (error) {
     console.log(error);
+    return {  // ✅ FIXED: Add return value for error case
+      ok: false,
+      error: "Failed to delete user",
+    };
   }
 }
 
@@ -353,8 +366,10 @@ export async function getUserById(id: string) {
     return user;
   } catch (error) {
     console.log(error);
+    return null;  // ✅ FIXED: Return null on error
   }
 }
+
 export async function sendResetLink(email: string) {
   try {
     const user = await db.user.findUnique({
@@ -382,7 +397,7 @@ export async function sendResetLink(email: string) {
 
     const resetPasswordLink = `${baseUrl}/reset-password?token=${token}&&email=${email}`;
     const { data, error } = await resend.emails.send({
-      from: "Business Inventory <kidstarschristianacademy.com>",
+      from: process.env.EMAIL_FROM as string,  // ✅ FIXED: Use environment variable
       to: email,
       subject: "Reset Password Request",
       react: ResetPasswordEmail({ userFirstname, resetPasswordLink }),
@@ -440,8 +455,10 @@ export async function updateUserPassword(id: string, data: PasswordProps) {
     return { error: null, status: 200 };
   } catch (error) {
     console.log(error);
+    return { error: "Failed to update password", status: 500 };  // ✅ FIXED: Add return value
   }
 }
+
 export async function resetUserPassword(
   email: string,
   token: string,
@@ -478,6 +495,11 @@ export async function resetUserPassword(
     };
   } catch (error) {
     console.log(error);
+    return {  // ✅ FIXED: Add return value for error case
+      status: 500,
+      error: "Failed to reset password",
+      data: null,
+    };
   }
 }
 
@@ -583,6 +605,7 @@ export async function verifyOTP(userId: string, otp: string) {
       };
   }
 }
+
 export async function getCurrentUsersCount(){
   try{
     const count =await db.user.count()
@@ -609,7 +632,7 @@ export async function sendInvite(data: InviteData){
       }
     }
     // Check if already invited
-       const existingInvite = await db.invite.findFirst({
+    const existingInvite = await db.invite.findFirst({
       where: {email},
     });
     if(existingInvite){
@@ -628,9 +651,10 @@ export async function sendInvite(data: InviteData){
     })
     // Send the Verification email
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
-    const linkUrl =`${baseUrl}/user-invite/${orgId}?roleId=${roleId}&& email=${email}&&orgName=${orgName}&&locationId=${locationId}&&locationName=${locationName}`;
+    const linkUrl = `${baseUrl}/user-invite/${orgId}?roleId=${roleId}&email=${email}&orgName=${orgName}&locationId=${locationId}&locationName=${locationName}`;
+    console.log("📧 Invitation link generated:", linkUrl);  // Debug log
     const {data, error} = await resend.emails.send({
-        from: "Business Inventory <kidstarschristianacademy.com>", // Business Domain Must be pasted here
+        from: process.env.EMAIL_FROM as string,  // ✅ FIXED: Use environment variable
         to: email,
         subject: `Welcome to ${orgName} - ${roleName} Role Invitation `,
         react: UserInvitation ({orgName, roleName, linkUrl }),
@@ -653,7 +677,11 @@ export async function sendInvite(data: InviteData){
       
   
   }catch(error){
-    console.log(error)
-    return 0
+    console.log(error);
+    return {  // ✅ FIXED: Return proper error object instead of 0
+      error: "Failed to send invitation",
+      status: 500,
+      data: null,
+    };
   }
 }

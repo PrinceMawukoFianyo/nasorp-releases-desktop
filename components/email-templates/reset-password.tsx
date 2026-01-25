@@ -30,7 +30,7 @@ export const ResetPasswordEmail = ({
       <Body style={main}>
         <Container style={container}>
           <Heading style={textrose} className="text-center ">
-            Next Admin
+            Business Inventory
           </Heading>
           <Section>
             <Text style={text}>Hi {userFirstname},</Text>

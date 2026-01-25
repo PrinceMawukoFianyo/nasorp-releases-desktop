@@ -39,21 +39,21 @@ export default function RoleForm({ orgId, editingId, initialData }: RoleFormProp
 
   async function saveRole(data: RoleFormData) {
     try {
-      data.orgId =orgId
+      data.orgId = orgId;
       setLoading(true);
       const result = editingId
         ? await updateRole(editingId, data)
         : await createRole(data);
 
       if (!result.success) {
-        toast.error(result.error|| "An error occurred while saving the role");
+        toast.error(result.error || "An error occurred while saving the role");
         return;
       }
 
       toast.success(
         editingId ? "Role updated successfully!" : "Role created successfully!"
       );
-      router.push("/dashboard/users/roles");
+      router.push("/dashboard/settings/roles");
       router.refresh();
     } catch (error) {
       toast.error("Something went wrong!");
@@ -62,6 +62,7 @@ export default function RoleForm({ orgId, editingId, initialData }: RoleFormProp
       setLoading(false);
     }
   }
+  
   const handleModulePermissionChange = (
     moduleName: string,
     checked: boolean
@@ -87,7 +88,7 @@ export default function RoleForm({ orgId, editingId, initialData }: RoleFormProp
       <FormHeader
         href="/roles"
         title="Role"
-        parent="users"
+        parent="settings"
         editingId={editingId}
         loading={loading}
       />
@@ -169,10 +170,10 @@ export default function RoleForm({ orgId, editingId, initialData }: RoleFormProp
 
       <FormFooter
         href="/roles"
+        title="Role"
+        parent="settings"
         editingId={editingId}
         loading={loading}
-        title="Role"
-        parent="users"
       />
     </form>
   );
