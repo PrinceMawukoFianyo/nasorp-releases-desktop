@@ -35,17 +35,20 @@ import DateRangeFilter from "./DateRangeFilter";
 import { DataTablePagination } from "./DataTablePagination";
 import SavingsSummary from "../DataTableColumns/SavingsSummary";
 
+// In your DataTable component file
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   model?: string;
   searchPlaceholder?: string;
+  pageSize?: number; // Add this line
 }
 export default function DataTable<TData, TValue>({
   columns,
   data,
   model = "",
   searchPlaceholder = "",
+  pageSize = 100, // Default to 100
 }: DataTableProps<TData, TValue>) {
   const [rowSelection, setRowSelection] = useState({});
   const [columnVisibility, setColumnVisibility] = useState({});
@@ -56,10 +59,20 @@ export default function DataTable<TData, TValue>({
   const [filteredData, setFilteredData] = useState(data);
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [isSearch, setIsSearch] = useState(true);
-  // console.log(isSearch);
+
   const table = useReactTable({
     data: isSearch ? searchResults : filteredData,
     columns,
+    initialState: {
+      pagination: {
+        pageSize: pageSize, // Set initial page size from prop
+        pageIndex: 0,
+      },
+      sorting,
+      columnVisibility,
+      rowSelection,
+      columnFilters,
+    },
     state: {
       sorting,
       columnVisibility,
@@ -78,9 +91,9 @@ export default function DataTable<TData, TValue>({
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
   });
-  // console.log(searchResults);
+
   return (
-     <div className="space-y-4">
+    <div className="space-y-4">
       <div className="flex justify-between items-center gap-8">
         <div className="flex-1 w-full">
           <SearchBar

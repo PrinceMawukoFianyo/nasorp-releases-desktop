@@ -1,4 +1,4 @@
-// components/ui/groups/product-listing-suspense.tsx
+// components/dashboard/items/item-listing.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -12,7 +12,7 @@ import { Car, DollarSign } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link"; // ✅ ADDED: Import Link component
+import Link from "next/link";
 import {
   DataTable,
   Column,
@@ -163,7 +163,7 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
     setFormDialogOpen(true);
   };
 
-   const handleEditClick = (product: BriefItemResponse) => {
+  const handleEditClick = (product: BriefItemResponse) => {
     startTransition(() => {
       router.push(`/dashboard/inventory/items/${product.id}/edit`);
     });
@@ -265,7 +265,6 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
       header: "Supplier",
       accessorKey: "id",
       cell: (row) => (
-        // ✅ FIXED: Using Next.js Link component correctly
         <Link href={`/dashboard/inventory/items/${row.id}/suppliers`}>
           <Button variant={"outline"}>
             View Suppliers
@@ -273,10 +272,6 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
         </Link>
       ),
     },
-    /* {
-      header: "Date Added",
-      accessorKey: (row) => formatDate(row.createdAt),
-    }, */
   ];
 
   // Generate subtitle with total value
@@ -315,6 +310,7 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
             onDelete={() => handleDeleteClick(item)}
           />
         )}
+        pageSize={100} // ADDED: Set default page size to 100
       />
 
       {/* Product Form Dialog */}

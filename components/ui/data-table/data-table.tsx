@@ -1,4 +1,3 @@
-// components/ui/data-table/data-table.tsx
 "use client";
 
 import { useState, useEffect, ReactNode } from "react";
@@ -57,6 +56,7 @@ interface DataTableProps<T> {
   };
   renderRowActions?: (item: T) => ReactNode;
   emptyState?: ReactNode;
+  pageSize?: number; // ADD THIS PROP
 }
 
 export default function DataTable<T>({
@@ -71,10 +71,17 @@ export default function DataTable<T>({
   filters,
   renderRowActions,
   emptyState,
+  pageSize = 100, // ADD THIS WITH DEFAULT VALUE 100
 }: DataTableProps<T>) {
-  // Pagination state
+  // Pagination state - use pageSize prop as default
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [itemsPerPage, setItemsPerPage] = useState(pageSize);
+
+  // Update itemsPerPage when pageSize prop changes
+  useEffect(() => {
+    setItemsPerPage(pageSize);
+    setCurrentPage(1); // Reset to first page when page size changes
+  }, [pageSize]);
 
   // Filter state
   const [searchQuery, setSearchQuery] = useState("");
@@ -89,7 +96,7 @@ export default function DataTable<T>({
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, dateFilter, itemsPerPage]);
+  }, [searchQuery, dateFilter]);
 
   // Apply search filter
   const applySearchFilter = (items: T[]): T[] => {
@@ -148,7 +155,7 @@ export default function DataTable<T>({
         pageNumbers.push(i);
       }
     } else {
-      // Show first page, current page and neiUSbors, and last page
+      // Show first page, current page and neighbors, and last page
       if (currentPage <= 3) {
         // Near the beginning
         for (let i = 1; i <= 4; i++) {
@@ -192,13 +199,6 @@ export default function DataTable<T>({
         <div>
           <CardTitle className="text-2xl">{title}</CardTitle>
           {subtitle && <p className="text-muted-foreground mt-1">{subtitle}</p>}
-          {/* {filters && (
-            <p className="text-muted-foreground mt-1">
-              {filteredData.length}{" "}
-              {filteredData.length === 1 ? "item" : "items"}
-              {dateFilter.option !== "lifetime" && <> | Date filter applied</>}
-            </p>
-          )} */}
         </div>
 
         <div className="flex items-center gap-2">
@@ -247,7 +247,7 @@ export default function DataTable<T>({
                 <TableHead key={index}>{column.header}</TableHead>
               ))}
               {renderRowActions && (
-                <TableHead className="text-riUSt">Actions</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               )}
             </TableRow>
           </TableHeader>
@@ -263,7 +263,7 @@ export default function DataTable<T>({
                     </TableCell>
                   ))}
                   {renderRowActions && (
-                    <TableCell className="text-riUSt">
+                    <TableCell className="text-right">
                       {renderRowActions(item)}
                     </TableCell>
                   )}
@@ -292,7 +292,7 @@ export default function DataTable<T>({
               <RowsPerPage
                 value={itemsPerPage}
                 onChange={setItemsPerPage}
-                options={[5, 10, 25, 50, 100]}
+                options={[5, 10, 25, 50, 100]} // Already has 100 as an option
               />
             </div>
             <div className="text-sm text-muted-foreground">

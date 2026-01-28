@@ -34,16 +34,25 @@ export default function RoleForm({ orgId, editingId, initialData }: RoleFormProp
       displayName: initialData?.displayName || "",
       description: initialData?.description || "",
       permissions: initialData?.permissions || [],
+      orgId: orgId,  // ✅ FIXED: Set orgId in defaultValues
     },
   });
 
   async function saveRole(data: RoleFormData) {
     try {
-      data.orgId = orgId;
       setLoading(true);
+      
+      // ✅ FIXED: Ensure orgId is always set
+      const roleData: RoleFormData = {
+        ...data,
+        orgId: orgId,  // Always use the orgId from props
+      };
+
+      console.log("🔍 Submitting role data:", roleData);  // Debug log
+
       const result = editingId
-        ? await updateRole(editingId, data)
-        : await createRole(data);
+        ? await updateRole(editingId, roleData)
+        : await createRole(roleData);
 
       if (!result.success) {
         toast.error(result.error || "An error occurred while saving the role");
@@ -57,7 +66,7 @@ export default function RoleForm({ orgId, editingId, initialData }: RoleFormProp
       router.refresh();
     } catch (error) {
       toast.error("Something went wrong!");
-      console.error(error);
+      console.error("Error saving role:", error);
     } finally {
       setLoading(false);
     }

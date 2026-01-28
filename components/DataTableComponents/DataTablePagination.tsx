@@ -4,7 +4,6 @@ import {
   ChevronRightIcon,
   DoubleArrowLeftIcon,
   DoubleArrowRightIcon,
-
 } from "@radix-ui/react-icons";
 import { Table } from "@tanstack/react-table";
 import {
@@ -42,7 +41,8 @@ export function DataTablePagination<TData>({
               <SelectValue placeholder={table.getState().pagination.pageSize} />
             </SelectTrigger>
             <SelectContent side="top">
-              {[10, 20, 30, 40, 50].map((pageSize) => (
+              {/* Add 100 to the page size options */}
+              {[10, 20, 30, 40, 50, 100].map((pageSize) => ( // Changed: Added 100
                 <SelectItem key={pageSize} value={`${pageSize}`}>
                   {pageSize}
                 </SelectItem>

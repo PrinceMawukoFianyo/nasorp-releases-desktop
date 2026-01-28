@@ -44,7 +44,7 @@ export const columns: ColumnDef<UserWithRoles>[] = [
         <ActionColumn
           row={row}
           model="user"
-          editEndpoint={`user/update/${user.id}`}
+          editEndpoint={`users/update/${user.id}`}
           id={user.id}
         />
       );

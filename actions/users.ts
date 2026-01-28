@@ -1,7 +1,7 @@
 "use server";
 import { ResetPasswordEmail } from "@/components/email-templates/reset-password";
 import { db } from "@/prisma/db";
-import { InvitedUserProps,UserProps} from "@/types/types";
+import { InvitedUserProps, UserProps } from "@/types/types";
 import bcrypt, { compare } from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { PasswordProps } from "@/components/Forms/ChangePasswordForm";
@@ -14,32 +14,38 @@ import VerifyEmail from "@/components/email-templates/verify-email";
 import { adminPermissions, userPermissions } from "@/config/permissions";
 import { InviteData } from "@/components/Forms/user/UserInvitationForm";
 import UserInvitation from "@/components/email-templates/user-invite";
-import { PrismaClient } from "@prisma/client/extension";
 import { generateAPIKey } from "@/lib/generateAPIKey";
-// import { generateNumericToken } from "@/lib/token";
+
 const resend = new Resend(process.env.RESEND_API_KEY);
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
-               
+
 const ADMIN_USER_ROLE = {
   displayName: "Administrator",
   roleName: "admin",
   description: "Full system access",
   permissions: adminPermissions,
 };
+
 const DEFAULT_USER_ROLE = {
   displayName: "User",
   roleName: "user",
   description: "Default user role with basic permissions",
   permissions: userPermissions,
 };
+
+// ✅ FIXED: Combined and updated schema to match your User model
 const UpdateUserSchema = z.object({
-  firstName: z.string().min(2, "First name must be at least 2 characters"),
-  lastName: z.string().min(2, "Last name must be at least 2 characters"),
+  name: z.string().min(2, "Name must be at least 2 characters").optional(),
+  firstName: z.string().min(2, "First name must be at least 2 characters").optional(),
+  lastName: z.string().min(2, "Last name must be at least 2 characters").optional(),
   email: z.string().email("Invalid email address"),
-  phone: z.string().min(10, "Phone number must be at least 10 digits"),
+  phone: z.string().min(10, "Phone number must be at least 10 digits").optional(),
   jobTitle: z.string().optional(),
   image: z.string().optional(),
+  roleId: z.string().optional(),
+  locationId: z.string().optional(),
 });
+
 type UpdateUserInput = z.infer<typeof UpdateUserSchema>;
 
 export async function createUser(data: UserProps, orgData: OrgData) {
@@ -75,9 +81,9 @@ export async function createUser(data: UserProps, orgData: OrgData) {
 
       // Create organisation
       const existingOrganisation = await tx.organisation.findUnique({
-        where: { slug: orgData.slug }
+        where: { slug: orgData.slug },
       });
-      
+
       if (existingOrganisation) {
         return {
           error: `Organisation Name ${orgData.name} is already taken`,
@@ -91,22 +97,23 @@ export async function createUser(data: UserProps, orgData: OrgData) {
       });
 
       // Create the Default API Key
-      await db.apiKey.create({
+      await tx.apiKey.create({
         data: {
           name: "Default Key",
           key: generateAPIKey(),
-          orgId: org.id
-        }
-      })
-
-      // Find or create default role - FIX: Use findUnique/findFirst and handle existing role
-      let defaultRole = await tx.role.findFirst({
-        where: { 
-          roleName: ADMIN_USER_ROLE.roleName,
+          orgId: org.id,
         },
       });
 
-      // Create default role only if it doesn't exist globally
+      // ✅ FIXED: Find or create default role for THIS organization only
+      let defaultRole = await tx.role.findFirst({
+        where: {
+          roleName: ADMIN_USER_ROLE.roleName,
+          orgId: org.id, // ✅ Search within the organization
+        },
+      });
+
+      // Create default role only if it doesn't exist for THIS organization
       if (!defaultRole) {
         defaultRole = await tx.role.create({
           data: {
@@ -118,12 +125,12 @@ export async function createUser(data: UserProps, orgData: OrgData) {
 
       // Hash password
       const hashedPassword = await bcrypt.hash(password, 10);
-     
+
       // Generate a 6-digit token
       const token = generateOTP();
 
       // Create user with role
-      const newUser = await tx.user.create({ 
+      const newUser = await tx.user.create({
         data: {
           email,
           password: hashedPassword,
@@ -149,7 +156,7 @@ export async function createUser(data: UserProps, orgData: OrgData) {
       // Send the verification email
       const verificationCode = newUser.token ?? "";
       const { data: emailData, error: emailError } = await resend.emails.send({
-        from: process.env.EMAIL_FROM as string, // ✅ FIXED: Use environment variable
+        from: process.env.EMAIL_FROM as string,
         to: email,
         subject: "Verify your Account",
         react: VerifyEmail({ verificationCode }),
@@ -183,13 +190,29 @@ export async function createUser(data: UserProps, orgData: OrgData) {
 
 export async function createInvitedUser(data: InvitedUserProps) {
   console.log("🧪 SIMPLE TEST VERSION - Data:", data);
-  
+
   try {
+    // ✅ FIXED: Verify that the role belongs to the same organization
+    const role = await db.role.findFirst({
+      where: {
+        id: data.roleId,
+        orgId: data.orgId,
+      },
+    });
+
+    if (!role) {
+      return {
+        error: "Invalid role for this organization",
+        status: 400,
+        data: null,
+      };
+    }
+
     // Simple version without transaction
     const hashedPassword = await bcrypt.hash(data.password, 10);
-    
+
     console.log("Creating user...");
-    const newUser = await db.user.create({ 
+    const newUser = await db.user.create({
       data: {
         email: data.email,
         password: hashedPassword,
@@ -210,9 +233,9 @@ export async function createInvitedUser(data: InvitedUserProps) {
         },
       },
     });
-    
+
     console.log("User created:", newUser.id);
-    
+
     // Update invite
     await db.invite.updateMany({
       where: {
@@ -221,15 +244,14 @@ export async function createInvitedUser(data: InvitedUserProps) {
       },
       data: {
         status: true,
-      }
+      },
     });
-    
+
     return {
       error: null,
       status: 200,
-      data: {id: newUser.id, email: newUser.email},
+      data: { id: newUser.id, email: newUser.email },
     };
-    
   } catch (error: any) {
     console.error("FULL ERROR:", error);
     return {
@@ -251,7 +273,7 @@ export async function getAllMembers() {
     return members;
   } catch (error) {
     console.error("Error fetching the count:", error);
-    return [];  // ✅ FIXED: Return empty array instead of 0
+    return [];
   }
 }
 
@@ -268,11 +290,11 @@ export async function getAllUsers() {
     return users;
   } catch (error) {
     console.error("Error fetching users:", error);
-    return [];  // ✅ FIXED: Return empty array instead of 0
+    return [];
   }
 }
 
-export async function getOrgInvites(orgId:string) {
+export async function getOrgInvites(orgId: string) {
   try {
     const invites = await db.invite.findMany({
       orderBy: {
@@ -283,20 +305,20 @@ export async function getOrgInvites(orgId:string) {
       },
       select: {
         id: true,
-        email:true,
+        email: true,
         createdAt: true,
         updatedAt: true,
         status: true,
-      }
+      },
     });
     return invites;
   } catch (error) {
     console.error("Error fetching invites:", error);
-    return [];  // ✅ FIXED: Return empty array instead of 0
+    return [];
   }
 }
 
-export async function getOrgUsers(orgId:string) {
+export async function getOrgUsers(orgId: string) {
   try {
     const users = await db.user.findMany({
       orderBy: {
@@ -307,66 +329,71 @@ export async function getOrgUsers(orgId:string) {
       },
       include: {
         roles: true,
-      }
+      },
     });
     return users;
   } catch (error) {
     console.error("Error fetching org users:", error);
-    return [];  // ✅ FIXED: Return empty array instead of 0
+    return [];
   }
 }
 
 export async function deleteUser(id: string) {
   try {
     const user = await db.user.findUnique({
-      where:{
-        id
+      where: {
+        id,
       },
-      select:{
-        email:true,
+      select: {
+        email: true,
       },
-    })
-    
-    // ✅ FIXED: Only delete invite if user exists and has email
+    });
+
     if (user?.email) {
-      await db.invite.deleteMany({  // ✅ FIXED: Use deleteMany instead of delete
-        where:{
+      await db.invite.deleteMany({
+        where: {
           email: user.email,
         },
-      })
+      });
     }
-    
+
     const deleted = await db.user.delete({
       where: {
         id,
       },
     });
-    
-    revalidatePath("/dashboard/settings/users")
+
+    revalidatePath("/dashboard/settings/users");
     return {
       ok: true,
       data: deleted,
     };
   } catch (error) {
     console.log(error);
-    return {  // ✅ FIXED: Add return value for error case
+    return {
       ok: false,
       error: "Failed to delete user",
     };
   }
 }
 
-export async function getUserById(id: string) {
+// ✅ FIXED: Single getUserById function with proper includes
+export async function getUserById(userId: string) {
   try {
     const user = await db.user.findUnique({
       where: {
-        id,
+        id: userId,
+      },
+      include: {
+        roles: true,
+        Location: true,
       },
     });
+
     return user;
   } catch (error) {
-    console.log(error);
-    return null;  // ✅ FIXED: Return null on error
+    console.error("Error fetching user:", error);
+    return null;
   }
 }
 
@@ -397,7 +424,7 @@ export async function sendResetLink(email: string) {
 
     const resetPasswordLink = `${baseUrl}/reset-password?token=${token}&&email=${email}`;
     const { data, error } = await resend.emails.send({
-      from: process.env.EMAIL_FROM as string,  // ✅ FIXED: Use environment variable
+      from: process.env.EMAIL_FROM as string,
       to: email,
       subject: "Reset Password Request",
       react: ResetPasswordEmail({ userFirstname, resetPasswordLink }),
@@ -455,7 +482,7 @@ export async function updateUserPassword(id: string, data: PasswordProps) {
     return { error: null, status: 200 };
   } catch (error) {
     console.log(error);
-    return { error: "Failed to update password", status: 500 };  // ✅ FIXED: Add return value
+    return { error: "Failed to update password", status: 500 };
   }
 }
 
@@ -495,7 +522,7 @@ export async function resetUserPassword(
     };
   } catch (error) {
     console.log(error);
-    return {  // ✅ FIXED: Add return value for error case
+    return {
       status: 500,
       error: "Failed to reset password",
       data: null,
@@ -503,83 +530,155 @@ export async function resetUserPassword(
   }
 }
 
-export async function updateUser(userId: string, data: UpdateUserInput) {
+// ✅ FIXED: Single unified updateUser function that handles all update scenarios
+export async function updateUser(
+  userId: string,
+  data: UpdateUserInput & { orgId?: string }
+) {
   try {
     // Validate input data
     const validatedData = UpdateUserSchema.parse(data);
 
+    // Get the existing user
+    const existingUser = await db.user.findUnique({
+      where: {
+        id: userId,
+      },
+    });
+
+    if (!existingUser) {
+      return {
+        success: false,
+        error: "User not found",
+        data: null,
+      };
+    }
+
+    // If orgId is provided, verify user belongs to that org
+    if (data.orgId && existingUser.orgId !== data.orgId) {
+      return {
+        success: false,
+        error: "User not found or access denied",
+        data: null,
+      };
+    }
+
     // Check if email is being changed and if it's already taken
-    if (data.email) {
-      const existingUser = await db.user.findFirst({
+    if (validatedData.email && validatedData.email !== existingUser.email) {
+      const emailExists = await db.user.findFirst({
         where: {
-          email: data.email,
+          email: validatedData.email,
           NOT: {
             id: userId,
           },
         },
       });
 
-      if (existingUser) {
+      if (emailExists) {
         return {
-          error: "Email already in use",
+          success: false,
+          error: "Email is already in use",
+          data: null,
         };
       }
     }
 
     // Check if phone is being changed and if it's already taken
-    if (data.phone) {
-      const existingUser = await db.user.findFirst({
+    if (validatedData.phone && validatedData.phone !== existingUser.phone) {
+      const phoneExists = await db.user.findFirst({
         where: {
-          phone: data.phone,
+          phone: validatedData.phone,
           NOT: {
             id: userId,
           },
         },
       });
 
-      if (existingUser) {
+      if (phoneExists) {
         return {
-          error: "Phone number already in use",
+          success: false,
+          error: "Phone number is already in use",
+          data: null,
         };
       }
     }
 
-    // Update user
+    // Prepare update data
+    const updateData: any = {
+      email: validatedData.email,
+      phone: validatedData.phone || null,
+      image: validatedData.image || null,
+      jobTitle: validatedData.jobTitle || null,
+    };
+
+    // Handle name fields
+    if (validatedData.firstName && validatedData.lastName) {
+      updateData.firstName = validatedData.firstName;
+      updateData.lastName = validatedData.lastName;
+      updateData.name = `${validatedData.firstName} ${validatedData.lastName}`;
+    } else if (validatedData.name) {
+      updateData.name = validatedData.name;
+      // Try to split name into first and last
+      const nameParts = validatedData.name.split(" ");
+      if (nameParts.length >= 2) {
+        updateData.firstName = nameParts[0];
+        updateData.lastName = nameParts.slice(1).join(" ");
+      }
+    }
+
+    // Add role and location if provided
+    if (validatedData.roleId) {
+      updateData.roleId = validatedData.roleId;
+    }
+    if (validatedData.locationId) {
+      updateData.locationId = validatedData.locationId;
+    }
+
+    // Update the user
     const updatedUser = await db.user.update({
       where: {
         id: userId,
       },
-      data: {
-        firstName: validatedData.firstName,
-        lastName: validatedData.lastName,
-        email: validatedData.email,
-        phone: validatedData.phone,
-        jobTitle: validatedData.jobTitle,
-        name: `${validatedData.firstName} ${validatedData.lastName}`, // Update full name
-        image: validatedData.image,
+      data: updateData,
+      include: {
+        roles: true,
+        Location: true,
       },
     });
-    // Revalidate user data
+
+    // Revalidate relevant pages
+    revalidatePath("/dashboard/settings/users");
     revalidatePath("/dashboard/settings/profile");
     revalidatePath("/dashboard");
+
     return {
+      success: true,
       data: updatedUser,
       error: null,
     };
   } catch (error) {
+    console.error("Error updating user:", error);
+
     if (error instanceof z.ZodError) {
       return {
+        success: false,
         error: "Invalid data provided",
+        data: null,
       };
     }
 
     if (error instanceof Error) {
       return {
+        success: false,
         error: error.message,
+        data: null,
       };
     }
+
     return {
-      error: "Something went wrong",
+      success: false,
+      error: "Failed to update user",
+      data: null,
     };
   }
 }
@@ -590,8 +689,8 @@ export async function verifyOTP(userId: string, otp: string) {
       where: {
         id: userId,
       },
-    })
-    if(user?.token !==otp){
+    });
+    if (user?.token !== otp) {
       return {
         status: 403,
       };
@@ -599,86 +698,101 @@ export async function verifyOTP(userId: string, otp: string) {
     return {
       status: 200,
     };
-  }catch (error){
+  } catch (error) {
     return {
-        status: 403,
-      };
+      status: 403,
+    };
   }
 }
 
-export async function getCurrentUsersCount(){
-  try{
-    const count =await db.user.count()
-    return count
-  }catch(error){
-    console.log(error)
-    return 0
+export async function getCurrentUsersCount() {
+  try {
+    const count = await db.user.count();
+    return count;
+  } catch (error) {
+    console.log(error);
+    return 0;
   }
 }
 
-export async function sendInvite(data: InviteData){
-  const { email, orgId, orgName, roleId, roleName, locationId,locationName} = data;
+export async function sendInvite(data: InviteData) {
+  const { email, orgId, orgName, roleId, roleName, locationId, locationName } =
+    data;
 
   try {
-    // Check for existing users
-    const existingUserByEmail = await db.user.findUnique({
-      where: {email, orgId },
+    // ✅ FIXED: Verify that the role belongs to the same organization
+    const role = await db.role.findFirst({
+      where: {
+        id: roleId,
+        orgId: orgId,
+      },
     });
-    if(existingUserByEmail){
-      return{
+
+    if (!role) {
+      return {
+        error: "Invalid role for this organization",
+        status: 400,
+        data: null,
+      };
+    }
+
+    // Check for existing users
+    const existingUserByEmail = await db.user.findFirst({
+      where: { email, orgId },
+    });
+    if (existingUserByEmail) {
+      return {
         error: `This email ${email} is already in use`,
         status: 409,
         data: null,
-      }
+      };
     }
     // Check if already invited
     const existingInvite = await db.invite.findFirst({
-      where: {email},
+      where: { email, orgId }, // ✅ FIXED: Check invite within the organization
     });
-    if(existingInvite){
-      return{
-        error: `This User ${email} is already in Invited`,
+    if (existingInvite) {
+      return {
+        error: `This User ${email} is already invited`,
         status: 409,
         data: null,
-      }
+      };
     }
     //Create The Invite
     await db.invite.create({
-      data:{
+      data: {
         email,
         orgId,
-      }
-    })
+      },
+    });
     // Send the Verification email
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
     const linkUrl = `${baseUrl}/user-invite/${orgId}?roleId=${roleId}&email=${email}&orgName=${orgName}&locationId=${locationId}&locationName=${locationName}`;
-    console.log("📧 Invitation link generated:", linkUrl);  // Debug log
-    const {data, error} = await resend.emails.send({
-        from: process.env.EMAIL_FROM as string,  // ✅ FIXED: Use environment variable
-        to: email,
-        subject: `Welcome to ${orgName} - ${roleName} Role Invitation `,
-        react: UserInvitation ({orgName, roleName, linkUrl }),
-      })
-      if(error){
-        console.log(error)
-        return {
+    console.log("📧 Invitation link generated:", linkUrl);
+    const { data: emailData, error } = await resend.emails.send({
+      from: process.env.EMAIL_FROM as string,
+      to: email,
+      subject: `Welcome to ${orgName} - ${roleName} Role Invitation `,
+      react: UserInvitation({ orgName, roleName, linkUrl }),
+    });
+    if (error) {
+      console.log(error);
+      return {
         error: `Something went wrong, Please try again`,
         status: 500,
         data: null,
-    };
-      }
-      console.log(data)
-      revalidatePath("/dashboard/users")
-      return {
-        error: null,
-        status: 200,
-        data,
       };
-      
-  
-  }catch(error){
+    }
+    console.log(emailData);
+    revalidatePath("/dashboard/users");
+    return {
+      error: null,
+      status: 200,
+      data: emailData,
+    };
+  } catch (error) {
     console.log(error);
-    return {  // ✅ FIXED: Return proper error object instead of 0
+    return {
       error: "Failed to send invitation",
       status: 500,
       data: null,

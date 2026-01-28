@@ -267,19 +267,19 @@ export default function SimpleReceiptPage() {
 // Separate Receipt Content Component
 function ReceiptContent({ salesOrder, subtotal, taxAmount, discount, shippingCost, total }: any) {
   return (
-    <div className="text-center font-mono text-sm print:text-xs">
+    <div className="text-center font-mono text-base print:text-sm">
       {/* Store Header */}
       <div className="mb-4 pb-4 border-b-2 border-dashed border-gray-300">
-        <h2 className="font-bold text-lg uppercase tracking-tight">AFK BERIMAH HARDWARE</h2>
-        <p className="text-xs mt-1">14B, Northern Street</p>
-        <p className="text-xs">Greater South Avenue</p>
-        <p className="text-xs">Sunyani, Ghana</p>
-        <p className="text-xs mt-1">Tel: +233 123 456 789</p>
+        <h2 className="font-bold text-xl uppercase tracking-tight">AFK BERIMAH ENTERPRISE</h2>
+        <p className="text-sm mt-1">Near Bokankye Police Check Point</p>
+        <p className="text-sm">Digital Address: AA-T1257-6693</p>
+        <p className="text-sm">Kumasi, Ghana</p>
+        <p className="text-sm mt-1">Tel: +233 546 722 768</p>
       </div>
 
       {/* Date and Time */}
       <div className="mb-4">
-        <p className="text-xs">
+        <p className="text-sm">
           {new Date(salesOrder.createdAt).toLocaleDateString('en-GH', {
             month: '2-digit',
             day: '2-digit',
@@ -292,22 +292,22 @@ function ReceiptContent({ salesOrder, subtotal, taxAmount, discount, shippingCos
             hour12: true
           }).toUpperCase()}
         </p>
-        <p className="text-xs font-bold mt-2">RECEIPT #{salesOrder.orderNumber}</p>
+        <p className="text-sm font-bold mt-2">RECEIPT #{salesOrder.orderNumber}</p>
       </div>
 
       {/* Transaction Details */}
       <div className="mb-4 text-left">
-        <div className="flex justify-between text-xs mb-1">
+        <div className="flex justify-between text-sm mb-1">
           <span>TABLE 1</span>
           <span>STAFF {salesOrder.createdBy?.name?.split(' ')[0]?.toUpperCase() || 'CASHIER'}</span>
         </div>
-        <div className="flex justify-between text-xs mb-3">
+        <div className="flex justify-between text-sm mb-3">
           <span>{salesOrder.paymentMethod || 'CASH'}</span>
           <span className="text-gray-400">#########19883</span>
         </div>
 
         {/* Header Row */}
-        <div className="flex justify-between text-xs font-bold border-b-2 border-black mb-2 pb-1">
+        <div className="flex justify-between text-sm font-bold border-b-2 border-black mb-2 pb-1">
           <span className="w-8">QTY</span>
           <span className="flex-1">DESC</span>
           <span className="w-20 text-right">AMT</span>
@@ -316,7 +316,7 @@ function ReceiptContent({ salesOrder, subtotal, taxAmount, discount, shippingCos
         {/* Items */}
         <div className="space-y-2 mb-4">
           {salesOrder.lines?.map((line: any) => (
-            <div key={line.id} className="flex justify-between items-start text-xs">
+            <div key={line.id} className="flex justify-between items-start text-sm">
               <span className="w-8 font-semibold">{line.quantity}</span>
               <span className="flex-1 text-left mx-2 leading-tight">
                 {line.item?.name || "Unknown Item"}
@@ -332,7 +332,7 @@ function ReceiptContent({ salesOrder, subtotal, taxAmount, discount, shippingCos
         <div className="border-t-2 border-dashed border-gray-400 my-3"></div>
 
         {/* Totals */}
-        <div className="space-y-1 text-xs">
+        <div className="space-y-1 text-sm">
           <div className="flex justify-between">
             <span>SUBTOTAL</span>
             <span>GHS{subtotal.toFixed(2)}</span>
@@ -355,7 +355,7 @@ function ReceiptContent({ salesOrder, subtotal, taxAmount, discount, shippingCos
               <span>GHS{shippingCost.toFixed(2)}</span>
             </div>
           )}
-          <div className="flex justify-between font-bold text-base border-t-2 border-black pt-2 mt-2">
+          <div className="flex justify-between font-bold text-lg border-t-2 border-black pt-2 mt-2">
             <span>TOTAL</span>
             <span>GHS{total.toFixed(2)}</span>
           </div>
@@ -365,19 +365,19 @@ function ReceiptContent({ salesOrder, subtotal, taxAmount, discount, shippingCos
       {/* Customer Info */}
       {salesOrder.customer && (
         <div className="mb-4 text-left border-t-2 border-dashed border-gray-300 pt-3">
-          <p className="text-xs font-bold">CUSTOMER</p>
-          <p className="text-xs mt-1">{salesOrder.customer.name}</p>
+          <p className="text-sm font-bold">CUSTOMER</p>
+          <p className="text-sm mt-1">{salesOrder.customer.name}</p>
           {salesOrder.customer.phone && (
-            <p className="text-xs">Tel: {salesOrder.customer.phone}</p>
+            <p className="text-sm">Tel: {salesOrder.customer.phone}</p>
           )}
         </div>
       )}
 
       {/* Footer */}
-      <div className="mt-6 text-xs border-t-2 border-dashed border-gray-300 pt-3">
-        <p className="font-semibold">Thank you for your business!</p>
-        <p className="mt-2 text-[10px] text-gray-600">For returns, present receipt within 7 days</p>
-        <p className="mt-2 text-[10px] text-gray-400">
+      <div className="mt-6 text-sm border-t-2 border-dashed border-gray-300 pt-3">
+        <p className="font-semibold">Thank you for your patronage!</p>
+        {/*<p className="mt-2 text-xs text-gray-600">For returns, present receipt within 7 days</p>*/}
+        <p className="mt-2 text-xs text-gray-400">
           {salesOrder.orderNumber} • {new Date(salesOrder.createdAt).toLocaleDateString()}
         </p>
         <div className="mt-3 flex justify-center">

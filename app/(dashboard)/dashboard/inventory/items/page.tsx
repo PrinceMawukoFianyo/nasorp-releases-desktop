@@ -6,7 +6,7 @@ import ItemListing from "@/components/dashboard/items/item-listing";
 import { getAuthenticatedUser } from "@/config/useAuth";
 
 export default async function ProductsPage() {
-  const user = await getAuthenticatedUser();
+  const user = await getAuthenticatedUser()
   const orgId = user.orgId;
   return (
     <div className="container py-8">

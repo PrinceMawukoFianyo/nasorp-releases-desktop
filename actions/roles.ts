@@ -39,6 +39,15 @@ export async function updateUserRole(
       };
     }
 
+    // ✅ FIXED: Verify that the role belongs to the same organization as the user
+    if (role.orgId !== existingUser.orgId) {
+      return {
+        error: "Role does not belong to the user's organization",
+        status: 403,
+        data: null,
+      };
+    }
+
     // Update user's roles
     const updatedUser = await db.user.update({
       where: { id: userId },
@@ -71,6 +80,7 @@ export async function updateUserRole(
     };
   }
 }
+
 export async function createRole(data: RoleFormData) {
   try {
     // Validate permissions
@@ -85,15 +95,16 @@ export async function createRole(data: RoleFormData) {
       );
     }
 
-    // Check if role with same name exists
+    // ✅ FIXED: Check if role with same name exists IN THIS ORGANIZATION
     const existingRole = await db.role.findFirst({
       where: {
         displayName: data.displayName,
+        orgId: data.orgId,  // Search within the organization
       },
     });
 
     if (existingRole) {
-      throw new Error("A role with this name already exists");
+      throw new Error("A role with this name already exists in your organization");
     }
 
     // Create role with permissions
@@ -103,7 +114,7 @@ export async function createRole(data: RoleFormData) {
         roleName: createRoleName(data.displayName),
         description: data.description,
         permissions: data.permissions,
-        orgId:data.orgId,
+        orgId: data.orgId,
       },
     });
 
@@ -120,6 +131,15 @@ export async function createRole(data: RoleFormData) {
 
 export async function updateRole(id: string, data: Partial<RoleFormData>) {
   try {
+    // ✅ FIXED: Get the existing role first to verify orgId
+    const existingRole = await db.role.findUnique({
+      where: { id },
+    });
+
+    if (!existingRole) {
+      throw new Error("Role not found");
+    }
+
     // Validate permissions if they're being updated
     if (data.permissions) {
       const validPermissions = getAllPermissions();
@@ -134,19 +154,20 @@ export async function updateRole(id: string, data: Partial<RoleFormData>) {
       }
     }
 
-    // Check if new name conflicts with existing role
+    // ✅ FIXED: Check if new name conflicts with existing role IN THE SAME ORGANIZATION
     if (data.displayName) {
-      const existingRole = await db.role.findFirst({
+      const conflictingRole = await db.role.findFirst({
         where: {
           displayName: data.displayName,
+          orgId: existingRole.orgId,  // Search within the organization
           NOT: {
             id: id,
           },
         },
       });
 
-      if (existingRole) {
-        throw new Error("A role with this name already exists");
+      if (conflictingRole) {
+        throw new Error("A role with this name already exists in your organization");
       }
     }
 
@@ -176,9 +197,19 @@ export async function updateRole(id: string, data: Partial<RoleFormData>) {
 
 export async function deleteRole(id: string) {
   try {
-    // Check if role is assigned to any users
+    // ✅ FIXED: Get the role first to ensure we're checking users in the same organization
+    const role = await db.role.findUnique({
+      where: { id },
+    });
+
+    if (!role) {
+      throw new Error("Role not found");
+    }
+
+    // Check if role is assigned to any users IN THE SAME ORGANIZATION
     const usersWithRole = await db.user.findMany({
       where: {
+        orgId: role.orgId,  // Check within the organization
         roles: {
           some: {
             id: id,
@@ -187,17 +218,21 @@ export async function deleteRole(id: string) {
       },
       select: {
         id: true,
+        name: true,
       },
     });
 
     if (usersWithRole.length > 0) {
-      throw new Error("Cannot delete role as it is assigned to users");
+      throw new Error(
+        `Cannot delete role as it is assigned to ${usersWithRole.length} user(s)`
+      );
     }
 
     // Delete role
     await db.role.delete({
       where: { id },
     });
+    
     revalidatePath("/dashboard/users/roles");
     return { success: true };
   } catch (error) {
@@ -209,7 +244,7 @@ export async function deleteRole(id: string) {
   }
 }
 
-export async function getOrgRoles(orgId:string) {
+export async function getOrgRoles(orgId: string) {
   try {
     const roles = await db.role.findMany({
       orderBy: {
@@ -217,7 +252,14 @@ export async function getOrgRoles(orgId:string) {
       },
       where: {
         orgId,
-      }
+      },
+      include: {
+        _count: {
+          select: {
+            users: true,  // Include count of users with this role
+          },
+        },
+      },
     });
     return { success: true, data: roles };
   } catch (error) {
@@ -225,6 +267,7 @@ export async function getOrgRoles(orgId:string) {
     return {
       success: false,
       error: "Failed to fetch roles",
+      data: [],
     };
   }
 }
@@ -233,6 +276,13 @@ export async function getRoleById(id: string) {
   try {
     const role = await db.role.findUnique({
       where: { id },
+      include: {
+        _count: {
+          select: {
+            users: true,
+          },
+        },
+      },
     });
 
     if (!role) {
@@ -249,11 +299,20 @@ export async function getRoleById(id: string) {
   }
 }
 
-// Helper function to get users by role
-export async function getUsersByRole(roleId: string) {
+// ✅ FIXED: Helper function to get users by role within an organization
+export async function getUsersByRole(roleId: string, orgId?: string) {
   try {
+    const role = await db.role.findUnique({
+      where: { id: roleId },
+    });
+
+    if (!role) {
+      throw new Error("Role not found");
+    }
+
     const users = await db.user.findMany({
       where: {
+        orgId: orgId || role.orgId,  // Use provided orgId or role's orgId
         roles: {
           some: {
             id: roleId,
@@ -264,6 +323,11 @@ export async function getUsersByRole(roleId: string) {
         id: true,
         name: true,
         email: true,
+        image: true,
+        createdAt: true,
+      },
+      orderBy: {
+        name: "asc",
       },
     });
 
@@ -273,6 +337,33 @@ export async function getUsersByRole(roleId: string) {
     return {
       success: false,
       error: "Failed to fetch users",
+      data: [],
     };
+  }
+}
+
+// ✅ NEW: Helper function to check if a role name is unique within an organization
+export async function isRoleNameUnique(
+  displayName: string,
+  orgId: string,
+  excludeRoleId?: string
+): Promise<boolean> {
+  try {
+    const existingRole = await db.role.findFirst({
+      where: {
+        displayName,
+        orgId,
+        ...(excludeRoleId && {
+          NOT: {
+            id: excludeRoleId,
+          },
+        }),
+      },
+    });
+
+    return !existingRole;
+  } catch (error) {
+    console.error("Error checking role name uniqueness:", error);
+    return false;
   }
 }
