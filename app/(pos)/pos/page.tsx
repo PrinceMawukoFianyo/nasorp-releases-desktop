@@ -596,9 +596,18 @@ export default function POSPage() {
                             >
                               <Minus className="w-3 h-3" />
                             </Button>
-                            <span className="w-7 text-center font-semibold text-xs">
-                              {item.quantity}
-                            </span>
+                            <Input
+                              type="number"
+                              value={item.quantity}
+                              onChange={(e) => {
+                                const value = parseInt(e.target.value) || 0
+                                updateQuantity(item.id, value)
+                              }}
+                              onFocus={(e) => e.target.select()}
+                              className="h-6 w-12 text-center font-semibold text-xs p-0 border-0 bg-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              min="1"
+                              max={item.stock}
+                            />
                             <Button
                               variant="ghost"
                               size="sm"
