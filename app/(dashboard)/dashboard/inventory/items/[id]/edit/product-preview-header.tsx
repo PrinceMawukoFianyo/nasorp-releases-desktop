@@ -63,7 +63,7 @@ export default function ProductPreviewHeader({ item, brandOptions, categoryOptio
             <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border">
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground font-semibold">Selling Price</p>
-                <p className="text-lg font-bold text-foreground">${item.sellingPrice?.toFixed(2) || "0.00"}</p>
+                <p className="text-lg font-bold text-foreground">GH₵{item.sellingPrice?.toFixed(2) || "0.00"}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground font-semibold">Stock Level</p>

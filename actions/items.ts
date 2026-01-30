@@ -20,20 +20,34 @@ export async function createItem(data: ItemCreateProps) {
     const api = await getAuthenticatedApi();
     const res = await api.post("/items", data);
     const item = res.data.data;
+    
+    revalidatePath("/dashboard/inventory/items");
+    
     return{
       success: true,
-      data:item,
-      error: 200,
+      data: item,
+      error: null,
     };
   } catch (error) {
-    console.log(error);
+    console.error("❌ Error creating item:", error);
+    
+    if (axios.isAxiosError(error)) {
+      const message = error.response?.data?.error || error.response?.data?.message || "Failed to Create an Item";
+      return {
+        success: false,
+        error: message,
+        data: null,    
+      };
+    }
+    
     return {
-      success: true,
-      error: "Failed to Create an Item",
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to Create an Item",
       data: null,    
     };
   }
 }
+
 export async function getOrgItems(orgId: string, params = {}) {
   try {
     
@@ -51,25 +65,91 @@ export async function getOrgItems(orgId: string, params = {}) {
   }
 }
 
+// ✅ BEST FIX: Use Prisma directly to fetch ALL items without API pagination limits
 export async function getOrgBriefItems(orgId: string, params?: any) {
   try {
-    const api = await getAuthenticatedApi();
-    const res = await api.get(`/organisations/${orgId}/brief-items`, {
-      params,
+    // Option 1: Use Prisma directly (RECOMMENDED - bypasses API pagination)
+    const items = await db.item.findMany({
+      where: {
+        orgId,
+      },
+      select: {
+        id: true,
+        name: true,
+        sku: true,
+        slug: true,
+        thumbnail: true,
+        sellingPrice: true,
+        costPrice: true,
+        salesCount: true,
+        salesTotal: true,
+        isActive: true,
+        categoryId: true,
+        brandId: true,
+        category: {
+          select: {
+            id: true,
+            title: true,
+          }
+        },
+        brand: {
+          select: {
+            id: true,
+            name: true,
+          }
+        },
+        supplierRelations: {
+          select: {
+            id: true,
+            supplierId: true,
+          }
+        },
+        updatedAt: true,
+        createdAt: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
     });
+
+    return {
+      success: true,
+      data: items,
+      total: items.length,
+    };
     
-    return res.data;
+    // Option 2: If you must use the API, add pagination params
+    // const api = await getAuthenticatedApi();
+    // const requestParams = {
+    //   limit: 1000, // High limit to get all items
+    //   page: 1,
+    //   ...params,
+    // };
+    // const res = await api.get(`/organisations/${orgId}/brief-items`, {
+    //   params: requestParams,
+    // });
+    // return res.data;
+    
   } catch (error) {
     console.error("Error fetching items:", error);
     
     if (axios.isAxiosError(error)) {
       const message = error.response?.data?.error || "Failed to fetch items";
-      throw new Error(message);
+      return {
+        success: false,
+        error: message,
+        data: [],
+      };
     }
 
-    throw new Error("An unexpected error occurred");
+    return {
+      success: false,
+      error: "An unexpected error occurred",
+      data: [],
+    };
   }
 }
+
 export async function getBriefItemById(
   id: string,
 ){
@@ -125,26 +205,23 @@ export async function getItemById(
       throw new Error(message);
     }
     
-    throw new Error("An unexpected error occurred"); // ✅ Always throw or return
+    throw new Error("An unexpected error occurred");
   }
 } 
 
 export async function updateItemById(id: string, data: Partial<ProductData>) {
   try {
-    // Transform null values to undefined for Prisma
     const prismaData = Object.entries(data).reduce((acc, [key, value]) => {
       acc[key] = value === null ? undefined : value;
       return acc;
     }, {} as Record<string, any>);
 
-    // ✅ FIX: Rename incorrect field if it exists
     if ('taxRatedId' in prismaData) {
       console.warn('⚠️ Correcting typo: taxRatedId → taxRateId');
       prismaData.taxRateId = prismaData.taxRatedId;
       delete prismaData.taxRatedId;
     }
 
-    // ✅ VALIDATION: Remove any fields that don't exist in Prisma schema
     const validFields = [
       'id', 'name', 'sku', 'slug', 'barcode', 'description', 'dimensions', 
       'weight', 'upc', 'ean', 'mpn', 'isbn', 'imageUrl', 'thumbnail', 
@@ -176,7 +253,6 @@ export async function updateItemById(id: string, data: Partial<ProductData>) {
   } catch (error) {
     console.error("❌ Update item failed:", error);
     
-    // Return more detailed error information
     if (error instanceof Error) {
       return {
         success: false,
@@ -191,70 +267,6 @@ export async function updateItemById(id: string, data: Partial<ProductData>) {
   }
 }
 
-/* export async function updateItem(id: string, data: Partial<ProductData>): Promise<ApiResponse> {
-  try {
-    const api = await getAuthenticatedApi();
-    const res = await api.put(`/items/${id}`, data);
-    
-    if (!res.data) {
-      return {
-        data: null,
-        success: false,
-        error: "Failed to update item",
-      }
-    }
-
-    revalidatePath("/dashboard/items");
-    return {
-      data: res.data.data,
-      success: true,
-    }
-  } catch (error) {
-    console.error("Error updating item:", error);
-    
-    if (axios.isAxiosError(error)) {
-      const message = error.response?.data?.error || "Failed to update item";
-      return {
-        data: null,
-        success: false,
-        error: message,
-      }
-    }
-    
-    return {
-      data: null,
-      success: false,
-      error: error instanceof Error ? error.message : "An error occurred",
-    }
-  }
-} */
-
-/*  export async function updateItemById(id: string, data: ItemCreateProps) {
-  try {
-    const updatedItem = await db.item.update({
-      where: {
-        id,
-      },
-      data,
-    });
-    revalidatePath("/dashboard/items");
-    return updatedItem;
-  } catch (error) {
-    console.log(error);
-  }
-}  */
-/* export async function getItemById(id: string) {
-  try {
-    const item = await db.item.findUnique({
-      where: {
-        id,
-      },
-    });
-    return item;
-  } catch (error) {
-    console.log(error);
-  }
-} */
 export async function deleteItem(id: string) {
   try {
     const item = await db.item.findUnique({
@@ -296,6 +308,7 @@ export async function deleteItem(id: string) {
     };
   }
 }
+
 export async function createBulkItems(items: ItemCreateProps[]) {
   try {
     for (const item of items) {
