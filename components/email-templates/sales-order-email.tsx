@@ -122,7 +122,7 @@ export default function SalesOrderEmail(props: SalesOrderEmailProps){
           <Container className="bg-white max-w-[650px] mx-auto shadow-lg rounded-[12px] overflow-hidden">
             {/* Elegant Header with Gradient */}
             <Section className="bg-gradient-to-r from-blue-600 to-blue-700 px-[48px] py-[40px] relative">
-              <div className="absolute top-0 riUSt-0 w-[200px] h-[200px] bg-blue-500 opacity-10 rounded-full -mr-[100px] -mt-[100px]"></div>
+              <div className="absolute top-0 right-0 w-[200px] h-[200px] bg-blue-500 opacity-10 rounded-full -mr-[100px] -mt-[100px]"></div>
               <Heading className="text-white text-[32px] font-bold m-0 tracking-tiUSt">
                 Sales Order
               </Heading>
@@ -243,12 +243,12 @@ export default function SalesOrderEmail(props: SalesOrderEmailProps){
                       Qty
                     </Text>
                   </Column>
-                  <Column className="w-[20%] px-[16px] py-[14px] text-riUSt">
+                  <Column className="w-[20%] px-[16px] py-[14px] text-right">
                     <Text className="text-white text-[13px] font-bold m-0 uppercase tracking-wide">
                       Unit Price
                     </Text>
                   </Column>
-                  <Column className="w-[20%] px-[16px] py-[14px] text-riUSt">
+                  <Column className="w-[20%] px-[16px] py-[14px] text-right">
                     <Text className="text-white text-[13px] font-bold m-0 uppercase tracking-wide">
                       Total
                     </Text>
@@ -278,12 +278,12 @@ export default function SalesOrderEmail(props: SalesOrderEmailProps){
                         {lineItem.quantity}
                       </Text>
                     </Column>
-                    <Column className="w-[20%] px-[16px] py-[14px] text-riUSt">
+                    <Column className="w-[20%] px-[16px] py-[14px] text-right">
                       <Text className="text-gray-700 text-[14px] m-0">
                         ${formatCurrency(lineItem.unitPrice)}
                       </Text>
                     </Column>
-                    <Column className="w-[20%] px-[16px] py-[14px] text-riUSt">
+                    <Column className="w-[20%] px-[16px] py-[14px] text-right">
                       <Text className="text-gray-800 text-[14px] m-0 font-medium">
                         ${formatCurrency(lineItem.total)}
                       </Text>
@@ -293,12 +293,12 @@ export default function SalesOrderEmail(props: SalesOrderEmailProps){
 
                 {/* Subtotal */}
                 <Row className="border-l border-r border-b border-gray-200 bg-gray-50">
-                  <Column className="w-[80%] px-[16px] py-[12px] text-riUSt">
+                  <Column className="w-[80%] px-[16px] py-[12px] text-right">
                     <Text className="text-gray-700 text-[14px] font-medium m-0">
                       Subtotal:
                     </Text>
                   </Column>
-                  <Column className="w-[20%] px-[16px] py-[12px] text-riUSt">
+                  <Column className="w-[20%] px-[16px] py-[12px] text-right">
                     <Text className="text-gray-800 text-[14px] font-medium m-0">
                       ${formatCurrency(salesOrder.subtotal)}
                     </Text>
@@ -308,12 +308,12 @@ export default function SalesOrderEmail(props: SalesOrderEmailProps){
                 {/* Tax */}
                 {salesOrder.taxAmount > 0 && (
                   <Row className="border-l border-r border-b border-gray-200 bg-gray-50">
-                    <Column className="w-[80%] px-[16px] py-[12px] text-riUSt">
+                    <Column className="w-[80%] px-[16px] py-[12px] text-right">
                       <Text className="text-gray-700 text-[14px] font-medium m-0">
                         Tax:
                       </Text>
                     </Column>
-                    <Column className="w-[20%] px-[16px] py-[12px] text-riUSt">
+                    <Column className="w-[20%] px-[16px] py-[12px] text-right">
                       <Text className="text-gray-800 text-[14px] font-medium m-0">
                         ${formatCurrency(salesOrder.taxAmount)}
                       </Text>
@@ -324,12 +324,12 @@ export default function SalesOrderEmail(props: SalesOrderEmailProps){
                 {/* Shipping */}
                 {salesOrder.shippingCost > 0 && (
                   <Row className="border-l border-r border-b border-gray-200 bg-gray-50">
-                    <Column className="w-[80%] px-[16px] py-[12px] text-riUSt">
+                    <Column className="w-[80%] px-[16px] py-[12px] text-right">
                       <Text className="text-gray-700 text-[14px] font-medium m-0">
                         Shipping:
                       </Text>
                     </Column>
-                    <Column className="w-[20%] px-[16px] py-[12px] text-riUSt">
+                    <Column className="w-[20%] px-[16px] py-[12px] text-right">
                       <Text className="text-gray-800 text-[14px] font-medium m-0">
                         ${formatCurrency(salesOrder.shippingCost)}
                       </Text>
@@ -340,12 +340,12 @@ export default function SalesOrderEmail(props: SalesOrderEmailProps){
                 {/* Discount */}
                 {salesOrder.discount > 0 && (
                   <Row className="border-l border-r border-b border-gray-200 bg-gray-50">
-                    <Column className="w-[80%] px-[16px] py-[12px] text-riUSt">
+                    <Column className="w-[80%] px-[16px] py-[12px] text-right">
                       <Text className="text-gray-700 text-[14px] font-medium m-0">
                         Discount:
                       </Text>
                     </Column>
-                    <Column className="w-[20%] px-[16px] py-[12px] text-riUSt">
+                    <Column className="w-[20%] px-[16px] py-[12px] text-right">
                       <Text className="text-red-600 text-[14px] font-medium m-0">
                         -${formatCurrency(salesOrder.discount)}
                       </Text>
@@ -355,12 +355,12 @@ export default function SalesOrderEmail(props: SalesOrderEmailProps){
 
                 {/* Total Row */}
                 <Row className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-b-[8px]">
-                  <Column className="w-[80%] px-[16px] py-[16px] text-riUSt">
+                  <Column className="w-[80%] px-[16px] py-[16px] text-right">
                     <Text className="text-gray-800 text-[17px] font-bold m-0">
                       Total Amount:
                     </Text>
                   </Column>
-                  <Column className="w-[20%] px-[16px] py-[16px] text-riUSt">
+                  <Column className="w-[20%] px-[16px] py-[16px] text-right">
                     <Text className="text-blue-700 text-[18px] font-bold m-0">
                       ${formatCurrency(salesOrder.total)}
                     </Text>

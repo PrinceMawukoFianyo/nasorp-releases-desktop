@@ -1,14 +1,38 @@
- // actions/dashboard.ts - FIXED VERSION
+// actions/dashboard.ts - FIXED VERSION
 'use server';
 
 import { getAuthenticatedUser } from "@/config/useAuth";
 import { db } from "@/prisma/db";
 
-// Helper function to calculate date range
+// Helper function to calculate date range.
+// Supports:
+//   preset strings : 'today' | '7d' | '30d' | '90d' | '12m'
+//   single date    : 'YYYY-MM-DD'
+//   date range     : 'YYYY-MM-DD_YYYY-MM-DD'
 function getDateRange(range: string) {
   const now = new Date();
-  const startDate = new Date();
 
+  // Custom date range: "2024-01-01_2024-01-31"
+  if (range && range.includes('_')) {
+    const [from, to] = range.split('_');
+    const startDate = new Date(from);
+    startDate.setHours(0, 0, 0, 0);
+    const endDate = new Date(to);
+    endDate.setHours(23, 59, 59, 999);
+    return { startDate, endDate };
+  }
+
+  // Single day: "2024-01-15"
+  if (range && /^\d{4}-\d{2}-\d{2}$/.test(range)) {
+    const startDate = new Date(range);
+    startDate.setHours(0, 0, 0, 0);
+    const endDate = new Date(range);
+    endDate.setHours(23, 59, 59, 999);
+    return { startDate, endDate };
+  }
+
+  // Preset ranges
+  const startDate = new Date();
   switch (range) {
     case 'today':
       startDate.setHours(0, 0, 0, 0);
@@ -81,9 +105,9 @@ export async function getDashboardData(dateRange: string) {
 
     const salesOrdersCount = salesOrders.length;
     
-    // Calculate sales value from completed orders only
-    const completedSalesOrders = salesOrders.filter(order => order.status === 'COMPLETED');
-    const salesOrdersValue = completedSalesOrders.reduce((sum, order) => {
+    // Calculate sales value from ALL orders in the date range (exclude CANCELLED)
+    const activeSalesOrders = salesOrders.filter(order => order.status !== 'CANCELLED');
+    const salesOrdersValue = activeSalesOrders.reduce((sum, order) => {
       // Use lines for accurate calculation, fallback to order totals
       if (order.lines && order.lines.length > 0) {
         const orderTotal = order.lines.reduce((lineSum: number, line) => {
@@ -94,7 +118,11 @@ export async function getDashboardData(dateRange: string) {
       return sum + (order.subtotal + order.taxAmount - (order.discount || 0));
     }, 0);
 
-    // 3. Get Purchase Orders Count and Value - FIXED
+    // Breakdown by status for the stat card subtitle (optional enrichment)
+    const completedSalesCount = salesOrders.filter(o => o.status === 'COMPLETED').length;
+    const pendingSalesCount = salesOrders.filter(o => ['CONFIRMED', 'PROCESSING', 'SHIPPED', 'DRAFT'].includes(o.status)).length;
+
+    // 3. Get Purchase Orders Count and Value - ALL statuses except CANCELLED
     const purchaseOrders = await db.purchaseOrder.findMany({
       where: {
         orgId,
@@ -102,9 +130,9 @@ export async function getDashboardData(dateRange: string) {
           gte: startDate,
           lte: endDate,
         },
-        // Include various statuses that represent actual purchases
+        // Include all active statuses - exclude only CANCELLED
         status: {
-          in: ['APPROVED', 'RECEIVED', 'COMPLETED', 'PARTIALLY_RECEIVED', 'SUBMITTED']
+          notIn: ['CANCELLED'],
         },
       },
       include: {
@@ -333,6 +361,8 @@ export async function getDashboardData(dateRange: string) {
       totalItems,
       salesOrdersCount,
       salesOrdersValue,
+      completedSalesCount,
+      pendingSalesCount,
       purchaseOrdersCount,
       purchaseOrdersValue,
       lowStockCount,
@@ -348,7 +378,11 @@ export async function getDashboardData(dateRange: string) {
       inventoryValue: result.inventoryValue,
       totalItems: result.totalItems,
       salesOrders: result.salesOrdersCount,
+      salesOrdersValue: result.salesOrdersValue,
+      completedSales: result.completedSalesCount,
+      pendingSales: result.pendingSalesCount,
       purchaseOrders: result.purchaseOrdersCount,
+      purchaseOrdersValue: result.purchaseOrdersValue,
       topSelling: result.topSellingProducts.length,
       salesByCategory: result.salesByCategory.length,
     });
@@ -377,6 +411,8 @@ function getSampleDashboardData() {
     totalItems: 45,
     salesOrdersCount: 23,
     salesOrdersValue: 85000,
+    completedSalesCount: 18,
+    pendingSalesCount: 5,
     purchaseOrdersCount: 12,
     purchaseOrdersValue: 45000,
     lowStockCount: 3,
@@ -1114,4 +1150,4 @@ export async function exportStockMovementsToExcel(dateRange: string) {
 export async function exportFinancialSummaryToExcel(dateRange: string) {
   const data = await getFinancialSummaries(dateRange);
   return data;
-} 
+}

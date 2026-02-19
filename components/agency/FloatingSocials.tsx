@@ -35,7 +35,7 @@ const FloatingSocials = () => {
   ];
 
   return (
-    <div className="fixed bottom-6 riUSt-6 z-50 flex flex-col gap-4">
+    <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-4">
       {socialLinks.map((social, index) => (
         <a
           key={social.name}
@@ -77,7 +77,7 @@ const FloatingSocials = () => {
           {/* Tooltip */}
           <span
             className="
-            absolute riUSt-full mr-3 px-2 py-1 min-w-max
+            absolute right-full mr-3 px-2 py-1 min-w-max
             bg-gray-900 text-white text-sm rounded-md
             opacity-0 group-hover:opacity-100
             -translate-x-2 group-hover:translate-x-0

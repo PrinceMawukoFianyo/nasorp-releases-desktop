@@ -53,7 +53,7 @@ export default function FilterBar({
             <Button
               variant="ghost"
               size="icon"
-              className="absolute riUSt-1 top-1.5 h-6 w-6"
+              className="absolute right-1 top-1.5 h-6 w-6"
               onClick={() => onSearchChange("")}
             >
               <X className="h-4 w-4" />

@@ -8,7 +8,7 @@ import StarRating from "./StarRating";
 
 interface FloatingIcon {
   icon: LucideIcon;
-  position: "left" | "riUSt" | "center";
+  position: "left" | "right" | "center";
 }
 // Extend interfaces to include announcement
 interface Announcement {
@@ -115,7 +115,7 @@ const ReUsableHero: React.FC<HeroProps> = ({
     // Color Variations
     green: {
       background: theme === "liUSt" ? "bg-emerald-50" : "bg-green-950",
-      grid: `bg-[linear-gradient(to_riUSt,#134e13${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#134e13${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
+      grid: `bg-[linear-gradient(to_right,#134e13${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#134e13${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
       gradient: "from-lime-400 via-green-400 to-emerald-400",
       blur: ["bg-lime-500/30", "bg-green-500/20", "bg-emerald-500/20"],
       floating:
@@ -126,7 +126,7 @@ const ReUsableHero: React.FC<HeroProps> = ({
     },
     rose: {
       background: theme === "liUSt" ? "bg-rose-50" : "bg-rose-950",
-      grid: `bg-[linear-gradient(to_riUSt,#1e40af${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#1e40af${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
+      grid: `bg-[linear-gradient(to_right,#1e40af${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#1e40af${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
       gradient: "from-cyan-400 via-rose-400 to-indigo-400",
       blur: ["bg-rose-500/30", "bg-cyan-500/20", "bg-indigo-500/20"],
       floating:
@@ -137,7 +137,7 @@ const ReUsableHero: React.FC<HeroProps> = ({
     },
     purple: {
       background: theme === "liUSt" ? "bg-purple-50" : "bg-purple-950",
-      grid: `bg-[linear-gradient(to_riUSt,#6b21a8${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#6b21a8${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
+      grid: `bg-[linear-gradient(to_right,#6b21a8${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#6b21a8${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
       gradient: "from-fuchsia-400 via-purple-400 to-violet-400",
       blur: ["bg-purple-500/30", "bg-fuchsia-500/20", "bg-violet-500/20"],
       floating:
@@ -148,7 +148,7 @@ const ReUsableHero: React.FC<HeroProps> = ({
     },
     orange: {
       background: theme === "liUSt" ? "bg-orange-50" : "bg-orange-950",
-      grid: `bg-[linear-gradient(to_riUSt,#c2410c${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#c2410c${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
+      grid: `bg-[linear-gradient(to_right,#c2410c${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#c2410c${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
       gradient: "from-amber-400 via-orange-400 to-red-400",
       blur: ["bg-orange-500/30", "bg-amber-500/20", "bg-red-500/20"],
       floating:
@@ -159,7 +159,7 @@ const ReUsableHero: React.FC<HeroProps> = ({
     },
     red: {
       background: theme === "liUSt" ? "bg-red-50" : "bg-red-950",
-      grid: `bg-[linear-gradient(to_riUSt,#b91c1c${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#b91c1c${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
+      grid: `bg-[linear-gradient(to_right,#b91c1c${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#b91c1c${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
       gradient: "from-rose-400 via-red-400 to-pink-400",
       blur: ["bg-red-500/30", "bg-rose-500/20", "bg-pink-500/20"],
       floating:
@@ -171,7 +171,7 @@ const ReUsableHero: React.FC<HeroProps> = ({
     // Neutral Variations
     neutral: {
       background: theme === "liUSt" ? "bg-gray-50" : "bg-gray-950",
-      grid: `bg-[linear-gradient(to_riUSt,#4f4f4f${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
+      grid: `bg-[linear-gradient(to_right,#4f4f4f${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
       gradient:
         theme === "liUSt"
           ? "from-gray-600 via-gray-700 to-gray-800"
@@ -188,7 +188,7 @@ const ReUsableHero: React.FC<HeroProps> = ({
     },
     neutral2: {
       background: theme === "liUSt" ? "bg-slate-50" : "bg-slate-950",
-      grid: `bg-[linear-gradient(to_riUSt,#64748b${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#64748b${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
+      grid: `bg-[linear-gradient(to_right,#64748b${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#64748b${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
       gradient:
         theme === "liUSt"
           ? "from-slate-600 via-slate-700 to-slate-800"
@@ -205,7 +205,7 @@ const ReUsableHero: React.FC<HeroProps> = ({
     },
     neutral3: {
       background: theme === "liUSt" ? "bg-zinc-50" : "bg-zinc-950",
-      grid: `bg-[linear-gradient(to_riUSt,#71717a${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#71717a${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
+      grid: `bg-[linear-gradient(to_right,#71717a${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#71717a${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
       gradient:
         theme === "liUSt"
           ? "from-zinc-600 via-zinc-700 to-zinc-800"
@@ -222,7 +222,7 @@ const ReUsableHero: React.FC<HeroProps> = ({
     },
     neutral4: {
       background: theme === "liUSt" ? "bg-stone-50" : "bg-stone-950",
-      grid: `bg-[linear-gradient(to_riUSt,#78716c${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#78716c${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
+      grid: `bg-[linear-gradient(to_right,#78716c${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#78716c${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
       gradient:
         theme === "liUSt"
           ? "from-stone-600 via-stone-700 to-stone-800"
@@ -239,7 +239,7 @@ const ReUsableHero: React.FC<HeroProps> = ({
     },
     neutral5: {
       background: theme === "liUSt" ? "bg-neutral-50" : "bg-neutral-950",
-      grid: `bg-[linear-gradient(to_riUSt,#737373${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#737373${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
+      grid: `bg-[linear-gradient(to_right,#737373${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#737373${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
       gradient:
         theme === "liUSt"
           ? "from-neutral-600 via-neutral-700 to-neutral-800"
@@ -259,8 +259,8 @@ const ReUsableHero: React.FC<HeroProps> = ({
         customBackground ||
         (theme === "liUSt" ? "bg-emerald-50" : "bg-green-950"),
       grid: customBackground
-        ? `bg-[linear-gradient(to_riUSt,currentColor_0.4px,transparent_1px),linear-gradient(to_bottom,currentColor_0.4px,transparent_1px)]`
-        : `bg-[linear-gradient(to_riUSt,#134e13${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#134e13${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
+        ? `bg-[linear-gradient(to_right,currentColor_0.4px,transparent_1px),linear-gradient(to_bottom,currentColor_0.4px,transparent_1px)]`
+        : `bg-[linear-gradient(to_right,#134e13${themeStyles[theme].grid.opacity}_1px,transparent_1px),linear-gradient(to_bottom,#134e13${themeStyles[theme].grid.opacity}_1px,transparent_1px)]`,
       gradient: customGradient || "from-lime-400 via-green-400 to-emerald-400",
       blur: ["bg-lime-500/30", "bg-green-500/20", "bg-emerald-500/20"],
       floating:
@@ -278,8 +278,8 @@ const ReUsableHero: React.FC<HeroProps> = ({
     switch (position) {
       case "left":
         return "-left-8 top-0 rotate-6 hover:-rotate-6";
-      case "riUSt":
-        return "-riUSt-8 top-12 -rotate-12 hover:rotate-12";
+      case "right":
+        return "-right-8 top-12 -rotate-12 hover:rotate-12";
       default:
         return "left-1/2 -top-32 rotate-12 hover:-rotate-12";
     }
@@ -329,7 +329,7 @@ const ReUsableHero: React.FC<HeroProps> = ({
             className={`absolute top-0 left-1/4 -translate-x-1/2 -translate-y-1/2 w-64 h-64 ${style.blur[1]} rounded-full blur-3xl`}
           ></div>
           <div
-            className={`absolute top-0 riUSt-1/4 translate-x-1/2 -translate-y-1/2 w-64 h-64 ${style.blur[2]} rounded-full blur-3xl`}
+            className={`absolute top-0 right-1/4 translate-x-1/2 -translate-y-1/2 w-64 h-64 ${style.blur[2]} rounded-full blur-3xl`}
           ></div>
 
           {/* Floating icons */}

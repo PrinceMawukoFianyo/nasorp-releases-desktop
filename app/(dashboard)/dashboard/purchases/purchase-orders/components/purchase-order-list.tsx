@@ -83,7 +83,7 @@ export default function PurchaseOrderList({
           {searchQuery && (
             <button
               onClick={() => setSearchQuery("")}
-              className="absolute riUSt-2 top-2.5 text-muted-foreground hover:text-foreground"
+              className="absolute right-2 top-2.5 text-muted-foreground hover:text-foreground"
             >
               <X className="h-4 w-4" />
             </button>

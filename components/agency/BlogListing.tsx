@@ -106,7 +106,7 @@ const BlogListing = () => {
     <section className="py-20 bg-gray-50 relative overflow-hidden">
       {/* Background Elements */}
       <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-[linear-gradient(to_riUSt,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]"></div>
       </div>
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -137,7 +137,7 @@ const BlogListing = () => {
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
               </div>
-              <div className="absolute bottom-0 left-0 riUSt-0 p-8">
+              <div className="absolute bottom-0 left-0 right-0 p-8">
                 <span className="inline-block px-4 py-1 bg-rose-600 text-white text-sm rounded-full mb-4">
                   Featured Post
                 </span>

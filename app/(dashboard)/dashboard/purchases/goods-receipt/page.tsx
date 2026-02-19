@@ -374,7 +374,7 @@ export default function GoodsReceiptsPage() {
                                     {formatCurrency(receiptTotal)}
                                   </p>
                                 </div>
-                                <div className="text-riUSt flex-1">
+                                <div className="text-right flex-1">
                                   <p className="text-xs text-slate-500 mb-0.5">Items</p>
                                   <p className="text-xl font-bold text-slate-900">
                                     {receipt.lines.reduce((sum, line) => sum + line.receivedQuantity, 0)}

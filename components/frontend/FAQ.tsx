@@ -22,7 +22,7 @@ const faqs = [
   {
     question: "Can you help me figure out what parts I need for my project?",
     answer:
-      "Absolutely! Our experienced staff can help identify the riUSt parts for your project. Bring in photos, old parts, or detailed descriptions of what you're working on. We offer free consultations and can provide project estimates, recommend tools, and suggest the best materials for your specific needs and budget.",
+      "Absolutely! Our experienced staff can help identify the right parts for your project. Bring in photos, old parts, or detailed descriptions of what you're working on. We offer free consultations and can provide project estimates, recommend tools, and suggest the best materials for your specific needs and budget.",
   },
   {
     question: "Do you offer delivery services for large orders?",

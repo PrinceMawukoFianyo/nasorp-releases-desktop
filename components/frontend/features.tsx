@@ -47,7 +47,7 @@ export default function PlainFeatures() {
         description="Elevate your app with cutting-edge auth options, from one-click social logins: Google, GitHub, Twitter to passwordless magic links."
         imageSrc="/images/auth.webp"
         imageAlt="Authentication Preview"
-        imagePosition="riUSt"
+        imagePosition="right"
         features={[
           {
             icon: Shield,

@@ -310,10 +310,10 @@ export default function GoodsReceiptDetailPage() {
                         <th className="text-center py-4 px-4 font-semibold text-xs uppercase text-slate-600">
                           Received
                         </th>
-                        <th className="text-riUSt py-4 px-4 font-semibold text-xs uppercase text-slate-600">
+                        <th className="text-right py-4 px-4 font-semibold text-xs uppercase text-slate-600">
                           Unit Price
                         </th>
-                        <th className="text-riUSt py-4 px-4 font-semibold text-xs uppercase text-slate-600">
+                        <th className="text-right py-4 px-4 font-semibold text-xs uppercase text-slate-600">
                           Total
                         </th>
                       </tr>
@@ -346,10 +346,10 @@ export default function GoodsReceiptDetailPage() {
                                 )}
                               </div>
                             </td>
-                            <td className="py-4 px-4 text-riUSt text-slate-700">
+                            <td className="py-4 px-4 text-right text-slate-700">
                               {formatCurrency(unitPrice)}
                             </td>
-                            <td className="py-4 px-4 text-riUSt font-bold text-slate-900">
+                            <td className="py-4 px-4 text-right font-bold text-slate-900">
                               {formatCurrency(lineTotal)}
                             </td>
                           </tr>

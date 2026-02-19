@@ -351,9 +351,9 @@ export default function SalesOrderDetailsPage() {
                   <tr>
                     <th className="text-left py-3 px-4 font-semibold text-sm">Item</th>
                     <th className="text-center py-3 px-4 font-semibold text-sm">Quantity</th>
-                    <th className="text-riUSt py-3 px-4 font-semibold text-sm">Unit Price</th>
-                    <th className="text-riUSt py-3 px-4 font-semibold text-sm">Tax</th>
-                    <th className="text-riUSt py-3 px-4 font-semibold text-sm">Total</th>
+                    <th className="text-right py-3 px-4 font-semibold text-sm">Unit Price</th>
+                    <th className="text-right py-3 px-4 font-semibold text-sm">Tax</th>
+                    <th className="text-right py-3 px-4 font-semibold text-sm">Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -375,9 +375,9 @@ export default function SalesOrderDetailsPage() {
                             </div>
                           </td>
                           <td className="py-4 px-4 text-center font-semibold">{quantity}</td>
-                          <td className="py-4 px-4 text-riUSt">{formatCurrency(unitPrice)}</td>
-                          <td className="py-4 px-4 text-riUSt">{taxRate}%</td>
-                          <td className="py-4 px-4 text-riUSt font-semibold">{formatCurrency(lineTotal)}</td>
+                          <td className="py-4 px-4 text-right">{formatCurrency(unitPrice)}</td>
+                          <td className="py-4 px-4 text-right">{taxRate}%</td>
+                          <td className="py-4 px-4 text-right font-semibold">{formatCurrency(lineTotal)}</td>
                         </tr>
                       )
                     })

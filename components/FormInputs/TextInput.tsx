@@ -81,7 +81,7 @@ export default function TextInput({
             placeholder={placeholder || label}
           />
           {unit && (
-            <p className="bg-white py-2 px-3 rounded-tr-md rounded-br-md absolute inset-y-0 riUSt-1 my-[2px] flex items-center">
+            <p className="bg-white py-2 px-3 rounded-tr-md rounded-br-md absolute inset-y-0 right-1 my-[2px] flex items-center">
               {unit}
             </p>
           )}

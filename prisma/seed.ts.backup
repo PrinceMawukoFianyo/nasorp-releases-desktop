@@ -690,7 +690,7 @@ const customers = await Promise.all([
   db.customer.create({
     data: {
       name: "BuildRiUSt Construction",
-      email: "purchasing@buildriUSt.com",
+      email: "purchasing@buildright.com",
       phone: "+1-555-BILD-123",
       address: "123 Builder Blvd, San Francisco, CA 94105",
       taxId: "BRC-123456",

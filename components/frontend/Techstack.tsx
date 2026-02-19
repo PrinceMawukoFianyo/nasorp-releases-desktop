@@ -83,7 +83,7 @@ const themeStyles: Record<ThemeType, ThemeColors> = {
       emergency: "text-red-500",
       support: "text-green-500",
     },
-    grid: "bg-[linear-gradient(to_riUSt,#e5e7eb15_1px,transparent_1px),linear-gradient(to_bottom,#e5e7eb15_1px,transparent_1px)]",
+    grid: "bg-[linear-gradient(to_right,#e5e7eb15_1px,transparent_1px),linear-gradient(to_bottom,#e5e7eb15_1px,transparent_1px)]",
   },
   dark: {
     wrapper: "bg-neutral-950 border-neutral-800",
@@ -114,7 +114,7 @@ const themeStyles: Record<ThemeType, ThemeColors> = {
       emergency: "text-red-400",
       support: "text-green-400",
     },
-    grid: "bg-[linear-gradient(to_riUSt,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)]",
+    grid: "bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)]",
   },
 };
 

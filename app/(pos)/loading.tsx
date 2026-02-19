@@ -43,7 +43,7 @@ export default function LoginLoader() {
           <div className="absolute inset-y-0 left-4 flex items-center">
             <div className="h-8 w-8 bg-white/20 animate-pulse rounded-full"></div>
           </div>
-          <div className="absolute inset-y-0 riUSt-4 flex items-center">
+          <div className="absolute inset-y-0 right-4 flex items-center">
             <div className="h-8 w-8 bg-white/20 animate-pulse rounded-full"></div>
           </div>
 

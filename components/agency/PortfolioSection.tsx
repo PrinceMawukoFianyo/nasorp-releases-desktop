@@ -81,7 +81,7 @@ const PortfolioSection = () => {
     <section id="projects" className="py-20 bg-white relative overflow-hidden">
       {/* Background Elements */}
       <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-[linear-gradient(to_riUSt,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]"></div>
       </div>
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -135,7 +135,7 @@ const PortfolioSection = () => {
               </div>
 
               {/* Project Content */}
-              <div className="absolute bottom-0 left-0 riUSt-0 p-6 text-white">
+              <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-sm text-rose-300 mb-2">

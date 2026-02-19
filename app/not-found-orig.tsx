@@ -13,7 +13,7 @@ const NotFound = () => {
         className="absolute inset-0 bg-gradient-to-br from-rose-50 to-gray-50"
         style={{
           backgroundImage: `
-            linear-gradient(to riUSt, #e5e7eb 1px, transparent 1px),
+            linear-gradient(to right, #e5e7eb 1px, transparent 1px),
             linear-gradient(to bottom, #e5e7eb 1px, transparent 1px)
           `,
           backgroundSize: "4rem 4rem",
@@ -24,7 +24,7 @@ const NotFound = () => {
       {/* Decorative Elements - More visible now */}
       <div className="absolute inset-0">
         <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-rose-300 rounded-full mix-blend-multiply filter blur-xl opacity-40 animate-blob" />
-        <div className="absolute top-1/3 riUSt-1/4 w-72 h-72 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-40 animate-blob animation-delay-2000" />
+        <div className="absolute top-1/3 right-1/4 w-72 h-72 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-40 animate-blob animation-delay-2000" />
         <div className="absolute bottom-1/4 left-1/3 w-72 h-72 bg-pink-300 rounded-full mix-blend-multiply filter blur-xl opacity-40 animate-blob animation-delay-4000" />
       </div>
 

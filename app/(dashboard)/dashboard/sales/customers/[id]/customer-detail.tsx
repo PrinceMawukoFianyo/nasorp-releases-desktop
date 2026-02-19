@@ -516,7 +516,7 @@ export default function CustomerDetail({
                               </span>
                             </div>
                           </div>
-                          <div className="text-riUSt">
+                          <div className="text-right">
                             <p className="text-2xl font-bold text-gray-900">
                               {formatCurrency(getOrderTotal(order))}
                             </p>

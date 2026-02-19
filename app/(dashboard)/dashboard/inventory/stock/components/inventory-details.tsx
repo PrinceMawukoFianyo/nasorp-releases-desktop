@@ -130,13 +130,13 @@ export function InventoryDetailsEnhanced({ item, orgId, onItemUpdate }: Inventor
                     <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       Location
                     </th>
-                    <th className="px-4 py-3 text-riUSt text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       Qty
                     </th>
-                    <th className="px-4 py-3 text-riUSt text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       Reserved
                     </th>
-                    <th className="px-4 py-3 text-riUSt text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       Available
                     </th>
                   </tr>
@@ -147,11 +147,11 @@ export function InventoryDetailsEnhanced({ item, orgId, onItemUpdate }: Inventor
                     return (
                       <tr key={location.id} className="hover:bg-secondary/50 transition-colors">
                         <td className="px-4 py-3 text-sm font-medium text-foreground">{location.name}</td>
-                        <td className="px-4 py-3 text-sm text-foreground text-riUSt font-semibold">
+                        <td className="px-4 py-3 text-sm text-foreground text-right font-semibold">
                           {location.quantity}
                         </td>
-                        <td className="px-4 py-3 text-sm text-accent text-riUSt font-semibold">{location.reserved}</td>
-                        <td className="px-4 py-3 text-sm font-semibold text-riUSt">
+                        <td className="px-4 py-3 text-sm text-accent text-right font-semibold">{location.reserved}</td>
+                        <td className="px-4 py-3 text-sm font-semibold text-right">
                           <span className={locationAvailable === 0 ? "text-red-600" : "text-green-600"}>
                             {locationAvailable}
                           </span>

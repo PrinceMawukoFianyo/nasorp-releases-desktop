@@ -68,7 +68,6 @@ export async function getOrgItems(orgId: string, params = {}) {
 // ✅ BEST FIX: Use Prisma directly to fetch ALL items without API pagination limits
 export async function getOrgBriefItems(orgId: string, params?: any) {
   try {
-    // Option 1: Use Prisma directly (RECOMMENDED - bypasses API pagination)
     const items = await db.item.findMany({
       where: {
         orgId,
@@ -81,8 +80,6 @@ export async function getOrgBriefItems(orgId: string, params?: any) {
         thumbnail: true,
         sellingPrice: true,
         costPrice: true,
-        salesCount: true,
-        salesTotal: true,
         isActive: true,
         categoryId: true,
         brandId: true,
@@ -104,6 +101,20 @@ export async function getOrgBriefItems(orgId: string, params?: any) {
             supplierId: true,
           }
         },
+        // ✅ Compute live sales data — excludes DRAFT and CANCELLED orders
+        salesOrderLines: {
+          where: {
+            salesOrders: {
+              status: {
+                notIn: ["DRAFT", "CANCELLED"],
+              },
+            },
+          },
+          select: {
+            quantity: true,
+            total: true,
+          },
+        },
         updatedAt: true,
         createdAt: true,
       },
@@ -112,27 +123,29 @@ export async function getOrgBriefItems(orgId: string, params?: any) {
       },
     });
 
+    // Compute salesCount and salesTotal from actual SalesOrderLine records
+    const itemsWithStats = items.map((item) => {
+      const { salesOrderLines, ...rest } = item;
+      const salesCount = salesOrderLines.reduce(
+        (sum, line) => sum + line.quantity,
+        0
+      );
+      const salesTotal = salesOrderLines.reduce(
+        (sum, line) => sum + line.total,
+        0
+      );
+      return { ...rest, salesCount, salesTotal };
+    });
+
     return {
       success: true,
-      data: items,
-      total: items.length,
+      data: itemsWithStats,
+      total: itemsWithStats.length,
     };
-    
-    // Option 2: If you must use the API, add pagination params
-    // const api = await getAuthenticatedApi();
-    // const requestParams = {
-    //   limit: 1000, // High limit to get all items
-    //   page: 1,
-    //   ...params,
-    // };
-    // const res = await api.get(`/organisations/${orgId}/brief-items`, {
-    //   params: requestParams,
-    // });
-    // return res.data;
-    
+
   } catch (error) {
     console.error("Error fetching items:", error);
-    
+
     if (axios.isAxiosError(error)) {
       const message = error.response?.data?.error || "Failed to fetch items";
       return {
@@ -146,6 +159,60 @@ export async function getOrgBriefItems(orgId: string, params?: any) {
       success: false,
       error: "An unexpected error occurred",
       data: [],
+    };
+  }
+}
+
+/**
+ * ✅ One-time migration helper: syncs stored salesCount + salesTotal fields
+ * on every Item from actual SalesOrderLine records (skipping DRAFT/CANCELLED).
+ * Useful to backfill historical data, or call after bulk imports.
+ */
+export async function recomputeItemSalesStats(orgId: string) {
+  try {
+    const items = await db.item.findMany({
+      where: { orgId },
+      select: {
+        id: true,
+        salesOrderLines: {
+          where: {
+            salesOrders: {
+              status: { notIn: ["DRAFT", "CANCELLED"] },
+            },
+          },
+          select: {
+            quantity: true,
+            total: true,
+          },
+        },
+      },
+    });
+
+    const updates = items.map((item) => {
+      const salesCount = item.salesOrderLines.reduce(
+        (sum, line) => sum + line.quantity,
+        0
+      );
+      const salesTotal = item.salesOrderLines.reduce(
+        (sum, line) => sum + line.total,
+        0
+      );
+      return db.item.update({
+        where: { id: item.id },
+        data: { salesCount, salesTotal },
+      });
+    });
+
+    await db.$transaction(updates);
+
+    revalidatePath("/dashboard/inventory/items");
+    console.log(`✅ Recomputed sales stats for ${items.length} items`);
+    return { success: true, updated: items.length };
+  } catch (error) {
+    console.error("❌ Failed to recompute sales stats:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }

@@ -15,7 +15,7 @@ interface FeatureSectionProps {
   features: FeaturePoint[];
   imageSrc: string;
   imageAlt: string;
-  imagePosition?: "left" | "riUSt";
+  imagePosition?: "left" | "right";
   theme?: "liUSt" | "dark";
   className?: string;
 }
@@ -71,12 +71,12 @@ const FeatureSection: React.FC<FeatureSectionProps> = ({
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16 shadow my-8 rounded-md">
           <div
             className={`grid lg:grid-cols-2 gap-8 lg:gap-16 items-center
-          ${imagePosition === "riUSt" ? "" : "lg:grid-flow-col-dense"}`}
+          ${imagePosition === "right" ? "" : "lg:grid-flow-col-dense"}`}
           >
             {/* Content Section */}
             <div
               className={`${
-                imagePosition === "riUSt" ? "lg:order-1" : "lg:order-2"
+                imagePosition === "right" ? "lg:order-1" : "lg:order-2"
               }`}
             >
               <div className="space-y-6">
@@ -145,7 +145,7 @@ const FeatureSection: React.FC<FeatureSectionProps> = ({
             <div
               className={`
             relative mx-auto w-full max-w-xl lg:max-w-none
-            ${imagePosition === "riUSt" ? "lg:order-2" : "lg:order-1"}
+            ${imagePosition === "right" ? "lg:order-2" : "lg:order-1"}
           `}
             >
               <div className="relative w-full">

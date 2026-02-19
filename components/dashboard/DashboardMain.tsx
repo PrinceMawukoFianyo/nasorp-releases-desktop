@@ -1,4 +1,4 @@
-// components/dashboard-main.tsx - UPDATED
+// components/dashboard-main.tsx
 "use client";
 
 import {
@@ -16,15 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Package,
   ShoppingCart,
@@ -35,12 +27,13 @@ import {
   AlertTriangle,
   ShoppingBag,
   Download,
-  Users,
   BarChart3,
   PieChart,
 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import DateRangePicker from "../ui/date-range-picker";
+
 
 type DashboardData = {
   inventoryValue: number;
@@ -98,9 +91,9 @@ type Props = {
   error?: string;
 };
 
-// Bar Chart Component
+// ── Bar Chart ─────────────────────────────────────────────────────────────────
 function BarChart({ data }: { data: Array<{ label: string; value: number }> }) {
-  if (!data || data.length === 0 || data.every(item => item.value === 0)) {
+  if (!data || data.length === 0 || data.every((item) => item.value === 0)) {
     return (
       <div className="text-center text-muted-foreground py-8">
         <BarChart3 className="h-12 w-12 mx-auto mb-2 opacity-50" />
@@ -126,7 +119,7 @@ function BarChart({ data }: { data: Array<{ label: string; value: number }> }) {
             <div
               className="bg-rose-600 h-2 rounded-full transition-all"
               style={{ width: `${maxValue > 0 ? (item.value / maxValue) * 100 : 0}%` }}
-            ></div>
+            />
           </div>
         </div>
       ))}
@@ -134,9 +127,13 @@ function BarChart({ data }: { data: Array<{ label: string; value: number }> }) {
   );
 }
 
-// Donut Chart Component
-function DonutChart({ data }: { data: Array<{ label: string; value: number; color: string }> }) {
-  if (!data || data.length === 0 || data.every(item => item.value === 0)) {
+// ── Donut Chart ───────────────────────────────────────────────────────────────
+function DonutChart({
+  data,
+}: {
+  data: Array<{ label: string; value: number; color: string }>;
+}) {
+  if (!data || data.length === 0 || data.every((item) => item.value === 0)) {
     return (
       <div className="text-center text-muted-foreground py-8">
         <PieChart className="h-12 w-12 mx-auto mb-2 opacity-50" />
@@ -147,7 +144,6 @@ function DonutChart({ data }: { data: Array<{ label: string; value: number; colo
   }
 
   const total = data.reduce((sum, item) => sum + item.value, 0);
-  
   if (total === 0) {
     return (
       <div className="text-center text-muted-foreground py-8">
@@ -166,10 +162,6 @@ function DonutChart({ data }: { data: Array<{ label: string; value: number; colo
               const prevPercentages = data
                 .slice(0, index)
                 .reduce((sum, d) => sum + (d.value / total) * 100, 0);
-              
-              const strokeDasharray = `${percentage} ${100 - percentage}`;
-              const strokeDashoffset = -prevPercentages;
-
               return (
                 <circle
                   key={index}
@@ -179,8 +171,8 @@ function DonutChart({ data }: { data: Array<{ label: string; value: number; colo
                   fill="none"
                   stroke={item.color}
                   strokeWidth="20"
-                  strokeDasharray={strokeDasharray}
-                  strokeDashoffset={strokeDashoffset}
+                  strokeDasharray={`${percentage} ${100 - percentage}`}
+                  strokeDashoffset={-prevPercentages}
                   className="transition-all"
                 />
               );
@@ -200,7 +192,7 @@ function DonutChart({ data }: { data: Array<{ label: string; value: number; colo
             <div
               className="w-3 h-3 rounded-full flex-shrink-0"
               style={{ backgroundColor: item.color }}
-            ></div>
+            />
             <div className="text-sm min-w-0">
               <div className="font-medium truncate">{item.label}</div>
               <div className="text-muted-foreground">
@@ -214,23 +206,29 @@ function DonutChart({ data }: { data: Array<{ label: string; value: number; colo
   );
 }
 
-export default function DashboardMain({ 
-  data, 
-  initialPeriod = "7d", 
+// ── Main Component ─────────────────────────────────────────────────────────────
+export default function DashboardMain({
+  data,
+  initialPeriod = "7d",
   isLoading = false,
-  error 
+  error,
 }: Props) {
-  const [period, setPeriod] = useState(initialPeriod);
+  const router       = useRouter();
+  const pathname     = usePathname();
+  const searchParams = useSearchParams();
 
-  const handlePeriodChange = (newPeriod: string) => {
-    setPeriod(newPeriod);
+  // ✅ Push the new range to URL → triggers server re-render with fresh data
+  const handleRangeChange = (newRange: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("range", newRange);
+    router.push(`${pathname}?${params.toString()}`);
   };
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-600 mx-auto" />
           <p className="mt-4 text-muted-foreground">Loading dashboard data...</p>
         </div>
       </div>
@@ -257,67 +255,60 @@ export default function DashboardMain({
       title: "Inventory Value",
       value: `GH₵${(data.inventoryValue || 0).toLocaleString()}`,
       icon: DollarSign,
-      href: "/dashboard/inventory"
+      href: "/dashboard/inventory",
     },
     {
-      title: "Total Items", 
+      title: "Total Items",
       value: (data.totalItems || 0).toString(),
       icon: Package,
-      href: "/dashboard/inventory/items"
+      href: "/dashboard/inventory/items",
     },
     {
       title: "Total Sales Orders",
       value: `GH₵${(data.salesOrdersValue || 0).toLocaleString()}`,
       icon: ShoppingCart,
-      href: "/dashboard/sales/orders"
+      href: "/dashboard/sales/orders",
     },
     {
       title: "Total Purchase Orders",
       value: `GH₵${(data.purchaseOrdersValue || 0).toLocaleString()}`,
       icon: ShoppingBag,
-      href: "/dashboard/purchases/purchase-orders"
+      href: "/dashboard/purchases/purchase-orders",
     },
   ];
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto space-y-6 p-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
+
+        {/* ✅ Header — DateRangePicker replaces Select */}
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-            <p className="text-muted-foreground">
-              Here's your statistics overview.
-            </p>
+            <p className="text-muted-foreground">Here's your statistics overview.</p>
           </div>
-          <div className="flex items-center space-x-4">
-            <Select value={period} onValueChange={handlePeriodChange}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Select period" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="7d">Last 7 days</SelectItem>
-                <SelectItem value="30d">Last 30 days</SelectItem>
-                <SelectItem value="90d">Last 90 days</SelectItem>
-                <SelectItem value="12m">Last 12 months</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="flex items-center gap-3">
+            {/* ✅ Supports presets, single day (click once), and ranges (click start then end) */}
+            <DateRangePicker
+              value={initialPeriod}
+              onChange={handleRangeChange}
+            />
             <Button variant="outline">
               <Download className="mr-2 h-4 w-4" />
               Export to Excel
             </Button>
           </div>
         </div>
-        
-        {/* Big Cards - 4 cards in a row with background icons */}
+
+        {/* Big Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {bigCards.map((card, index) => (
-            <Card key={index} className="relative overflow-hidden hover:shadow-lg transition-shadow">
+            <Card
+              key={index}
+              className="relative overflow-hidden hover:shadow-lg transition-shadow"
+            >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {card.title}
-                </CardTitle>
+                <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
                 <card.icon className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -338,7 +329,6 @@ export default function DashboardMain({
 
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Bar Chart - Inventory by Location */}
           <Card className="hover:shadow-md transition-shadow">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -357,7 +347,6 @@ export default function DashboardMain({
             </CardContent>
           </Card>
 
-          {/* Donut Chart - Sales by Category */}
           <Card className="hover:shadow-md transition-shadow">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -372,14 +361,8 @@ export default function DashboardMain({
                   label: cat.category,
                   value: cat.value,
                   color: [
-                    "#3b82f6",
-                    "#8b5cf6", 
-                    "#ec4899",
-                    "#f59e0b",
-                    "#10b981",
-                    "#ef4444",
-                    "#84cc16",
-                    "#06b6d4",
+                    "#3b82f6", "#8b5cf6", "#ec4899", "#f59e0b",
+                    "#10b981", "#ef4444", "#84cc16", "#06b6d4",
                   ][index % 8],
                 }))}
               />
@@ -397,9 +380,7 @@ export default function DashboardMain({
                   <AlertTriangle className="h-5 w-5 text-orange-600" />
                   <span>Low Stock Alerts</span>
                 </CardTitle>
-                <CardDescription>
-                  Items below minimum stock level
-                </CardDescription>
+                <CardDescription>Items below minimum stock level</CardDescription>
               </div>
               <Link href="/dashboard/inventory/items?filter=low-stock">
                 <Button variant="link" size="sm">
@@ -429,14 +410,10 @@ export default function DashboardMain({
                       <TableRow key={item.id} className="hover:bg-gray-50">
                         <TableCell className="font-medium">{item.name}</TableCell>
                         <TableCell>
-                          <span className="text-red-600 font-semibold">
-                            {item.currentQty}
-                          </span>
+                          <span className="text-red-600 font-semibold">{item.currentQty}</span>
                         </TableCell>
                         <TableCell>{item.minLevel}</TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {item.location}
-                        </TableCell>
+                        <TableCell className="text-muted-foreground">{item.location}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -453,11 +430,13 @@ export default function DashboardMain({
                 <CardDescription>Best performing products by sales</CardDescription>
               </div>
               <Link href="/dashboard/inventory/items?sort=salesCount-desc">
-                <Button variant="link" size="sm">View Details <ArrowRight className="ml-1 h-4 w-4" /></Button>
+                <Button variant="link" size="sm">
+                  View Details <ArrowRight className="ml-1 h-4 w-4" />
+                </Button>
               </Link>
             </CardHeader>
             <CardContent>
-              {data.topSellingProducts?.length === 0 ? (
+              {(data.topSellingProducts || []).length === 0 ? (
                 <div className="text-center text-muted-foreground py-8">
                   <ShoppingCart className="h-12 w-12 mx-auto mb-2 opacity-50" />
                   <p>No sales data available</p>
@@ -473,11 +452,13 @@ export default function DashboardMain({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {data.topSellingProducts.map((item) => (
+                    {(data.topSellingProducts || []).map((item) => (
                       <TableRow key={item.id} className="hover:bg-gray-50">
                         <TableCell className="font-medium">{item.name}</TableCell>
                         <TableCell>{item.salesCount}</TableCell>
-                        <TableCell className="font-semibold">GH₵{item.salesTotal.toLocaleString()}</TableCell>
+                        <TableCell className="font-semibold">
+                          GH₵{item.salesTotal.toLocaleString()}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -487,156 +468,98 @@ export default function DashboardMain({
           </Card>
         </div>
 
-        {/* Bottom Tables Row */}
-        <div className="grid grid-cols-1  gap-6">
-          {/* Recent Customers */}
-          {/* <Card className="hover:shadow-md transition-shadow">
+        {/* Recent Sales Orders */}
+        <div className="grid grid-cols-1 gap-6">
+          <Card className="hover:shadow-md transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle>Recent Customers</CardTitle>
-                <CardDescription>Latest customer activity</CardDescription>
+                <CardTitle>Recent Sales Orders</CardTitle>
+                <CardDescription>Latest transactions</CardDescription>
               </div>
-              <Link href="/dashboard/customers">
+              <Link href="/dashboard/sales/orders">
                 <Button variant="link" size="sm">
                   View All <ArrowRight className="ml-1 h-4 w-4" />
                 </Button>
               </Link>
             </CardHeader>
             <CardContent>
-              {(data.recentCustomers || []).length === 0 ? (
+              {(data.recentSalesOrders || []).length === 0 ? (
                 <div className="text-center text-muted-foreground py-8">
-                  <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                  <p>No recent customers</p>
-                  <p className="text-sm mt-2">New customers will appear here</p>
+                  <FileText className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                  <p>No recent orders</p>
+                  <p className="text-sm mt-2">New sales orders will appear here</p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {(data.recentCustomers || []).map((customer) => (
-                    <Link href={`/dashboard/customers/${customer.id}`} key={customer.id}>
-                      <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer">
-                        <div className="flex items-center space-x-3">
-                          <Avatar>
-                            <AvatarFallback className="bg-rose-100 text-rose-800">
-                              {customer.name
-                                .split(" ")
-                                .map((n) => n[0])
-                                .join("")}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-medium">{customer.name}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {customer.email}
-                            </p>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Order #</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Total</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(data.recentSalesOrders || []).map((order) => (
+                      <TableRow key={order.id} className="hover:bg-gray-50">
+                        <TableCell className="font-medium">{order.orderNumber}</TableCell>
+                        <TableCell>{order.customerName}</TableCell>
+                        <TableCell>GH₵{order.total.toLocaleString()}</TableCell>
+                        <TableCell>
+                          <span
+                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                              order.status === "COMPLETED"
+                                ? "bg-green-100 text-green-800"
+                                : order.status === "PROCESSING"
+                                ? "bg-rose-100 text-rose-800"
+                                : order.status === "PENDING"
+                                ? "bg-yellow-100 text-yellow-800"
+                                : order.status === "CANCELLED"
+                                ? "bg-red-100 text-red-800"
+                                : "bg-gray-100 text-gray-800"
+                            }`}
+                          >
+                            {order.status}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-2">
+                            <Link href={`/dashboard/sales/orders/${order.id}/details`}>
+                              <Button variant="ghost" size="sm" title="View">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </Link>
+                            <Link
+                              href={`/dashboard/sales/orders/${order.id}/invoice`}
+                              target="_blank"
+                            >
+                              <Button variant="ghost" size="sm" title="Print">
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  className="h-4 w-4"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+                                  />
+                                </svg>
+                              </Button>
+                            </Link>
                           </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-semibold">
-                            GH₵{customer.totalSpent.toLocaleString()}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {customer.totalOrders} orders
-                          </p>
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               )}
             </CardContent>
-          </Card> */}
-
-          {/* Recent Sales Orders */}
-          <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Recent Sales Orders</CardTitle>
-              <CardDescription>Latest transactions</CardDescription>
-            </div>
-            <div className="flex items-center space-x-2">
-      
-              <Link href="/dashboard/sales/orders">
-                <Button variant="link" size="sm">
-                  View All <ArrowRight className="ml-1 h-4 w-4" />
-                </Button>
-              </Link>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {(data.recentSalesOrders || []).length === 0 ? (
-              <div className="text-center text-muted-foreground py-8">
-                <FileText className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p>No recent orders</p>
-                <p className="text-sm mt-2">New sales orders will appear here</p>
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Order #</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(data.recentSalesOrders || []).map((order) => (
-                    <TableRow key={order.id} className="hover:bg-gray-50">
-                      <TableCell className="font-medium">{order.orderNumber}</TableCell>
-                      <TableCell>{order.customerName}</TableCell>
-                      <TableCell>GH₵{order.total.toLocaleString()}</TableCell>
-                      <TableCell>
-                        <span
-                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                            order.status === "COMPLETED"
-                              ? "bg-green-100 text-green-800"
-                              : order.status === "PROCESSING"
-                              ? "bg-rose-100 text-rose-800"
-                              : order.status === "PENDING"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : order.status === "CANCELLED"
-                              ? "bg-red-100 text-red-800"
-                              : "bg-gray-100 text-gray-800"
-                          }`}
-                        >
-                          {order.status}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <Link href={`/dashboard/sales/orders/${order.id}/details`}>
-                            <Button variant="ghost" size="sm" title="View">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </Link>
-                          <Link href={`/dashboard/sales/orders/${order.id}/invoice`} target="_blank">
-                            <Button variant="ghost" size="sm" title="Print">
-                              <svg 
-                                xmlns="http://www.w3.org/2000/svg" 
-                                className="h-4 w-4" 
-                                fill="none" 
-                                viewBox="0 0 24 24" 
-                                stroke="currentColor"
-                              >
-                                <path 
-                                  strokeLinecap="round" 
-                                  strokeLinejoin="round" 
-                                  strokeWidth={2} 
-                                  d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" 
-                                />
-                              </svg>
-                            </Button>
-                          </Link>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+          </Card>
         </div>
       </div>
     </div>

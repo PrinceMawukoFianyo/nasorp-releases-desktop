@@ -95,7 +95,7 @@ export default function TransfersList({ transfers, status }: TransfersListProps)
                 <TableHead>Items</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Created By</TableHead>
-                <TableHead className="text-riUSt">Action</TableHead>
+                <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -130,7 +130,7 @@ export default function TransfersList({ transfers, status }: TransfersListProps)
                   <TableCell className="text-sm text-muted-foreground">
                     {transfer.createdBy.name || transfer.createdBy.email}
                   </TableCell>
-                  <TableCell className="text-riUSt">
+                  <TableCell className="text-right">
                     <Button variant="outline" size="sm" onClick={() => handleViewDetails(transfer.id)}>
                       View Details
                     </Button>

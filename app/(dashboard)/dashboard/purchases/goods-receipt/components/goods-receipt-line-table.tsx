@@ -53,11 +53,11 @@ export function GoodsReceiptLineTable({ items, showActions = false }: GoodsRecei
         <TableHeader>
           <TableRow>
             <TableHead>Item</TableHead>
-            <TableHead className="text-riUSt">Ordered Quantity</TableHead>
-            <TableHead className="text-riUSt">Received Quantity</TableHead>
-            <TableHead className="text-riUSt">Unit Price</TableHead>
-            <TableHead className="text-riUSt">Tax Rate</TableHead>
-            <TableHead className="text-riUSt">Line Total</TableHead>
+            <TableHead className="text-right">Ordered Quantity</TableHead>
+            <TableHead className="text-right">Received Quantity</TableHead>
+            <TableHead className="text-right">Unit Price</TableHead>
+            <TableHead className="text-right">Tax Rate</TableHead>
+            <TableHead className="text-right">Line Total</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -65,11 +65,11 @@ export function GoodsReceiptLineTable({ items, showActions = false }: GoodsRecei
             items.map((item) => (
               <TableRow key={item.id}>
                 <TableCell className="font-medium">{item.itemName}</TableCell>
-                <TableCell className="text-riUSt">{item.quantity}</TableCell>
-                <TableCell className="text-riUSt font-semibold">{item.receivedQuantity}</TableCell>
-                <TableCell className="text-riUSt">{formatCurrency(item.unitPrice)}</TableCell>
-                <TableCell className="text-riUSt">{item.taxRate}%</TableCell>
-                <TableCell className="text-riUSt font-semibold">
+                <TableCell className="text-right">{item.quantity}</TableCell>
+                <TableCell className="text-right font-semibold">{item.receivedQuantity}</TableCell>
+                <TableCell className="text-right">{formatCurrency(item.unitPrice)}</TableCell>
+                <TableCell className="text-right">{item.taxRate}%</TableCell>
+                <TableCell className="text-right font-semibold">
                   {formatCurrency(calculateLineTotal(item.receivedQuantity, item.unitPrice, item.taxRate))}
                 </TableCell>
               </TableRow>
@@ -84,26 +84,26 @@ export function GoodsReceiptLineTable({ items, showActions = false }: GoodsRecei
         </TableBody>
         <TableFooter>
           <TableRow>
-            <TableCell colSpan={4} className="text-riUSt font-medium">
+            <TableCell colSpan={4} className="text-right font-medium">
               Subtotal
             </TableCell>
-            <TableCell className="text-riUSt font-medium" colSpan={2}>
+            <TableCell className="text-right font-medium" colSpan={2}>
               {formatCurrency(subtotal)}
             </TableCell>
           </TableRow>
           <TableRow>
-            <TableCell colSpan={4} className="text-riUSt font-medium">
+            <TableCell colSpan={4} className="text-right font-medium">
               Tax
             </TableCell>
-            <TableCell className="text-riUSt font-medium" colSpan={2}>
+            <TableCell className="text-right font-medium" colSpan={2}>
               {formatCurrency(totalTax)}
             </TableCell>
           </TableRow>
           <TableRow>
-            <TableCell colSpan={4} className="text-riUSt font-bold">
+            <TableCell colSpan={4} className="text-right font-bold">
               Total
             </TableCell>
-            <TableCell className="text-riUSt font-bold" colSpan={2}>
+            <TableCell className="text-right font-bold" colSpan={2}>
               {formatCurrency(total)}
             </TableCell>
           </TableRow>

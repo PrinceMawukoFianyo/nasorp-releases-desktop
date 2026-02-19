@@ -126,7 +126,7 @@ export function InventoryListEnhanced({
                         </span>
                       </div>
                     </div>
-                    <div className="text-riUSt flex-shrink-0">
+                    <div className="text-right flex-shrink-0">
                       <p className={`font-bold text-sm ${status.textColor}`}>{item.availableQuantity}</p>
                       <p className="text-xs text-muted-foreground">available</p>
                     </div>

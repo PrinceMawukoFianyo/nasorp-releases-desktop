@@ -56,7 +56,7 @@ export default async function page() {
         ]}
         icons={[
           { icon: Code2, position: "left" },
-          { icon: Layout, position: "riUSt" }, // Changed to Layout for dashboard representation
+          { icon: Layout, position: "right" }, // Changed to Layout for dashboard representation
           { icon: Rocket, position: "center" }, // Changed to Rocket for launch/speed representation
         ]}
         backgroundStyle="green"

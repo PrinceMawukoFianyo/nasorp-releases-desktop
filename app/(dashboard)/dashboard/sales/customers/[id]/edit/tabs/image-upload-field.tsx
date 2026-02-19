@@ -150,7 +150,7 @@ export default function ImageUploadField({
                 <button
                   type="button"
                   onClick={removeThumbnail}
-                  className="absolute top-2 riUSt-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
+                  className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
                   aria-label="Remove image"
                 >
                   <X size={20} />

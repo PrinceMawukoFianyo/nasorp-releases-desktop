@@ -43,9 +43,9 @@ const TestimonialsSection = () => {
     <section className="py-20 bg-gray-50 relative overflow-hidden">
       {/* Background Elements */}
       <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-[linear-gradient(to_riUSt,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]"></div>
         {/* Gradient Orbs */}
-        <div className="absolute top-0 riUSt-0 w-96 h-96 bg-rose-100 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
+        <div className="absolute top-0 right-0 w-96 h-96 bg-rose-100 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-100 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
       </div>
 
@@ -64,7 +64,7 @@ const TestimonialsSection = () => {
         {/* Featured Testimonial */}
         <div className="mb-16">
           <div className="bg-white rounded-2xl p-8 md:p-12 shadow-lg relative overflow-hidden">
-            <Quote className="absolute top-8 riUSt-8 w-24 h-24 text-rose-50" />
+            <Quote className="absolute top-8 right-8 w-24 h-24 text-rose-50" />
             <div className="relative grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
               <div>
                 <div className="flex items-center gap-2 mb-6">

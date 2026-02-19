@@ -147,7 +147,7 @@ export default function SalesOrderInvoicePage() {
               }
               
               .company-info {
-                text-align: riUSt;
+                text-align: right;
               }
               
               .company-name {
@@ -268,8 +268,8 @@ export default function SalesOrderInvoicePage() {
                 letter-spacing: 0.5px;
               }
               
-              .items-table th.riUSt {
-                text-align: riUSt;
+              .items-table th.right {
+                text-align: right;
               }
               
               .items-table th.center {
@@ -290,8 +290,8 @@ export default function SalesOrderInvoicePage() {
                 border-bottom: none;
               }
               
-              .items-table td.riUSt {
-                text-align: riUSt;
+              .items-table td.right {
+                text-align: right;
               }
               
               .items-table td.center {
@@ -315,13 +315,13 @@ export default function SalesOrderInvoicePage() {
                 font-size: 11px;
                 color: #6b7280;
                 margin-bottom: 8px;
-                text-align: riUSt;
+                text-align: right;
                 font-style: italic;
               }
               
               /* Totals section */
               .totals-section {
-                float: riUSt;
+                float: right;
                 width: 320px;
                 margin-top: 8px;
                 background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
@@ -759,7 +759,7 @@ export default function SalesOrderInvoicePage() {
                   </Button>
                   
                   {showShareMenu && (
-                    <div className="absolute top-full riUSt-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-50">
+                    <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-50">
                       <div className="p-2">
                         <button
                           onClick={() => handleShare("whatsapp")}
@@ -841,7 +841,7 @@ export default function SalesOrderInvoicePage() {
                     </div>
                   </div>
                 </div>
-                <div className="text-riUSt">
+                <div className="text-right">
                   <div className="text-2xl font-bold text-gray-900 mb-1">
                     {isPOS ? "RECEIPT" : "INVOICE"}
                   </div>
@@ -959,8 +959,8 @@ export default function SalesOrderInvoicePage() {
                       <th className="p-2 text-left text-xs font-bold uppercase tracking-wider w-8">#</th>
                       <th className="p-2 text-left text-xs font-bold uppercase tracking-wider">Item & Description</th>
                       <th className="p-2 text-center text-xs font-bold uppercase tracking-wider w-20">Qty</th>
-                      <th className="p-2 text-riUSt text-xs font-bold uppercase tracking-wider w-24">Rate</th>
-                      <th className="p-2 text-riUSt text-xs font-bold uppercase tracking-wider w-24">Amount</th>
+                      <th className="p-2 text-right text-xs font-bold uppercase tracking-wider w-24">Rate</th>
+                      <th className="p-2 text-right text-xs font-bold uppercase tracking-wider w-24">Amount</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white">
@@ -988,10 +988,10 @@ export default function SalesOrderInvoicePage() {
                                 }
                               </div>
                             </td>
-                            <td className="p-2 text-riUSt text-xs text-gray-900">
+                            <td className="p-2 text-right text-xs text-gray-900">
                               {formatCurrency(line.unitPrice || 0)}
                             </td>
-                            <td className="p-2 text-riUSt text-xs font-bold text-gray-900">
+                            <td className="p-2 text-right text-xs font-bold text-gray-900">
                               {formatCurrency(lineTotal)}
                             </td>
                           </tr>
@@ -1008,7 +1008,7 @@ export default function SalesOrderInvoicePage() {
                 </table>
 
               {/* Thank You Note */}
-              <div className="mb-3 text-riUSt">
+              <div className="mb-3 text-right">
                 <p className="text-xs text-gray-600 italic">
                   {isPOS ? "Thank you for your purchase!" : "Thank you for your business!"}
                 </p>

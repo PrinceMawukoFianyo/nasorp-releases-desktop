@@ -297,7 +297,7 @@ export default function CreateAdjustmentPage() {
                       onFocus={() => setIsDropdownOpen(true)}
                       className="pr-10"
                     />
-                    <div className="absolute riUSt-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
                       <Search className="w-4 h-4" />
                     </div>
                   </div>

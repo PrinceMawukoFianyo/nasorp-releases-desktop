@@ -442,3 +442,95 @@ export async function getRecentPOSTransactions(limit: number = 10) {
     return { success: false, error: error.message || "Failed to fetch transactions" }
   }
 }
+/**
+ * Get summary stats for the POS page header — respects date range.
+ * dateRange supports: '7d' | '30d' | 'today' | 'YYYY-MM-DD' | 'YYYY-MM-DD_YYYY-MM-DD'
+ */
+export async function getPOSSummaryStats(dateRange: string = '7d') {
+  try {
+    const user = await getAuthenticatedUser()
+    const orgId = user.orgId
+
+    // Parse date range (mirrors dashboard getDateRange logic)
+    const now = new Date()
+    let startDate = new Date()
+    let endDate = new Date(now)
+
+    if (dateRange.includes('_')) {
+      const [from, to] = dateRange.split('_')
+      startDate = new Date(from); startDate.setHours(0, 0, 0, 0)
+      endDate = new Date(to);     endDate.setHours(23, 59, 59, 999)
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateRange)) {
+      startDate = new Date(dateRange); startDate.setHours(0, 0, 0, 0)
+      endDate   = new Date(dateRange); endDate.setHours(23, 59, 59, 999)
+    } else {
+      switch (dateRange) {
+        case 'today': startDate.setHours(0, 0, 0, 0); break
+        case '7d':    startDate.setDate(now.getDate() - 7); break
+        case '30d':   startDate.setDate(now.getDate() - 30); break
+        case '90d':   startDate.setDate(now.getDate() - 90); break
+        default:      startDate.setDate(now.getDate() - 7)
+      }
+    }
+
+    const dateFilter = { gte: startDate, lte: endDate }
+
+    // Inventory value — not date-filtered (current snapshot)
+    const [inventories, totalItems, salesOrders, purchaseOrders] = await Promise.all([
+      db.inventory.findMany({
+        where: { orgId },
+        include: { item: { select: { costPrice: true } } },
+      }),
+      db.item.count({ where: { orgId, isActive: true } }),
+      db.salesOrder.findMany({
+        where: {
+          orgId,
+          createdAt: dateFilter,
+          status: { notIn: ['DRAFT', 'CANCELLED'] },
+        },
+        select: { subtotal: true, taxAmount: true, discount: true, shippingCost: true },
+      }),
+      db.purchaseOrder.findMany({
+        where: {
+          orgId,
+          createdAt: dateFilter,
+          status: { in: ['APPROVED', 'RECEIVED', 'COMPLETED', 'PARTIALLY_RECEIVED', 'SUBMITTED'] },
+        },
+        select: { subtotal: true, taxAmount: true, discount: true, shippingCost: true },
+      }),
+    ])
+
+    const inventoryValue = inventories.reduce(
+      (sum, inv) => sum + inv.quantity * (inv.item.costPrice || 0),
+      0
+    )
+
+    const salesOrdersValue = salesOrders.reduce(
+      (sum, o) => sum + o.subtotal + o.taxAmount + (o.shippingCost || 0) - (o.discount || 0),
+      0
+    )
+
+    const purchaseOrdersValue = purchaseOrders.reduce(
+      (sum, o) => sum + o.subtotal + o.taxAmount + (o.shippingCost || 0) - (o.discount || 0),
+      0
+    )
+
+    return {
+      success: true,
+      data: {
+        inventoryValue,
+        totalItems,
+        salesOrdersCount: salesOrders.length,
+        salesOrdersValue,
+        purchaseOrdersCount: purchaseOrders.length,
+        purchaseOrdersValue,
+        dateRange,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+      },
+    }
+  } catch (error: any) {
+    console.error("Error fetching POS summary stats:", error)
+    return { success: false, error: error.message || "Failed to fetch stats" }
+  }
+}

@@ -195,7 +195,7 @@ export function ApiKeyManagement({orgKeys}:{orgKeys: ApiKey[]}) {
                 <th className="text-left py-3 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                 <th className="text-left py-3 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">Key</th>
                 <th className="text-left py-3 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                <th className="text-riUSt py-3 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="text-right py-3 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">

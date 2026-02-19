@@ -108,7 +108,7 @@ export default function ImageUploadField({
                     />
                     <button
                       onClick={removeThumbnail}
-                      className="absolute top-2 riUSt-2 p-1 bg-red-500 text-white rounded hover:bg-red-600"
+                      className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded hover:bg-red-600"
                     >
                       <X size={16} />
                     </button>
@@ -168,7 +168,7 @@ export default function ImageUploadField({
                     </Card>
                     <button
                       onClick={() => removeImage(index)}
-                      className="absolute top-1 riUSt-1 p-0.5 bg-red-500 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute top-1 right-1 p-0.5 bg-red-500 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity"
                       aria-label={`Remove image ${index + 1}`}
                     >
                       <X size={14} />
