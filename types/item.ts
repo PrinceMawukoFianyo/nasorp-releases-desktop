@@ -1,14 +1,22 @@
-export type ItemCreateProps = {
-  
+
+export interface ItemCreateProps {
   name: string;
-  slug: string;
-  orgId: string; 
   sku: string;
+  slug: string;
+  orgId: string;
+  thumbnail?: string | null;
   costPrice: number;
   sellingPrice: number;
-  thumbnail?: string;
-  isbn: string;      
-  tax: number;       
+  description?: string | null;
+  barcode?: string | null;
+  minStockLevel?: number | null;
+  categoryId?: string | null;
+  brandId?: string | null;
+  unitId?: string | null;
+  unitOfMeasure?: string | null;
+  isActive?: boolean;
+  isbn?: string | null;  
+  tax?: number | null;    
 }
 
 // types/item.ts

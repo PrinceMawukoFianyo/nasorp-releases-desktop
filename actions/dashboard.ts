@@ -190,24 +190,29 @@ export async function getDashboardData(dateRange: string) {
 
     const lowStockCount = lowStockItems.length;
 
-    // 5. Get Top Selling Products - FIXED (More inclusive query)
-    const topSellingItems = await db.item.findMany({
-      where: {
-        orgId,
-        isActive: true,
+    // 5. Get Top Selling Products — computed live from SalesOrderLines (excludes CANCELLED/DRAFT)
+    const topSellingRaw = await db.item.findMany({
+      where: { orgId, isActive: true },
+      select: {
+        id: true,
+        name: true,
+        salesOrderLines: {
+          where: {
+            salesOrders: { status: { notIn: ['DRAFT', 'CANCELLED'] } },
+          },
+          select: { quantity: true, total: true },
+        },
       },
-      orderBy: {
-        salesCount: 'desc',
-      },
-      take: 5,
     });
-
-    const topSellingProducts = topSellingItems.map(item => ({
-      id: item.id,
-      name: item.name,
-      salesCount: item.salesCount || 0,
-      salesTotal: item.salesTotal || 0,
-    }));
+    const topSellingProducts = topSellingRaw
+      .map(item => ({
+        id: item.id,
+        name: item.name,
+        salesCount: item.salesOrderLines.reduce((s, l) => s + l.quantity, 0),
+        salesTotal: item.salesOrderLines.reduce((s, l) => s + l.total, 0),
+      }))
+      .sort((a, b) => b.salesCount - a.salesCount)
+      .slice(0, 5);
 
     console.log('📊 Top selling products found:', topSellingProducts.length);
 
@@ -531,16 +536,11 @@ export async function getInventoryMetrics(dateRange: string) {
     const { startDate } = getDateRange(dateRange);
 
     // Get all inventory items with their item details
+    // NOTE: No date filter here — Inventory is a current snapshot.
+    // Filtering by createdAt would exclude items whose quantities were updated (not re-created).
     const inventoryItems = await db.inventory.findMany({
-      where: {
-        orgId,
-        createdAt: {
-          gte: startDate,
-        },
-      },
-      include: {
-        item: true,
-      },
+      where: { orgId },
+      include: { item: true },
     });
 
     // Calculate total inventory value
@@ -603,34 +603,33 @@ export async function getInventoryMetrics(dateRange: string) {
       })
     );
 
-    // Get top selling items
-    const topSellingItems = await db.item.findMany({
-      take: 5,
-      where: {
-        orgId,
-        isActive: true,
-      },
-      orderBy: {
-        salesCount: 'desc',
-      },
+    // Get top selling items — live from SalesOrderLines so new stock/sales reflect immediately
+    const topSellingRaw = await db.item.findMany({
+      where: { orgId, isActive: true },
       select: {
         id: true,
         name: true,
-        salesCount: true,
-        salesTotal: true,
+        salesOrderLines: {
+          where: { salesOrders: { status: { notIn: ['DRAFT', 'CANCELLED'] } } },
+          select: { quantity: true, total: true },
+        },
       },
     });
+    const topSellingItems = topSellingRaw
+      .map(item => ({
+        id: item.id,
+        name: item.name,
+        salesCount: item.salesOrderLines.reduce((s, l) => s + l.quantity, 0),
+        salesTotal: item.salesOrderLines.reduce((s, l) => s + l.total, 0),
+      }))
+      .sort((a, b) => b.salesCount - a.salesCount)
+      .slice(0, 5);
 
     return {
       totalValue,
       lowStockCount: lowStockCount || 0,
       locations: locationData,
-      topSellingItems: topSellingItems.map(item => ({
-        id: item.id,
-        name: item.name,
-        salesCount: item.salesCount || 0,
-        salesTotal: item.salesTotal || 0,
-      })),
+      topSellingItems,
     };
   } catch (error) {
     console.error('Error fetching inventory metrics:', error);

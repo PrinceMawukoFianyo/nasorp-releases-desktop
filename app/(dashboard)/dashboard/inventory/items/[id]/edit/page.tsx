@@ -12,6 +12,7 @@ import PricingStockTab from "./tabs/pricing-stock-tab"
 import { Spinner } from "@/components/ui/spinner"
 import { getOrgCategories } from "@/actions/categories"
 import { getOrgBrands } from "@/actions/brands"
+import { getOrgLocations } from "@/actions/locations" // NEW
 
 interface Option {
   label: string
@@ -27,6 +28,7 @@ export default function ItemUpdatePage({
   const [loading, setLoading] = useState(true)
   const [brandOptions, setBrandOptions] = useState<Option[]>([])
   const [categoryOptions, setCategoryOptions] = useState<Option[]>([])
+  const [locationOptions, setLocationOptions] = useState<Option[]>([]) // NEW
 
   useEffect(() => {
     async function loadData() {
@@ -37,23 +39,24 @@ export default function ItemUpdatePage({
         if (success && itemData) {
           setItem(itemData as ProductData)
 
-          // Fetch categories and brands after item is loaded
-          const [categories, brands] = await Promise.all([
+          // Fetch categories, brands, and locations in parallel
+          const [categories, brands, locations] = await Promise.all([
             getOrgCategories(itemData.orgId),
             getOrgBrands(itemData.orgId),
+            getOrgLocations(),
           ])
 
           setBrandOptions(
-            brands.map((item) => ({
-              label: item.name,
-              value: item.id,
-            }))
+            brands.map((b) => ({ label: b.name, value: b.id }))
           )
-
           setCategoryOptions(
-            categories.map((item) => ({
-              label: item.title,
-              value: item.id,
+            categories.map((c) => ({ label: c.title, value: c.id }))
+          )
+          // NEW — adjust field names to match your Location model
+          setLocationOptions(
+            locations.map((loc) => ({
+              label: `${loc.name}${loc.type ? ` (${loc.type})` : ""}`,
+              value: loc.id,
             }))
           )
         } else {
@@ -75,7 +78,6 @@ export default function ItemUpdatePage({
   }, [params])
 
   const handleUpdate = (updatedData: Record<string, any>) => {
-    console.log("Product data Update received:", updatedData)
     setItem((prev) => (prev ? { ...prev, ...updatedData } : null))
   }
 
@@ -145,6 +147,7 @@ export default function ItemUpdatePage({
             <PricingStockTab
               brandOptions={brandOptions}
               categoryOptions={categoryOptions}
+              locationOptions={locationOptions} 
               item={item}
               onUpdate={handleUpdate}
             />

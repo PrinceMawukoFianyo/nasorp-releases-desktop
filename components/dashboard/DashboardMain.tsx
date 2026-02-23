@@ -34,7 +34,6 @@ import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import DateRangePicker from "../ui/date-range-picker";
 
-
 type DashboardData = {
   inventoryValue: number;
   totalItems: number;
@@ -91,43 +90,111 @@ type Props = {
   error?: string;
 };
 
-// ── Bar Chart ─────────────────────────────────────────────────────────────────
-function BarChart({ data }: { data: Array<{ label: string; value: number }> }) {
-  if (!data || data.length === 0 || data.every((item) => item.value === 0)) {
+// ── Per-location color palette (rose + other vivid colors) ─────────────────────
+const LOCATION_COLORS = [
+  { bar: "#e11d48", bg: "bg-rose-600",   light: "#fff1f2" }, // rose
+  { bar: "#2563eb", bg: "bg-blue-600",   light: "#eff6ff" }, // blue
+  { bar: "#16a34a", bg: "bg-green-600",  light: "#f0fdf4" }, // green
+  { bar: "#d97706", bg: "bg-amber-600",  light: "#fffbeb" }, // amber
+  { bar: "#7c3aed", bg: "bg-violet-600", light: "#f5f3ff" }, // violet
+  { bar: "#0891b2", bg: "bg-cyan-600",   light: "#ecfeff" }, // cyan
+  { bar: "#ea580c", bg: "bg-orange-600", light: "#fff7ed" }, // orange
+  { bar: "#be185d", bg: "bg-pink-700",   light: "#fdf2f8" }, // pink
+];
+
+function colorAt(index: number) {
+  return LOCATION_COLORS[index % LOCATION_COLORS.length];
+}
+
+// ── Improved Bar Chart ─────────────────────────────────────────────────────────
+function BarChart({
+  data,
+}: {
+  data: Array<{ label: string; value: number; itemCount: number }>;
+}) {
+  // Show empty state only when there are literally no locations at all
+  if (!data || data.length === 0) {
     return (
       <div className="text-center text-muted-foreground py-8">
         <BarChart3 className="h-12 w-12 mx-auto mb-2 opacity-50" />
-        <p>No inventory data available</p>
-        <p className="text-sm mt-1">Add items to locations to see data</p>
+        <p>No locations configured</p>
+        <p className="text-sm mt-1">Add locations in Settings to see data here</p>
       </div>
     );
   }
 
-  const maxValue = Math.max(...data.map((d) => d.value));
+  const maxValue = Math.max(...data.map((d) => d.value), 1); // avoid divide-by-zero
+  const totalValue = data.reduce((s, d) => s + d.value, 0);
 
   return (
-    <div className="space-y-3">
-      {data.map((item, index) => (
-        <div key={index} className="space-y-1">
-          <div className="flex items-center justify-between text-sm">
-            <span className="font-medium truncate max-w-[120px]">{item.label}</span>
-            <span className="text-muted-foreground whitespace-nowrap">
-              GH₵{item.value.toLocaleString()}
-            </span>
+    <div className="space-y-4">
+      {data.map((item, index) => {
+        const color = colorAt(index);
+        // Always render at least 4% so the bar is visible even at GHC0
+        const pct = item.value > 0 ? Math.max(4, (item.value / maxValue) * 100) : 4;
+        const hasValue = item.value > 0;
+
+        return (
+          <div key={index} className="space-y-1.5">
+            {/* Label row */}
+            <div className="flex items-center justify-between text-sm gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                {/* Color dot */}
+                <span
+                  className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
+                  style={{ backgroundColor: color.bar }}
+                />
+                <span className="font-medium truncate max-w-[140px]">
+                  {item.label}
+                </span>
+                {/* Item count badge */}
+                <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                  ({item.itemCount} {item.itemCount === 1 ? "item" : "items"})
+                </span>
+              </div>
+              <span
+                className={`whitespace-nowrap font-semibold text-sm ${
+                  hasValue ? "" : "text-muted-foreground"
+                }`}
+              >
+                GH₵{item.value.toLocaleString()}
+              </span>
+            </div>
+
+            {/* Bar track */}
+            <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-2.5 overflow-hidden">
+              <div
+                className="h-2.5 rounded-full transition-all duration-500"
+                style={{
+                  width: `${pct}%`,
+                  backgroundColor: hasValue ? color.bar : "#d1d5db", // gray for zero
+                  opacity: hasValue ? 1 : 0.5,
+                }}
+              />
+            </div>
+
+            {/* Zero-value hint */}
+            {!hasValue && (
+              <p className="text-[11px] text-muted-foreground">
+                No stock value — add items with quantity to this location
+              </p>
+            )}
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div
-              className="bg-rose-600 h-2 rounded-full transition-all"
-              style={{ width: `${maxValue > 0 ? (item.value / maxValue) * 100 : 0}%` }}
-            />
-          </div>
+        );
+      })}
+
+      {/* Total footer */}
+      {totalValue > 0 && (
+        <div className="pt-3 border-t flex justify-between text-sm">
+          <span className="text-muted-foreground font-medium">Total</span>
+          <span className="font-bold">GH₵{totalValue.toLocaleString()}</span>
         </div>
-      ))}
+      )}
     </div>
   );
 }
 
-// ── Donut Chart ───────────────────────────────────────────────────────────────
+// ── Donut Chart ────────────────────────────────────────────────────────────────
 function DonutChart({
   data,
 }: {
@@ -217,7 +284,6 @@ export default function DashboardMain({
   const pathname     = usePathname();
   const searchParams = useSearchParams();
 
-  // ✅ Push the new range to URL → triggers server re-render with fresh data
   const handleRangeChange = (newRange: string) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("range", newRange);
@@ -281,14 +347,13 @@ export default function DashboardMain({
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto space-y-6 p-6">
 
-        {/* ✅ Header — DateRangePicker replaces Select */}
+        {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
             <p className="text-muted-foreground">Here's your statistics overview.</p>
           </div>
           <div className="flex items-center gap-3">
-            {/* ✅ Supports presets, single day (click once), and ranges (click start then end) */}
             <DateRangePicker
               value={initialPeriod}
               onChange={handleRangeChange}
@@ -329,24 +394,30 @@ export default function DashboardMain({
 
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+          {/* ── Inventory by Location ── */}
           <Card className="hover:shadow-md transition-shadow">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <BarChart3 className="h-5 w-5" />
                 Inventory by Location
               </CardTitle>
-              <CardDescription>Value distribution across locations</CardDescription>
+              <CardDescription>
+                Value distribution across locations (quantity × cost price)
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <BarChart
                 data={(data.inventoryByLocation || []).map((loc) => ({
                   label: loc.location,
                   value: loc.value,
+                  itemCount: loc.itemCount ?? 0,
                 }))}
               />
             </CardContent>
           </Card>
 
+          {/* ── Sales by Category ── */}
           <Card className="hover:shadow-md transition-shadow">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
