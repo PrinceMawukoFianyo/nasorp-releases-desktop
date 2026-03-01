@@ -748,7 +748,7 @@ export async function getPurchaseOrderLineItems(purchaseOrderId: string) {
 /* export async function sendPOToSupplier(data: PurchaseOrderEmailProps): Promise<{ success: boolean; error?: string }> {
   try {
     const res = await resend.emails.send({
-      from: "Business Inventory <noreply@afkberimah.inventpmf.com>",
+      from: "Business Inventory <noreply@rich83ventures.inventpmf.com>",
       to: data.purchaseOrder.supplier.email || "email@example.com",
       subject: `Purchase Order ${data.purchaseOrder.poNumber}`,
       react: PurchaseOrderEmail(data), // Changed from PurchaseOrderEmail({props})
@@ -783,7 +783,7 @@ export async function getPurchaseOrderLineItems(purchaseOrderId: string) {
 
     // Send email
     const res = await resend.emails.send({
-      from: "Business Inventory <noreply@afkberimah.inventpmf.com>",
+      from: "Business Inventory <noreply@rich83ventures.inventpmf.com>",
       to: email,
       subject: `New Purchase Order from ${data.companyName}`,
       react: PurchaseOrderEmail(data), // Changed from PurchaseOrderEmail(props)
@@ -928,7 +928,7 @@ export async function sendPOToSupplier(
 
     // Send email to supplier
     const res = await resend.emails.send({
-      from: "Business Inventory <noreply@afkberimah.inventpmf.com>",
+      from: "Business Inventory <noreply@rich83ventures.inventpmf.com>",
       to: emailData.purchaseOrder.supplier.email,
       subject: `Purchase Order ${emailData.purchaseOrder.poNumber}`,
       react: PurchaseOrderEmail(emailData),
@@ -971,7 +971,7 @@ export async function sendPOEmailToRecipient(
 
     // Send email
     const res = await resend.emails.send({
-      from: "Business Inventory <noreply@afkberimah.inventpmf.com>",
+      from: "Business Inventory <noreply@rich83ventures.inventpmf.com>",
       to: recipientEmail,
       subject: `Purchase Order ${emailData.purchaseOrder.poNumber} from ${emailData.companyName}`,
       react: PurchaseOrderEmail(emailData),
