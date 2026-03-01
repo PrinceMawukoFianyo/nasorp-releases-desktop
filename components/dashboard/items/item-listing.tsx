@@ -8,7 +8,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { MapPin, Package } from "lucide-react";
+import { MapPin, Package, Filter, X, ChevronDown, ChevronUp } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -38,11 +38,26 @@ import FormSelectInput from "@/components/FormInputs/FormSelectInput";
 import { getOrgCategories } from "@/actions/categories";
 import { getOrgBrands } from "@/actions/brands";
 import { getOrgUnits } from "@/actions/units";
-import { getOrgLocations } from "@/actions/locations";
+import { getOrgLocations, getLocationsWithItemCounts } from "@/actions/locations";
 import { createItem } from "@/actions/items";
 import { linkItemToLocation } from "@/actions/inventory-actions";
+import { getItemsByLocation } from "@/actions/inventory";
 import { Separator } from "@/components/ui/separator";
 import { deleteItem } from "@/actions/items";
+import { getOrgPackagingUnits, PackagingUnitRecord } from "@/actions/packaging-units";
+import { createPricingTiersForItem } from "@/actions/pricing-tiers";
+import WholesalePricingSection, { WholesaleTierDraft } from "@/app/(dashboard)/dashboard/inventory/items/wholesale-unit-component/wholesale-pricing-section";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
+
+// ── Next.js redirect() / notFound() throw special errors with a `digest` field.
+function isNextJsInternalError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const d = (err as any).digest as string | undefined;
+  return typeof d === "string" && (d.startsWith("NEXT_REDIRECT") || d.startsWith("NEXT_NOT_FOUND"));
+}
 
 interface ItemListingProps {
   title: string;
@@ -52,6 +67,14 @@ interface ItemListingProps {
 interface Option {
   label: string;
   value: string;
+}
+
+interface LocationWithCount {
+  id: string;
+  name: string;
+  type: string;
+  itemCount: number;
+  totalQuantity?: number;
 }
 
 const productFormSchema = z.object({
@@ -67,13 +90,12 @@ const productFormSchema = z.object({
 
 type ProductFormValues = z.infer<typeof productFormSchema>;
 
-const DEFAULT_IMAGE =
-  "https://3mkq65v2if.ufs.sh/f/nEsxSqMfLeqN5a4owpbHBYgvTZ8SDtkMErGQOR6d42fKLCoP";
+const DEFAULT_IMAGE = "https://3mkq65v2if.ufs.sh/f/nEsxSqMfLeqN5a4owpbHBYgvTZ8SDtkMErGQOR6d42fKLCoP";
 
 export default function ItemListing({ title, orgId }: ItemListingProps) {
   const router = useRouter();
 
-  const { items, refetch, isLoading } = useOrgItems(orgId);
+  const { items: allItems, refetch, isLoading } = useOrgItems(orgId);
   const deleteItemMutation = useDeleteItem();
 
   const [isPending, startTransition] = useTransition();
@@ -89,18 +111,31 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
   const [currentProduct, setCurrentProduct] = useState<BriefItemResponse | null>(null);
   const [productToDelete, setProductToDelete] = useState<BriefItemResponse | null>(null);
 
+  // ── Location Filter State ─────────────────────────────────────────────────
+  const [locations, setLocations] = useState<LocationWithCount[]>([]);
+  const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
+  const [displayItems, setDisplayItems] = useState<BriefItemResponse[]>([]);
+  const [locationOptions, setLocationOptions] = useState<Option[]>([]);
+  const [loadingLocations, setLoadingLocations] = useState(false);
+  const [loadingItems, setLoadingItems] = useState(false);
+  const [showLocationFilter, setShowLocationFilter] = useState(true); // Set to true by default
+  const [totalItemsCount, setTotalItemsCount] = useState(0);
+
   // ── Dropdown options ──────────────────────────────────────────────────────
   const [categoryOptions, setCategoryOptions] = useState<Option[]>([]);
   const [brandOptions, setBrandOptions] = useState<Option[]>([]);
   const [unitOptions, setUnitOptions] = useState<Option[]>([]);
-  const [locationOptions, setLocationOptions] = useState<Option[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(false);
 
-  // ── Selected values (outside RHF because FormSelectInput is uncontrolled) ─
+  // ── Selected values ───────────────────────────────────────────────────────
   const [selectedCategory, setSelectedCategory] = useState<Option | null>(null);
   const [selectedBrand, setSelectedBrand] = useState<Option | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<Option | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<Option | null>(null);
+
+  // ── Wholesale pricing ────────────────────────────────────────────────────
+  const [packagingUnits, setPackagingUnits] = useState<PackagingUnitRecord[]>([]);
+  const [wholesaleTiers, setWholesaleTiers] = useState<WholesaleTierDraft[]>([]);
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
@@ -116,6 +151,83 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
     },
   });
 
+  // Load locations with item counts on mount
+  useEffect(() => {
+    loadLocationsWithCounts();
+  }, [orgId]);
+
+  // Load items when location changes
+  useEffect(() => {
+    loadItemsForLocation(selectedLocationId);
+  }, [selectedLocationId, allItems]);
+
+  const loadLocationsWithCounts = async () => {
+    setLoadingLocations(true);
+    try {
+      const result = await getLocationsWithItemCounts(orgId);
+      
+      if (result.success) {
+        setLocations(result.data);
+        setTotalItemsCount(result.totalItems);
+        
+        // Also set location options for the form
+        const options = result.data.map(loc => ({
+          label: `${loc.name} (${loc.type})`,
+          value: loc.id
+        }));
+        setLocationOptions(options);
+      }
+    } catch (err) {
+      if (isNextJsInternalError(err)) throw err;
+      console.error("Error loading locations:", err);
+      toast.error("Failed to load locations");
+    } finally {
+      setLoadingLocations(false);
+    }
+  };
+
+  const loadItemsForLocation = async (locationId: string | null) => {
+    setLoadingItems(true);
+    try {
+      if (!locationId) {
+        // Show all items
+        setDisplayItems(allItems);
+      } else {
+        // Fetch items for selected location
+        const items = await getItemsByLocation(orgId, locationId);
+        
+        // Transform to match BriefItemResponse format
+        const transformedItems = items.map((item: any) => ({
+          id: item.id,
+          name: item.name,
+          sku: item.sku,
+          slug: item.slug,
+          thumbnail: item.thumbnail,
+          sellingPrice: item.sellingPrice,
+          costPrice: item.costPrice,
+          isActive: item.isActive,
+          categoryId: item.categoryId,
+          brandId: item.brandId,
+          category: item.category,
+          brand: item.brand,
+          supplierRelations: item.supplierRelations || [],
+          salesCount: item.salesCount || 0,
+          salesTotal: item.salesTotal || 0,
+          updatedAt: item.updatedAt,
+          createdAt: item.createdAt,
+        }));
+        
+        setDisplayItems(transformedItems);
+      }
+    } catch (err) {
+      if (isNextJsInternalError(err)) throw err;
+      console.error("Error loading items for location:", err);
+      toast.error("Failed to load items for this location");
+    } finally {
+      setLoadingItems(false);
+    }
+  };
+
   // Load dropdown options whenever the form opens
   useEffect(() => {
     if (formDialogOpen) loadOptions();
@@ -124,11 +236,11 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
   const loadOptions = async () => {
     setLoadingOptions(true);
     try {
-      const [categories, brands, units, locations] = await Promise.all([
+      const [categories, brands, units, pkgUnits] = await Promise.all([
         getOrgCategories(orgId),
         getOrgBrands(orgId),
         getOrgUnits(orgId),
-        getOrgLocations(),
+        getOrgPackagingUnits(),
       ]);
 
       setCategoryOptions(categories.map((c) => ({ label: c.title, value: c.id })));
@@ -136,13 +248,9 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
       setUnitOptions(
         units.map((u) => ({ label: `${u.name} - ${u.symbol}`, value: u.id }))
       );
-      setLocationOptions(
-        locations.map((l) => ({
-          label: `${l.name}${l.type ? ` (${l.type})` : ""}`,
-          value: l.id,
-        }))
-      );
+      setPackagingUnits(pkgUnits);
     } catch (err) {
+      if (isNextJsInternalError(err)) throw err;
       console.error("Error loading options:", err);
       toast.error("Failed to load dropdown options");
     } finally {
@@ -168,6 +276,7 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
       setSelectedBrand(null);
       setSelectedUnit(null);
       setSelectedLocation(null);
+      setWholesaleTiers([]);
     }
   }, [currentProduct, form]);
 
@@ -223,7 +332,26 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
     setDeleteDialogOpen(true);
   };
 
-  // ── Submit — calls server action DIRECTLY so we own the item ID ───────────
+  // Handle location selection
+  const handleLocationSelect = (locationId: string | null) => {
+    setSelectedLocationId(locationId);
+    
+    // Update URL with location parameter (optional)
+    const params = new URLSearchParams(window.location.search);
+    if (locationId) {
+      params.set("location", locationId);
+    } else {
+      params.delete("location");
+    }
+    router.push(`?${params.toString()}`, { scroll: false });
+  };
+
+  // Clear location filter
+  const clearLocationFilter = () => {
+    handleLocationSelect(null);
+  };
+
+  // ── Submit — calls server action DIRECTLY ─────────────────────────────────
   const onSubmit = async (formData: ProductFormValues) => {
     if (isSubmitting || isUploading) {
       if (isUploading) toast.error("Please wait for the image to finish uploading");
@@ -235,7 +363,6 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
       return;
     }
 
-    // ✅ Capture state values synchronously before any await
     const chosenLocationId = selectedLocation?.value ?? null;
     const chosenLocationLabel = selectedLocation?.label ?? "";
     const initialQty = Math.max(0, parseInt(formData.initialQuantity ?? "0") || 0);
@@ -267,7 +394,6 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
 
     setIsSubmitting(true);
     try {
-      // ── Step 1: Create the item ──────────────────────────────────────────
       const createResult = await createItem(itemPayload);
 
       if (!createResult.success || !createResult.data?.id) {
@@ -280,7 +406,6 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
       const newItemId = createResult.data.id;
       console.log("✅ Item created:", newItemId);
 
-      // ── Step 2: Link to location with initial stock quantity ─────────────
       if (chosenLocationId) {
         const linkResult = await linkItemToLocation({
           itemId: newItemId,
@@ -299,7 +424,6 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
                 : `Linked to ${chosenLocationLabel} (no initial stock set).`,
           });
         } else {
-          // Item was created — just the location link failed
           toast.warning("Item created but location link failed", {
             description: linkResult.error,
           });
@@ -310,16 +434,51 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
         });
       }
 
-      // ── Step 3: Reset and refresh ────────────────────────────────────────
+      const validTiers = wholesaleTiers.filter(
+        (t) =>
+          t.packagingUnitId &&
+          parseInt(t.unitsPerPack) >= 1 &&
+          parseFloat(t.wholesalePrice) > 0
+      );
+      if (validTiers.length > 0) {
+        const tierResult = await createPricingTiersForItem(
+          newItemId,
+          validTiers.map((t) => ({
+            packagingUnitId:   t.packagingUnitId,
+            packagingUnitName: packagingUnits.find((u) => u.id === t.packagingUnitId)?.name ?? "",
+            unitsPerPack:      parseInt(t.unitsPerPack),
+            wholesalePrice:    parseFloat(t.wholesalePrice),
+          }))
+        );
+        if (tierResult.success) {
+          console.log(`✅ Saved ${validTiers.length} pricing tier(s)`);
+        } else {
+          toast.warning("Item created but pricing tiers failed to save", {
+            description: tierResult.error,
+          });
+        }
+      }
+
       setFormDialogOpen(false);
       setImageUrl(DEFAULT_IMAGE);
       setSelectedCategory(null);
       setSelectedBrand(null);
       setSelectedUnit(null);
       setSelectedLocation(null);
+      setWholesaleTiers([]);
       form.reset();
-      refetch();
+      
+      // Refresh data
+      await refetch();
+      await loadLocationsWithCounts();
+      if (selectedLocationId) {
+        await loadItemsForLocation(selectedLocationId);
+      }
+      
+      toast.success("Item list updated!");
+      
     } catch (err) {
+      if (isNextJsInternalError(err)) throw err;
       console.error("❌ onSubmit error:", err);
       toast.error("Something went wrong", {
         description: err instanceof Error ? err.message : "Please try again",
@@ -329,7 +488,6 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
     }
   };
 
-  // UPDATED: Handle confirm delete with proper refresh
   const handleConfirmDelete = async () => {
     if (!productToDelete) return;
     
@@ -338,29 +496,27 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
     try {
       console.log("🗑️ Attempting to delete item:", productToDelete.id);
       
-      // Call the delete function directly
       const result = await deleteItem(productToDelete.id);
       
       console.log("📨 Delete result:", result);
       
       if (result.success) {
-        // Close the dialog
         setDeleteDialogOpen(false);
         setProductToDelete(null);
-        
-        // Show success message
         toast.success("Item deleted successfully");
         
-        // Force a complete refresh of the data
         await refetch();
-        
-        // Also refresh the router to update any server components
+        await loadLocationsWithCounts();
+        if (selectedLocationId) {
+          await loadItemsForLocation(selectedLocationId);
+        }
         router.refresh();
         
       } else {
         toast.error(result.error || "Failed to delete item");
       }
     } catch (error: any) {
+      if (isNextJsInternalError(error)) throw error;
       console.error("💥 Delete error:", error);
       toast.error(error?.message || "An unexpected error occurred");
     } finally {
@@ -416,21 +572,143 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
 
   return (
     <>
+      {/* Location Filter Header */}
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowLocationFilter(!showLocationFilter)}
+            className="flex items-center gap-2"
+          >
+            <Filter className="h-4 w-4" />
+            Filter by Location
+            {showLocationFilter ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </Button>
+          
+          {selectedLocationId && (
+            <Badge variant="secondary" className="flex items-center gap-1 px-3 py-1">
+              <MapPin className="h-3 w-3" />
+              {locations.find(l => l.id === selectedLocationId)?.name || "Selected Location"}
+              <button
+                onClick={clearLocationFilter}
+                className="ml-1 hover:text-destructive"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+        </div>
+        
+        {selectedLocationId && (
+          <p className="text-sm text-muted-foreground">
+            Showing {displayItems.length} of {totalItemsCount} items
+          </p>
+        )}
+      </div>
+
+      {/* Location Filter Panel - Reduced Height */}
+      {showLocationFilter && (
+        <div className="mb-6 p-4 border rounded-lg bg-muted/50">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-medium flex items-center gap-2">
+              <MapPin className="h-4 w-4" />
+              Select a Location
+            </h3>
+          </div>
+          
+          {loadingLocations ? (
+            <div className="flex gap-2 py-2">
+              <Skeleton className="h-8 w-32" />
+              <Skeleton className="h-8 w-32" />
+              <Skeleton className="h-8 w-32" />
+            </div>
+          ) : (
+            <ScrollArea className="h-8"> {/* Reduced from h-32 to h-24 */}
+              <div className="flex flex-wrap gap-2 pb-2">
+                <Button
+                  variant={!selectedLocationId ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleLocationSelect(null)}
+                  className={cn(
+                    "flex items-center gap-2",
+                    !selectedLocationId && "bg-primary text-primary-foreground"
+                  )}
+                >
+                  <Package className="h-3 w-3" />
+                  All Locations
+                  <Badge 
+                    variant={!selectedLocationId ? "secondary" : "outline"} 
+                    className="ml-1"
+                  >
+                    {totalItemsCount}
+                  </Badge>
+                </Button>
+                
+                {locations.map((location) => (
+                  <Button
+                    key={location.id}
+                    variant={selectedLocationId === location.id ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleLocationSelect(location.id)}
+                    className={cn(
+                      "flex items-center gap-2",
+                      selectedLocationId === location.id && "bg-primary text-primary-foreground"
+                    )}
+                  >
+                    <MapPin className="h-3 w-3" />
+                    {location.name}
+                    <Badge 
+                      variant={selectedLocationId === location.id ? "secondary" : "outline"} 
+                      className="ml-1"
+                    >
+                      {location.itemCount}
+                    </Badge>
+                  </Button>
+                ))}
+              </div>
+            </ScrollArea>
+          )}
+          
+          {locations.length === 0 && !loadingLocations && (
+            <div className="text-center py-2 text-sm text-muted-foreground">
+              No locations found.{" "}
+              <Link href="/dashboard/inventory/locations" className="underline text-primary">
+                Create one first
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Data Table */}
       <DataTable<BriefItemResponse>
         title={title}
         subtitle={
-          items.length > 0
-            ? `${items.length} ${items.length === 1 ? "item" : "items"} | Total Value: ${formatCurrency(getTotalValue(items))}`
-            : undefined
+          displayItems.length > 0
+            ? `${displayItems.length} ${displayItems.length === 1 ? "item" : "items"} | Total Value: ${formatCurrency(getTotalValue(displayItems))}`
+            : selectedLocationId 
+              ? "No items in this location" 
+              : "No items found"
         }
-        data={items}
+        data={displayItems}
         columns={columns}
         keyField="id"
-        isLoading={isLoading}
-        onRefresh={refetch}
+        isLoading={isLoading || loadingItems}
+        onRefresh={() => {
+          refetch();
+          loadLocationsWithCounts();
+          if (selectedLocationId) {
+            loadItemsForLocation(selectedLocationId);
+          }
+        }}
         actions={{ onAdd: handleAddClick, onExport: handleExport }}
         filters={{
-          searchFields: ["name"],
+          searchFields: ["name", "sku"],
           enableDateFilter: true,
           getItemDate: (item) => item.createdAt,
         }}
@@ -443,7 +721,7 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
         pageSize={100}
       />
 
-      {/* ── Product Form Dialog ─────────────────────────────────────────── */}
+      {/* Product Form Dialog (keep existing code) */}
       <EntityForm
         size="lg"
         open={formDialogOpen}
@@ -462,8 +740,8 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
             : "Add Item"
         }
       >
+        {/* ... keep the existing form content ... */}
         <div className="overflow-y-auto max-h-[65vh] px-1">
-
           {/* Basic Information */}
           <div className="space-y-4">
             <div className="space-y-1">
@@ -591,7 +869,6 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
                 option={selectedLocation}
                 setOption={(opt) => {
                   setSelectedLocation(opt);
-                  // ✅ Reset initial quantity when location changes
                   form.setValue("initialQuantity", "0");
                 }}
                 toolTipText="Manage Locations"
@@ -602,7 +879,6 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
             {/* Initial stock quantity — visible only after a location is chosen */}
             {selectedLocation && (
               <div className="space-y-3 rounded-md border border-primary/20 bg-primary/5 p-4">
-                {/* Selected location badge */}
                 <div className="flex items-center justify-between gap-2 text-sm">
                   <div className="flex items-center gap-1.5">
                     <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
@@ -620,7 +896,6 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
                   </button>
                 </div>
 
-                {/* ✅ Initial stock quantity */}
                 <FormField
                   control={form.control}
                   name="initialQuantity"
@@ -639,15 +914,13 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
                           placeholder="0"
                           {...field}
                           onChange={(e) => {
-                            // ✅ Ensure value is always a valid non-negative string
                             const val = e.target.value;
                             field.onChange(val === "" ? "0" : val);
                           }}
                         />
                       </FormControl>
                       <FormDescription className="text-xs">
-                        How many units are currently in stock? Setting this above 0 will
-                        immediately update the Inventory by Location chart on your dashboard.
+                        How many units are currently in stock?
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -662,6 +935,17 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
               </p>
             )}
           </div>
+
+          <Separator className="my-6" />
+
+          {/* Wholesale / Bulk Pricing */}
+          <WholesalePricingSection
+            sellingPrice={Number(form.watch("sellingPrice")) || 0}
+            packagingUnits={packagingUnits}
+            tiers={wholesaleTiers}
+            onChange={setWholesaleTiers}
+            onRefreshUnits={loadOptions}
+          />
 
           <Separator className="my-6" />
 

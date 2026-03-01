@@ -3,13 +3,13 @@ import React from "react";
 import HubStackLogo from "./kit-logo";
 
 export default function Logo({
-  variant = "liUSt",
+  variant = "light",
   href = "/",
 }: {
-  variant?: "dark" | "liUSt";
+  variant?: "dark" | "light";
   href?: string;
 }) {
-  if (variant === "liUSt") {
+  if (variant === "light") {
     return (
       <Link href={href} className="flex items-center space-x-2">
         <HubStackLogo width={200} height={60} />

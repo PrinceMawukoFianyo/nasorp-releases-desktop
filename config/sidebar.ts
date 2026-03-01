@@ -296,9 +296,9 @@ export const sidebarLinks: ISidebarLink[] = [
       },
       
       {
-        title: "Tax Rates", //  FIXED: Title changed
-        href: "/dashboard/settings/tax-rates", //  FIXED: Corrected path (list view)
-        permission: "tax.settings.read", //  FIXED: Correct permission
+        title: "Tax Rates", 
+        href: "/dashboard/settings/tax-rates",
+        permission: "tax.settings.read", 
       },
     
       {

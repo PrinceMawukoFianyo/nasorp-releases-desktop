@@ -131,3 +131,101 @@ export async function getInventoryItem(itemId: string, orgId: string) {
     return null
   }
 }
+
+
+export async function getItemsByLocation(orgId: string, locationId: string | null) {
+  try {
+    if (!locationId) {
+      // Return all active items
+      const items = await db.item.findMany({
+        where: { 
+          orgId, 
+          isActive: true 
+        },
+        include: {
+          category: { select: { id: true, title: true } },
+          brand: { select: { id: true, name: true } },
+          inventories: {
+            include: { 
+              location: { 
+                select: { id: true, name: true, type: true } 
+              } 
+            }
+          },
+          salesOrderLines: {
+            where: {
+              salesOrders: { status: { notIn: ["DRAFT", "CANCELLED"] } }
+            },
+            select: { quantity: true, total: true }
+          }
+        },
+        orderBy: { name: "asc" }
+      });
+
+      // Calculate sales stats
+      const itemsWithStats = items.map(item => {
+        const salesCount = item.salesOrderLines.reduce((sum, line) => sum + line.quantity, 0);
+        const salesTotal = item.salesOrderLines.reduce((sum, line) => sum + line.total, 0);
+        const { salesOrderLines, ...rest } = item;
+        return { ...rest, salesCount, salesTotal };
+      });
+
+      return itemsWithStats;
+    }
+
+    // Return items that have inventory in the specified location
+    const items = await db.item.findMany({
+      where: {
+        orgId,
+        isActive: true,
+        inventories: {
+          some: {
+            locationId: locationId,
+            quantity: { gt: 0 } // Only show items with stock in this location
+          }
+        }
+      },
+      include: {
+        category: { select: { id: true, title: true } },
+        brand: { select: { id: true, name: true } },
+        inventories: {
+          where: { locationId: locationId },
+          include: { 
+            location: { 
+              select: { id: true, name: true, type: true } 
+            } 
+          }
+        },
+        salesOrderLines: {
+          where: {
+            salesOrders: { status: { notIn: ["DRAFT", "CANCELLED"] } }
+          },
+          select: { quantity: true, total: true }
+        }
+      },
+      orderBy: { name: "asc" }
+    });
+
+    // Calculate sales stats and filter inventories to only show the selected location
+    const itemsWithStats = items.map(item => {
+      const salesCount = item.salesOrderLines.reduce((sum, line) => sum + line.quantity, 0);
+      const salesTotal = item.salesOrderLines.reduce((sum, line) => sum + line.total, 0);
+      
+      // Only include inventories for the selected location
+      const filteredInventories = item.inventories.filter(inv => inv.locationId === locationId);
+      
+      const { salesOrderLines, inventories, ...rest } = item;
+      return { 
+        ...rest, 
+        inventories: filteredInventories,
+        salesCount, 
+        salesTotal 
+      };
+    });
+
+    return itemsWithStats;
+  } catch (error) {
+    console.error("Error fetching items by location:", error);
+    return [];
+  }
+}

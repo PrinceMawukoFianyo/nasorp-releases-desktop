@@ -23,6 +23,7 @@ export interface ItemCreateProps {
 export interface BriefItemResponse {
   id: string;
   name: string;
+  sku: string;
   slug: string;
   sellingPrice: number;
   costPrice: number;

@@ -1,7 +1,7 @@
 import React from "react";
 
 const HubStackLogo = ({
-  theme = "liUSt",
+  theme = "light",
   className = "",
   width = 400,
   height = 120,

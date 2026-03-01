@@ -201,3 +201,70 @@ export async function deleteLocation(id: string) {
   }
 }
 
+export async function getLocationsWithItemCounts(orgId: string) {
+  try {
+    // Get all active locations with their inventory counts
+    const locations = await db.location.findMany({
+      where: { 
+        orgId,
+        isActive: true 
+      },
+      include: {
+        inventories: {
+          where: {
+            quantity: { gt: 0 } // Only count locations with stock
+          },
+          select: {
+            itemId: true,
+            quantity: true
+          }
+        },
+        _count: {
+          select: {
+            inventories: {
+              where: {
+                quantity: { gt: 0 }
+              }
+            }
+          }
+        }
+      },
+      orderBy: {
+        name: 'asc'
+      }
+    });
+
+    // Get total active items count
+    const totalItems = await db.item.count({
+      where: {
+        orgId,
+        isActive: true
+      }
+    });
+
+    // Transform to our format
+    const locationsWithCounts = locations.map(loc => ({
+      id: loc.id,
+      name: loc.name,
+      type: loc.type,
+      itemCount: loc._count.inventories,
+      // Optional: get total quantity if needed
+      totalQuantity: loc.inventories.reduce((sum, inv) => sum + inv.quantity, 0)
+    }));
+
+    return {
+      success: true,
+      data: locationsWithCounts,
+      totalItems
+    };
+  } catch (error) {
+    console.error("Error fetching locations with counts:", error);
+    return {
+      success: false,
+      error: "Failed to fetch locations",
+      data: [],
+      totalItems: 0
+    };
+  }
+}
+

@@ -10,6 +10,7 @@ interface POSLineItem {
   quantity: number
   unitPrice: number
   taxRate: number
+  notes?: string   // wholesale tier metadata JSON (tierId, tierName, packQty, etc.)
 }
 
 interface CreatePOSSaleData {
@@ -121,6 +122,8 @@ export async function createPOSSale(data: CreatePOSSaleData) {
         taxAmount: lineTax,
         total: lineSubtotal + lineTax,
         serialNumbers: [],
+        // Preserve wholesale tier metadata for reporting
+        notes: (line as any).notes || null,
       }
     })
 
@@ -184,7 +187,7 @@ export async function createPOSSale(data: CreatePOSSaleData) {
     // Revalidate relevant pages
     revalidatePath("/dashboard/pos")
     revalidatePath("/pos")
-    revalidatePath("/dashboard/sales/orders")
+
 
     return { 
       success: true, 
@@ -237,13 +240,37 @@ export async function getPOSItems(locationId?: string) {
             locationId: true,
           },
         },
+        // ── Include wholesale pricing tiers so POS gets them in one query ──
+        pricingTiers: {
+          include: {
+            packagingUnit: {
+              select: { name: true },
+            },
+          },
+          orderBy: { unitsPerPack: "asc" },
+        },
       },
       orderBy: {
         name: 'asc',
       },
     })
 
-    return { success: true, data: items }
+    // Shape pricingTiers to match PricingTierRecord so the POS page
+    // can use them directly without a separate getPricingTiersForItems call
+    const shapedItems = items.map((item) => ({
+      ...item,
+      pricingTiers: item.pricingTiers.map((t: any) => ({
+        id:                t.id,
+        itemId:            t.itemId,
+        packagingUnitId:   t.packagingUnitId,
+        packagingUnitName: t.packagingUnit.name,
+        unitsPerPack:      t.unitsPerPack,
+        wholesalePrice:    t.wholesalePrice,
+        pricePerUnit:      t.wholesalePrice / t.unitsPerPack,
+      })),
+    }))
+
+    return { success: true, data: shapedItems }
   } catch (error: any) {
     console.error("Error fetching POS items:", error)
     return { success: false, error: error.message || "Failed to fetch items" }

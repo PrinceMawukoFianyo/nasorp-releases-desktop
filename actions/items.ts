@@ -38,7 +38,7 @@ export async function createItem(data: ItemCreateInput) {
         name: data.name,
         sku: data.sku,
         slug: data.slug,
-        orgId: user.orgId, // always use the authenticated user's orgId — never trust client-sent orgId
+        orgId: user.orgId,
         thumbnail: data.thumbnail ?? null,
         costPrice: data.costPrice ?? 0,
         sellingPrice: data.sellingPrice ?? 0,
@@ -66,7 +66,6 @@ export async function createItem(data: ItemCreateInput) {
   } catch (error: any) {
     console.error("❌ Error creating item:", error);
 
-    // ✅ P2002 — unique constraint (SKU or slug already exists)
     if (error?.code === "P2002") {
       const field = error?.meta?.target?.[0] ?? "field";
       return {
@@ -76,7 +75,6 @@ export async function createItem(data: ItemCreateInput) {
       };
     }
 
-    // P2025 — record not found (e.g. bad categoryId FK)
     if (error?.code === "P2025") {
       return {
         success: false,
@@ -112,16 +110,14 @@ export async function getOrgItems(orgId: string, params = {}) {
   }
 }
 
-// ✅ Use Prisma directly to fetch ALL items without API pagination limits
-// UPDATED: Only returns active items (isActive: true)
 export async function getOrgBriefItems(orgId: string, params?: any) {
   try {
     console.log(`🔍 Fetching active items for org: ${orgId}`);
-    
+
     const items = await db.item.findMany({
-      where: { 
+      where: {
         orgId,
-        isActive: true, // 👈 Only show active items
+        isActive: true,
       },
       select: {
         id: true,
@@ -173,11 +169,10 @@ export async function getOrgBriefItems(orgId: string, params?: any) {
   }
 }
 
-// NEW: Get all items including inactive (for admin purposes)
 export async function getAllOrgItems(orgId: string, includeInactive: boolean = false) {
   try {
     const items = await db.item.findMany({
-      where: { 
+      where: {
         orgId,
         ...(includeInactive ? {} : { isActive: true }),
       },
@@ -229,10 +224,6 @@ export async function getAllOrgItems(orgId: string, includeInactive: boolean = f
   }
 }
 
-/**
- * One-time migration helper: syncs stored salesCount + salesTotal fields
- * from actual SalesOrderLine records (skipping DRAFT/CANCELLED).
- */
 export async function recomputeItemSalesStats(orgId: string) {
   try {
     const items = await db.item.findMany({
@@ -371,172 +362,91 @@ export async function updateItemById(id: string, data: Partial<ProductData>) {
   }
 }
 
-// FIXED: Soft delete function with correct relation names
-// actions/items.ts - Updated deleteItem function for permanent deletion
+// ✅ FIXED: Shared cascade-delete helper used by both single and bulk delete
+async function _cascadeDeleteItem(tx: any, id: string) {
+  // 1. Delete inventory records FIRST (this was the FK causing the error)
+  await tx.inventory.deleteMany({ where: { itemId: id } });
 
-// actions/items.ts - Fixed deleteItem function for permanent deletion
+  // 2. Delete supplier relations
+  await tx.itemSupplier.deleteMany({ where: { itemId: id } });
 
+  // 3. Delete the item itself
+  return tx.item.delete({ where: { id } });
+}
+
+// ✅ FIXED: Checks for blocking relations, then properly cascades cleanup
 export async function deleteItem(id: string) {
   try {
     console.log("🔍 Attempting to permanently delete item:", id);
-    
-    // First, check if the item exists and get all related records
+
     const item = await db.item.findUnique({
       where: { id },
       include: {
-        salesOrderLines: {
-          take: 1
-        },
-        inventories: {
-          take: 1
-        },
-        supplierRelations: {
-          take: 1
-        },
-        purchaseOrderLines: {
-          take: 1
-        },
-        adjustmentLines: {
-          take: 1
-        },
-        goodsReceiptLines: {
-          take: 1
-        },
-        transferLines: {
-          take: 1
-        },
-        serialNumbers: {
-          take: 1
-        }
-      }
+        salesOrderLines: { take: 1 },
+        purchaseOrderLines: { take: 1 },
+        goodsReceiptLines: { take: 1 },
+        transferLines: { take: 1 },
+        adjustmentLines: { take: 1 },
+        serialNumbers: { take: 1 },
+        // ✅ No `take` limit here — we need to know they exist to delete them
+        inventories: { take: 1 },
+        supplierRelations: { take: 1 },
+      },
     });
 
     if (!item) {
-      console.log("❌ Item not found:", id);
-      return {
-        success: false,
-        data: null,
-        error: "No item found",
-      };
+      return { success: false, data: null, error: "No item found" };
     }
 
-    console.log("📊 Item found - checking for related records:", {
-      id: item.id,
-      name: item.name,
-      salesCount: item.salesOrderLines?.length || 0,
-      inventoryCount: item.inventories?.length || 0,
-      supplierRelations: item.supplierRelations?.length || 0,
-      purchaseOrderLines: item.purchaseOrderLines?.length || 0,
-      adjustmentLines: item.adjustmentLines?.length || 0,
-      goodsReceiptLines: item.goodsReceiptLines?.length || 0,
-      transferLines: item.transferLines?.length || 0,
-      serialNumbers: item.serialNumbers?.length || 0,
-    });
+    // Guard: relations that BLOCK deletion (financial/audit trail)
+    const blockers: { relation: string; message: string }[] = [
+      {
+        relation: "salesOrderLines",
+        message: "Items with sales history cannot be deleted. Consider deactivating instead.",
+      },
+      {
+        relation: "purchaseOrderLines",
+        message: "Items linked to purchase orders cannot be deleted. Consider deactivating instead.",
+      },
+      {
+        relation: "goodsReceiptLines",
+        message: "Items with goods receipt history cannot be deleted. Consider deactivating instead.",
+      },
+      {
+        relation: "transferLines",
+        message: "Items involved in transfers cannot be deleted. Consider deactivating instead.",
+      },
+      {
+        relation: "adjustmentLines",
+        message: "Items with adjustment history cannot be deleted. Consider deactivating instead.",
+      },
+      {
+        relation: "serialNumbers",
+        message: "Items with serial numbers cannot be deleted. Consider deactivating instead.",
+      },
+    ];
 
-    // Check for sales records - these are usually permanent and shouldn't be deleted
-    if (item.salesOrderLines && item.salesOrderLines.length > 0) {
-      console.log("⚠️ Item has sales records, cannot delete");
-      return {
-        success: false,
-        data: null,
-        error: "Items with sales history cannot be deleted because it would break financial records. Consider deactivating instead.",
-      };
+    for (const { relation, message } of blockers) {
+      if ((item as any)[relation]?.length > 0) {
+        console.log(`⚠️ Blocked by ${relation}`);
+        return { success: false, data: null, error: message };
+      }
     }
 
-    // Check for purchase orders
-    if (item.purchaseOrderLines && item.purchaseOrderLines.length > 0) {
-      console.log("⚠️ Item has purchase order records, cannot delete");
-      return {
-        success: false,
-        data: null,
-        error: "Items linked to purchase orders cannot be deleted. Consider deactivating instead.",
-      };
-    }
-
-    // Check for goods receipt lines
-    if (item.goodsReceiptLines && item.goodsReceiptLines.length > 0) {
-      console.log("⚠️ Item has goods receipt records, cannot delete");
-      return {
-        success: false,
-        data: null,
-        error: "Items with goods receipt history cannot be deleted. Consider deactivating instead.",
-      };
-    }
-
-    // Check for transfer lines
-    if (item.transferLines && item.transferLines.length > 0) {
-      console.log("⚠️ Item has transfer records, cannot delete");
-      return {
-        success: false,
-        data: null,
-        error: "Items involved in transfers cannot be deleted. Consider deactivating instead.",
-      };
-    }
-
-    // Check for adjustment lines
-    if (item.adjustmentLines && item.adjustmentLines.length > 0) {
-      console.log("⚠️ Item has adjustment records, cannot delete");
-      return {
-        success: false,
-        data: null,
-        error: "Items with adjustment history cannot be deleted. Consider deactivating instead.",
-      };
-    }
-
-    // Check for serial numbers
-    if (item.serialNumbers && item.serialNumbers.length > 0) {
-      console.log("⚠️ Item has serial numbers, cannot delete");
-      return {
-        success: false,
-        data: null,
-        error: "Items with serial numbers cannot be deleted. Consider deactivating instead.",
-      };
-    }
-
-    // If we get here, it's safe to permanently delete
-    console.log("🗑️ Proceeding with permanent deletion - no related records found");
-
-    // Use a transaction to ensure all operations succeed or fail together
+    // ✅ Safe to delete — cascade cleanup inside a transaction
     const deletedItem = await db.$transaction(async (tx) => {
-      // First delete all related records in the correct order
-      
-      // 1. Delete inventory records
-      if (item.inventories && item.inventories.length > 0) {
-        await tx.inventory.deleteMany({
-          where: { itemId: id },
-        });
-        console.log(`✅ Deleted ${item.inventories.length} inventory records`);
-      }
-
-      // 2. Delete supplier relations - FIXED: Changed from supplierItem to ItemSupplier
-      if (item.supplierRelations && item.supplierRelations.length > 0) {
-        await tx.itemSupplier.deleteMany({
-          where: { itemId: id },
-        });
-        console.log(`✅ Deleted ${item.supplierRelations.length} supplier relations`);
-      }
-
-      // 3. Finally delete the item itself
-      const deleted = await tx.item.delete({
-        where: { id },
-      });
-      
-      console.log("✅ Item permanently deleted:", deleted.id);
-      return deleted;
+      return _cascadeDeleteItem(tx, id);
     });
+
+    console.log("✅ Item permanently deleted:", deletedItem.id);
 
     revalidatePath("/dashboard/inventory/items");
     revalidatePath("/dashboard");
 
-    return {
-      success: true,
-      data: deletedItem,
-      error: null,
-    };
+    return { success: true, data: deletedItem, error: null };
   } catch (error: any) {
     console.error("❌ Error permanently deleting item:", error);
-    
-    // Handle foreign key constraint errors
+
     if (error?.code === "P2003") {
       return {
         success: false,
@@ -545,25 +455,110 @@ export async function deleteItem(id: string) {
       };
     }
 
-    // Handle record not found
     if (error?.code === "P2025") {
+      return { success: false, data: null, error: "Item not found or already deleted" };
+    }
+
+    return { success: false, data: null, error: error?.message || "Failed to delete item" };
+  }
+}
+
+// ✅ NEW: Bulk delete — this was missing and caused the FK error shown in the screenshot.
+// The raw SQL was attempting to delete multiple items without cleaning up Inventory first.
+export async function bulkDeleteItems(ids: string[]) {
+  if (!ids || ids.length === 0) {
+    return { success: false, error: "No item IDs provided", deleted: 0, skipped: [] };
+  }
+
+  const skipped: { id: string; reason: string }[] = [];
+  const toDelete: string[] = [];
+
+  // Check each item for blocking relations before attempting any delete
+  const items = await db.item.findMany({
+    where: { id: { in: ids } },
+    include: {
+      salesOrderLines: { take: 1 },
+      purchaseOrderLines: { take: 1 },
+      goodsReceiptLines: { take: 1 },
+      transferLines: { take: 1 },
+      adjustmentLines: { take: 1 },
+      serialNumbers: { take: 1 },
+    },
+  });
+
+  for (const item of items) {
+    if (item.salesOrderLines?.length > 0) {
+      skipped.push({ id: item.id, reason: "Has sales history" });
+    } else if (item.purchaseOrderLines?.length > 0) {
+      skipped.push({ id: item.id, reason: "Has purchase orders" });
+    } else if (item.goodsReceiptLines?.length > 0) {
+      skipped.push({ id: item.id, reason: "Has goods receipt history" });
+    } else if (item.transferLines?.length > 0) {
+      skipped.push({ id: item.id, reason: "Has transfer records" });
+    } else if (item.adjustmentLines?.length > 0) {
+      skipped.push({ id: item.id, reason: "Has adjustment history" });
+    } else if (item.serialNumbers?.length > 0) {
+      skipped.push({ id: item.id, reason: "Has serial numbers" });
+    } else {
+      toDelete.push(item.id);
+    }
+  }
+
+  if (toDelete.length === 0) {
+    return {
+      success: false,
+      error: "All selected items have related records and cannot be deleted. Consider deactivating instead.",
+      deleted: 0,
+      skipped,
+    };
+  }
+
+  try {
+    // ✅ Delete inside a single transaction: inventory first, then supplier relations, then items
+    await db.$transaction(async (tx) => {
+      // 1. Remove inventory records for all items being deleted
+      await tx.inventory.deleteMany({ where: { itemId: { in: toDelete } } });
+
+      // 2. Remove supplier relations
+      await tx.itemSupplier.deleteMany({ where: { itemId: { in: toDelete } } });
+
+      // 3. Now safe to delete items
+      await tx.item.deleteMany({ where: { id: { in: toDelete } } });
+    });
+
+    console.log(`✅ Bulk deleted ${toDelete.length} items`);
+
+    revalidatePath("/dashboard/inventory/items");
+    revalidatePath("/dashboard");
+
+    return {
+      success: true,
+      deleted: toDelete.length,
+      skipped,
+      error: skipped.length > 0
+        ? `${toDelete.length} item(s) deleted. ${skipped.length} item(s) skipped due to related records.`
+        : null,
+    };
+  } catch (error: any) {
+    console.error("❌ Bulk delete failed:", error);
+
+    if (error?.code === "P2003") {
       return {
         success: false,
-        data: null,
-        error: "Item not found or already deleted",
+        error: "One or more items are still referenced by other records and cannot be deleted.",
+        deleted: 0,
+        skipped,
       };
     }
 
     return {
       success: false,
-      data: null,
-      error: error?.message || "Failed to delete item",
+      error: error?.message || "Bulk delete failed",
+      deleted: 0,
+      skipped,
     };
   }
 }
-
-// NEW: Hard delete function (use with caution) - REMOVED because it had errors
-// We'll keep only the soft delete function
 
 export async function createBulkItems(items: ItemCreateProps[]) {
   try {

@@ -1,40 +1,29 @@
 "use client";
+// app/dashboard/settings/tax-rates/columns.tsx
+
 import { ColumnDef } from "@tanstack/react-table";
-import ActionColumn from "@/components/DataTableColumns/ActionColumn";
-import SortableColumn from "@/components/DataTableColumns/SortableColumn";
-import { TaxResponse, UnitResponse} from "@/types/types";
+import { Badge } from "@/components/ui/badge";
+import { TaxResponse } from "@/types/types";
+
+// Note: With TaxRatesClient.tsx handling the table directly,
+// these column definitions are kept only if you still use DataTable elsewhere.
+// The TaxRatesClient uses its own inline table with built-in delete buttons.
 
 export const columns: ColumnDef<TaxResponse>[] = [
   {
     accessorKey: "name",
-    header: ({ column }) => <SortableColumn column={column} title="Name" />,
+    header: "Name",
+    cell: ({ row }) => (
+      <span className="font-medium">{row.original.name}</span>
+    ),
   },
-   {
-    accessorKey: "rate",
-    header: ({ column }) => <SortableColumn column={column} title="Rate" />,
-  },
-  
-  /* {
-    accessorKey: "role",
-    header: "Role",
-    cell: ({ row }) => {
-      const item = row.original;
-      return <UserRoleBtn user={item} />;
-    },
-  },*/
   {
-    id: "actions",
-    header: "Actions",
-    cell: ({ row }) => {
-      const tax = row.original;
-      return (
-        <ActionColumn
-          row={row}
-          model="tax"
-          editEndpoint={""}
-          id={tax.id}
-        />
-      );
-    },
-  }, 
-]; 
+    accessorKey: "rate",
+    header: "Rate",
+    cell: ({ row }) => (
+      <Badge variant="secondary" className="font-mono">
+        {row.original.rate}%
+      </Badge>
+    ),
+  },
+];

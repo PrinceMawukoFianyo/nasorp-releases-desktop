@@ -1,4 +1,4 @@
-// app/products/page.tsx
+// app/dashboard/items/page.tsx
 import { Suspense } from "react";
 
 import { TableLoading } from "@/components/ui/data-table";

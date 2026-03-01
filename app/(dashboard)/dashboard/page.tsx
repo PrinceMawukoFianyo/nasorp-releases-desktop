@@ -1,26 +1,23 @@
 // app/(dashboard)/dashboard/page.tsx
-import { Suspense } from "react"
 import { getDashboardData } from "@/actions/dashboard"
 import DashboardMain from "@/components/dashboard/DashboardMain"
 import { getAuthenticatedUser } from "@/config/useAuth"
 
 type Props = {
   searchParams: Promise<{
-    range?: string    // preset: '7d' | '30d' | 'today' | '90d' | '12m'
-                      // single: 'YYYY-MM-DD'
-                      // range:  'YYYY-MM-DD_YYYY-MM-DD'
-    // legacy support
-    period?: string
+    range?: string   // preset : 'today' | '7d' | '30d' | '90d' | '12m'
+                     // single : 'YYYY-MM-DD'
+                     // range  : 'YYYY-MM-DD_YYYY-MM-DD'
+    period?: string  // legacy support
   }>
 }
 
 export default async function DashboardPage({ searchParams }: Props) {
-  const params = await searchParams
-  // Support both ?range= (new) and ?period= (legacy)
+  const params    = await searchParams
   const dateRange = params.range || params.period || "7d"
 
   try {
-    const user = await getAuthenticatedUser()
+    await getAuthenticatedUser()
     const data = await getDashboardData(dateRange)
 
     return (

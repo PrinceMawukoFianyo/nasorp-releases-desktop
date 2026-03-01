@@ -3,16 +3,49 @@
 import React, { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SummaryCards } from "./SummaryCards";
-import { TransferChart } from "./TransferChart";
-import { AdjustmentChart } from "./AdjustmentChart";
-import { TransferStatusChart } from "./TransferStatusChart";
 import { RecentTransfersTable } from "./RecentTransferTable";
 import { RecentAdjustmentsTable } from "./RecentAdjustmentsTable";
 import { TopAdjustedItemsTable } from "./TopAdjustedItemsTable";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRightLeft, TrendingUp, TrendingDown, Download, FileText, FileSpreadsheet, FileDown, RefreshCw } from "lucide-react";
+import {
+  ArrowRightLeft,
+  TrendingUp,
+  TrendingDown,
+  Download,
+  FileText,
+  FileSpreadsheet,
+  FileDown,
+  RefreshCw,
+  Share2,
+} from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+} from "recharts";
 import type { StockMovementData } from "@/actions/reports";
 import { toast } from "sonner";
 import {
@@ -22,71 +55,79 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { PageHeader } from "../PageHeader";
 import { DateRangeFilter } from "../DateRangeFilter";
+import { cn } from "@/lib/utils";
+
+// ── Colours ────────────────────────────────────────────────────────────────
+
+const ADJUSTMENT_COLORS: Record<string, string> = {
+  STOCK_COUNT: "#3b82f6",
+  DAMAGE:      "#ef4444",
+  THEFT:       "#dc2626",
+  EXPIRED:     "#f59e0b",
+  WRITE_OFF:   "#8b5cf6",
+  CORRECTION:  "#10b981",
+  OTHER:       "#6b7280",
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  APPROVED:   "#3b82f6",
+  DRAFT:      "#94a3b8",
+  IN_TRANSIT: "#f59e0b",
+  COMPLETED:  "#10b981",
+  CANCELLED:  "#ef4444",
+};
+
+const formatType = (type: string) =>
+  type.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (l) => l.toUpperCase());
+
+// ── Custom pie label that never overlaps ───────────────────────────────────
+
+const renderCustomLabel = ({
+  cx, cy, midAngle, innerRadius, outerRadius, name, percent,
+}: any) => {
+  if (percent < 0.05) return null; // hide tiny slices
+  const RADIAN = Math.PI / 180;
+  const radius = outerRadius + 28;
+  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+  return (
+    <text
+      x={x}
+      y={y}
+      fill="#374151"
+      textAnchor={x > cx ? "start" : "end"}
+      dominantBaseline="central"
+      fontSize={11}
+    >
+      {name} ({(percent * 100).toFixed(0)}%)
+    </text>
+  );
+};
+
+// ── Props ──────────────────────────────────────────────────────────────────
 
 interface StockMovementReportProps {
   data: StockMovementData;
 }
 
-interface DownloadButtonProps {
-  onExport: (format: "pdf" | "excel" | "csv") => void;
-  onRefresh: () => void;
-  isLoading: boolean;
-}
-
-function DownloadButton({ onExport, onRefresh, isLoading }: DownloadButtonProps) {
-  return (
-    <div className="flex gap-2">
-      <Button
-        onClick={onRefresh}
-        variant="outline"
-        className="flex items-center gap-2"
-        disabled={isLoading}
-      >
-        <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-        Refresh
-      </Button>
-      
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button className="bg-pink-600 hover:bg-pink-700 flex items-center gap-2">
-            <Download className="h-4 w-4" />
-            Export
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => onExport("pdf")} className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Export as PDF
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onExport("excel")} className="flex items-center gap-2">
-            <FileSpreadsheet className="h-4 w-4" />
-            Export as Excel
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onExport("csv")} className="flex items-center gap-2">
-            <FileDown className="h-4 w-4" />
-            Export as CSV
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
-  );
-}
+// ═══════════════════════════════════════════════════════════════════════════
+// MAIN COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════
 
 export default function StockMovementReport({
   data: initialData,
 }: StockMovementReportProps) {
-  const [data, setData] = useState<StockMovementData>(initialData);
   const [isLoading, setIsLoading] = useState(false);
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
     from: new Date(new Date().setDate(new Date().getDate() - 30)),
     to: new Date(),
   });
 
-  // Create safe data with defaults to prevent undefined errors
-  const safeData = {
-    summary: initialData?.summary || {
+  // ── Safe defaults ────────────────────────────────────────────────────────
+
+  const safe = {
+    summary: initialData?.summary ?? {
       totalTransfers: 0,
       totalAdjustments: 0,
       totalTransferQuantity: 0,
@@ -95,264 +136,154 @@ export default function StockMovementReport({
       positiveAdjustments: 0,
       negativeAdjustments: 0,
     },
-    transfersByLocation: initialData?.transfersByLocation || [],
-    adjustmentsByType: initialData?.adjustmentsByType || [],
-    timeline: initialData?.timeline || [],
-    recentTransfers: initialData?.recentTransfers || [],
-    recentAdjustments: initialData?.recentAdjustments || [],
-    topAdjustedItems: initialData?.topAdjustedItems || [],
-    transferStatusData: initialData?.transferStatusData || [],
-    recentActivity: initialData?.recentActivity || []
+    transfersByLocation: initialData?.transfersByLocation ?? [],
+    adjustmentsByType:   initialData?.adjustmentsByType   ?? [],
+    timeline:            initialData?.timeline            ?? [],
+    recentTransfers:     initialData?.recentTransfers     ?? [],
+    recentAdjustments:   initialData?.recentAdjustments   ?? [],
+    topAdjustedItems:    initialData?.topAdjustedItems    ?? [],
+    transferStatusData:  initialData?.transferStatusData  ?? [],
+    recentActivity:      initialData?.recentActivity      ?? [],
   };
 
-  const handleDateRangeChange = async (from: Date | undefined, to: Date | undefined) => {
+  const hasData =
+    safe.timeline.length > 0 ||
+    safe.transfersByLocation.length > 0 ||
+    safe.adjustmentsByType.length > 0;
+
+  // ── Handlers ─────────────────────────────────────────────────────────────
+
+  const handleDateRangeChange = async (from?: Date, to?: Date) => {
     if (!from || !to) return;
-    
     setDateRange({ from, to });
-    
-    const toastId = toast.loading("Applying date filter...");
+    const id = toast.loading("Applying date filter…");
     setIsLoading(true);
-    
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      toast.success(`Filter applied: ${from.toLocaleDateString()} to ${to.toLocaleDateString()}`, {
-        id: toastId,
-        description: "Showing updated data for selected date range",
-      });
-    } catch (error) {
-      toast.error("Failed to apply filters", {
-        id: toastId,
-        description: "Please try again or contact support",
-      });
+      await new Promise((r) => setTimeout(r, 800));
+      toast.success("Filter applied", { id, description: `${from.toLocaleDateString()} – ${to.toLocaleDateString()}` });
+    } catch {
+      toast.error("Failed to apply filters", { id });
     } finally {
       setIsLoading(false);
     }
   };
 
   const handlePeriodChange = async (period: string) => {
-    let newFrom = new Date();
-    
-    switch (period) {
-      case "daily":
-        newFrom.setDate(newFrom.getDate() - 1);
-        break;
-      case "weekly":
-        newFrom.setDate(newFrom.getDate() - 7);
-        break;
-      case "monthly":
-        newFrom.setDate(newFrom.getDate() - 30);
-        break;
-      case "yearly":
-        newFrom.setFullYear(newFrom.getFullYear() - 1);
-        break;
-    }
-    
-    await handleDateRangeChange(newFrom, new Date());
-  };
-
-  const handleExport = (format: "pdf" | "excel" | "csv") => {
-    const formats = {
-      pdf: "PDF",
-      excel: "Excel",
-      csv: "CSV"
-    };
-    
-    const toastId = toast.loading(`Preparing ${formats[format]} export...`);
-    
-    // Simulate export process
-    setTimeout(() => {
-      toast.success(`Report exported as ${formats[format]}`, {
-        id: toastId,
-        description: "Your download will start automatically",
-        action: {
-          label: "View",
-          onClick: () => console.log("View exported file"),
-        },
-      });
-      
-      // In real app, trigger download
-      console.log(`Exporting as ${format}`);
-    }, 1500);
+    const from = new Date();
+    const days: Record<string, number> = { daily: 1, weekly: 7, monthly: 30, yearly: 365 };
+    from.setDate(from.getDate() - (days[period] ?? 30));
+    await handleDateRangeChange(from, new Date());
   };
 
   const handleRefresh = async () => {
-    const toastId = toast.loading("Refreshing report data...");
+    const id = toast.loading("Refreshing…");
     setIsLoading(true);
-    
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      toast.success("Report refreshed successfully", {
-        id: toastId,
-        description: "Latest data has been loaded",
-      });
-    } catch (error) {
-      toast.error("Failed to refresh data", {
-        id: toastId,
-        description: "Please check your connection and try again",
-      });
+      await new Promise((r) => setTimeout(r, 800));
+      toast.success("Report refreshed", { id });
+    } catch {
+      toast.error("Refresh failed", { id });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleQuickAction = (action: string) => {
-    switch (action) {
-      case "export":
-        toast.info("Opening export options...");
-        break;
-      case "filter":
-        toast.info("Customize your filters");
-        break;
-      case "share":
-        toast.success("Report link copied to clipboard!", {
-          description: "Share with your team members",
-        });
-        break;
-    }
+  const handleExport = (format: "pdf" | "excel" | "csv") => {
+    const label = { pdf: "PDF", excel: "Excel", csv: "CSV" }[format];
+    const id = toast.loading(`Preparing ${label}…`);
+    setTimeout(() => toast.success(`Exported as ${label}`, { id, description: "Download starting…" }), 1500);
   };
 
-  const formatAdjustmentType = (type: string): string => {
-    return type
-      .replace(/_/g, " ")
-      .toLowerCase()
-      .replace(/\b\w/g, (l) => l.toUpperCase());
-  };
-
-  const hasData = safeData.timeline.length > 0 || 
-                  safeData.transfersByLocation.length > 0 || 
-                  safeData.adjustmentsByType.length > 0;
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-6 p-6">
-      {/* Title Section */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Stock Movement Report</h1>
-        <p className="text-muted-foreground mt-2">
-          Track stock transfers between locations and inventory adjustments
-        </p>
-      </div>
 
-      {/* Date Range Filter Section - First Row */}
-      <div className="bg-card rounded-lg border p-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          {/* Left: Date Range Controls */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-1">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium whitespace-nowrap">Period</span>
-              <DateRangeFilter 
-                onDateRangeChange={handleDateRangeChange}
-                onPeriodChange={handlePeriodChange}
-              />
-            </div>
-            
-            {/* Current Date Range Display */}
-            <div className="flex items-center gap-2 text-sm">
-              <span className="font-medium whitespace-nowrap">Showing:</span>
-              <span className="text-muted-foreground">
-                {dateRange.from.toLocaleDateString('en-US', { 
-                  month: 'short', 
-                  day: 'numeric', 
-                  year: 'numeric' 
-                })} - {dateRange.to.toLocaleDateString('en-US', { 
-                  month: 'short', 
-                  day: 'numeric', 
-                  year: 'numeric' 
-                })}
-              </span>
-            </div>
-          </div>
+      {/* ── Page header: title + actions on ONE row ─────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Stock Movement Report</h1>
+          <p className="text-muted-foreground mt-1">
+            Track stock transfers between locations and inventory adjustments
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            onClick={handleRefresh}
+            variant="outline"
+            size="sm"
+            disabled={isLoading}
+            className="gap-2"
+          >
+            <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
+            Refresh
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => toast.success("Link copied to clipboard!")}
+          >
+            <Share2 className="h-4 w-4" />
+            Share
+          </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" className="bg-pink-600 hover:bg-pink-700 gap-2">
+                <Download className="h-4 w-4" />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleExport("pdf")} className="gap-2">
+                <FileText className="h-4 w-4" /> Export as PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport("excel")} className="gap-2">
+                <FileSpreadsheet className="h-4 w-4" /> Export as Excel
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport("csv")} className="gap-2">
+                <FileDown className="h-4 w-4" /> Export as CSV
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
-      {/* Action Buttons Section - Second Row */}
-      <div className="bg-card rounded-lg border p-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          {/* Left: Quick Stats */}
-          <div className="flex items-center gap-6">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-blue-700">{safeData.summary.totalTransfers}</p>
-              <p className="text-sm text-muted-foreground">Total Transfers</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-purple-700">{safeData.summary.totalAdjustments}</p>
-              <p className="text-sm text-muted-foreground">Total Adjustments</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-green-700">
-                {safeData.summary.totalTransferQuantity.toLocaleString()}
-              </p>
-              <p className="text-sm text-muted-foreground">Items Transferred</p>
-            </div>
-          </div>
-
-          {/* Right: Action Buttons */}
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={handleRefresh}
-              variant="outline"
-              className="flex items-center gap-2"
-              disabled={isLoading}
-            >
-              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button className="bg-pink-600 hover:bg-pink-700 flex items-center gap-2">
-                  <Download className="h-4 w-4" />
-                  Export
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => handleExport("pdf")} className="flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
-                  Export as PDF
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleExport("excel")} className="flex items-center gap-2">
-                  <FileSpreadsheet className="h-4 w-4" />
-                  Export as Excel
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleExport("csv")} className="flex items-center gap-2">
-                  <FileDown className="h-4 w-4" />
-                  Export as CSV
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Additional Actions */}
-            <button
-              onClick={() => handleQuickAction("share")}
-              className="px-3 py-2 text-sm bg-white border rounded-md hover:bg-gray-50 transition-colors flex items-center gap-1.5"
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-              </svg>
-              Share
-            </button>
-          </div>
+      {/* ── Date filter bar ─────────────────────────────────────────────── */}
+      <Card className="p-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <DateRangeFilter
+            onDateRangeChange={handleDateRangeChange}
+            onPeriodChange={handlePeriodChange}
+          />
+          <p className="text-sm text-muted-foreground whitespace-nowrap">
+            Showing:{" "}
+            <span className="font-medium text-foreground">
+              {dateRange.from.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              {" – "}
+              {dateRange.to.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+            </span>
+          </p>
         </div>
-      </div>
+      </Card>
 
-      {/* Summary Cards */}
-      <SummaryCards summary={safeData.summary} />
+      {/* ── Summary cards ────────────────────────────────────────────────── */}
+      <SummaryCards summary={safe.summary} />
 
+      {/* ── Empty state ──────────────────────────────────────────────────── */}
       {!hasData ? (
         <Card>
-          <CardContent className="p-12 text-center">
-            <div className="max-w-md mx-auto">
-              <div className="h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
+          <CardContent className="p-16 text-center">
+            <div className="max-w-sm mx-auto space-y-4">
+              <div className="h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
+                <FileText className="h-8 w-8 text-gray-400" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-700 mb-2">No Data Available</h3>
-              <p className="text-gray-500 mb-6">
-                No stock movement data found for the selected period. Try adjusting your date filters or check back later.
+              <h3 className="text-lg font-semibold text-gray-700">No Data Available</h3>
+              <p className="text-gray-500 text-sm">
+                No stock movement data for the selected period. Adjust your date filters or refresh.
               </p>
               <Button onClick={handleRefresh} className="bg-pink-600 hover:bg-pink-700">
                 Refresh Data
@@ -361,226 +292,394 @@ export default function StockMovementReport({
           </CardContent>
         </Card>
       ) : (
-        <>
-          {/* Charts Section */}
-          <Tabs defaultValue="overview" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-4 lg:w-auto">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="transfers">Transfers</TabsTrigger>
-              <TabsTrigger value="adjustments">Adjustments</TabsTrigger>
-              <TabsTrigger value="details">Details</TabsTrigger>
-            </TabsList>
 
-            <TabsContent value="overview" className="space-y-6">
-              <div className="grid gap-4 md:grid-cols-2">
-                <TransferChart data={safeData.timeline} />
-                <TransferStatusChart data={safeData.transferStatusData} />
-              </div>
-              
-              <div className="grid gap-4 md:grid-cols-2">
-                <AdjustmentChart data={safeData.adjustmentsByType} />
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Transfer Locations</CardTitle>
-                    <CardDescription>Top locations by transfer volume</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {safeData.transfersByLocation.slice(0, 5).map((location, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-lg transition-colors">
-                          <div className="flex items-center gap-3">
-                            <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
-                              location.netMovement >= 0 ? 'bg-green-100' : 'bg-red-100'
-                            }`}>
-                              {location.netMovement >= 0 ? (
-                                <TrendingUp className="h-5 w-5 text-green-600" />
-                              ) : (
-                                <TrendingDown className="h-5 w-5 text-red-600" />
-                              )}
-                            </div>
-                            <div>
-                              <p className="font-medium">{location.locationName}</p>
-                              <p className="text-sm text-muted-foreground">
-                                Net: {location.netMovement >= 0 ? '+' : ''}{location.netMovement.toLocaleString()}
-                              </p>
-                            </div>
+        /* ── Tabs ──────────────────────────────────────────────────────── */
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="transfers">Transfers</TabsTrigger>
+            <TabsTrigger value="adjustments">Adjustments</TabsTrigger>
+            <TabsTrigger value="details">Details</TabsTrigger>
+          </TabsList>
+
+          {/* ════════════════ OVERVIEW ════════════════ */}
+          <TabsContent value="overview" className="space-y-6">
+
+            {/* Row 1: full-width trend bar chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Stock Movement Trends</CardTitle>
+                <CardDescription>Daily transfers and adjustments over time</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {safe.timeline.length === 0 ? (
+                  <div className="h-[360px] flex items-center justify-center text-muted-foreground text-sm">
+                    No timeline data available
+                  </div>
+                ) : (
+                  <>
+                    <ResponsiveContainer width="100%" height={360}>
+                      <BarChart
+                        data={safe.timeline}
+                        margin={{ top: 10, right: 20, left: 0, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis dataKey="date" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+                        <YAxis tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+                        <Tooltip
+                          contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12 }}
+                        />
+                        <Legend />
+                        <Bar dataKey="transfers"   fill="#3b82f6" radius={[4,4,0,0]} name="Transfers" />
+                        <Bar dataKey="adjustments" fill="#ef4444" radius={[4,4,0,0]} name="Adjustments" />
+                      </BarChart>
+                    </ResponsiveContainer>
+
+                    <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t">
+                      <div className="bg-blue-50 p-4 rounded-xl">
+                        <p className="text-sm font-medium text-blue-700">Total Transfers</p>
+                        <p className="text-2xl font-bold mt-1">
+                          {safe.timeline.reduce((s, d) => s + (d.transfers || 0), 0).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="bg-red-50 p-4 rounded-xl">
+                        <p className="text-sm font-medium text-red-700">Total Adjustments</p>
+                        <p className="text-2xl font-bold mt-1">
+                          {safe.timeline.reduce((s, d) => s + (d.adjustments || 0), 0).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Row 2: two pie charts side-by-side, each with enough room */}
+            <div className="grid gap-6 lg:grid-cols-2">
+
+              {/* Transfer Status pie */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Transfer Status Distribution</CardTitle>
+                  <CardDescription>Breakdown of transfers by status</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {safe.transferStatusData.length === 0 ? (
+                    <div className="h-[320px] flex items-center justify-center text-muted-foreground text-sm">
+                      No status data available
+                    </div>
+                  ) : (
+                    <>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                          <Pie
+                            data={safe.transferStatusData}
+                            dataKey="count"
+                            nameKey="status"
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={100}
+                            labelLine
+                            label={renderCustomLabel}
+                          >
+                            {safe.transferStatusData.map((entry, i) => (
+                              <Cell key={i} fill={STATUS_COLORS[entry.status] ?? "#6b7280"} />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            formatter={(val: number, name: string) => [val, name]}
+                            contentStyle={{ borderRadius: 8, fontSize: 12 }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+
+                      <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t">
+                        {safe.transferStatusData.map((s) => (
+                          <div key={s.status} className="flex items-center gap-2 text-sm">
+                            <span
+                              className="h-3 w-3 rounded-full shrink-0"
+                              style={{ backgroundColor: STATUS_COLORS[s.status] ?? "#6b7280" }}
+                            />
+                            <span className="font-medium truncate">{s.status}</span>
+                            <span className="text-muted-foreground ml-auto">{s.count}</span>
                           </div>
-                          <div className="text-right">
-                            <p className="font-semibold">{(location.transfersIn + location.transfersOut).toLocaleString()}</p>
-                            <p className="text-sm text-muted-foreground">
-                              In: {location.transfersIn} • Out: {location.transfersOut}
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Adjustment by type pie */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Adjustments by Type</CardTitle>
+                  <CardDescription>Distribution of inventory adjustments</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {safe.adjustmentsByType.length === 0 ? (
+                    <div className="h-[320px] flex items-center justify-center text-muted-foreground text-sm">
+                      No adjustment data available
+                    </div>
+                  ) : (
+                    <>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                          <Pie
+                            data={safe.adjustmentsByType}
+                            dataKey="quantity"
+                            nameKey="adjustmentType"
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={100}
+                            labelLine
+                            label={({ name, percent }) =>
+                              percent >= 0.05
+                                ? `${formatType(name ?? "")} (${(percent * 100).toFixed(0)}%)`
+                                : null
+                            }
+                          >
+                            {safe.adjustmentsByType.map((entry, i) => (
+                              <Cell key={i} fill={ADJUSTMENT_COLORS[entry.adjustmentType] ?? "#6b7280"} />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            formatter={(val: number, name: string) => [val, formatType(name)]}
+                            contentStyle={{ borderRadius: 8, fontSize: 12 }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+
+                      <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t">
+                        {safe.adjustmentsByType.slice(0, 6).map((e) => (
+                          <div key={e.adjustmentType} className="flex items-center gap-2 text-sm">
+                            <span
+                              className="h-3 w-3 rounded-full shrink-0"
+                              style={{ backgroundColor: ADJUSTMENT_COLORS[e.adjustmentType] ?? "#6b7280" }}
+                            />
+                            <span className="truncate">{formatType(e.adjustmentType)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Row 3: Transfer Locations */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Transfer Locations</CardTitle>
+                <CardDescription>Top locations by transfer volume</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {safe.transfersByLocation.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-6 text-center">No location data</p>
+                ) : (
+                  <div className="divide-y">
+                    {safe.transfersByLocation.slice(0, 5).map((loc, i) => (
+                      <div key={i} className="flex items-center justify-between py-3">
+                        <div className="flex items-center gap-3">
+                          <div className={cn(
+                            "h-10 w-10 rounded-full flex items-center justify-center",
+                            loc.netMovement >= 0 ? "bg-green-100" : "bg-red-100"
+                          )}>
+                            {loc.netMovement >= 0
+                              ? <TrendingUp className="h-5 w-5 text-green-600" />
+                              : <TrendingDown className="h-5 w-5 text-red-600" />
+                            }
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm">{loc.locationName}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Net: {loc.netMovement >= 0 ? "+" : ""}{loc.netMovement.toLocaleString()}
                             </p>
                           </div>
                         </div>
-                      ))}
-                      {safeData.transfersByLocation.length > 5 && (
-                        <button
-                          onClick={() => toast.info("Showing all locations", {
-                            description: "Loading complete location data...",
-                          })}
-                          className="w-full text-center py-2 text-sm text-blue-600 hover:text-blue-700"
-                        >
-                          View all {safeData.transfersByLocation.length} locations →
-                        </button>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
+                        <div className="text-right">
+                          <p className="font-semibold text-sm">{(loc.transfersIn + loc.transfersOut).toLocaleString()}</p>
+                          <p className="text-xs text-muted-foreground">
+                            In: {loc.transfersIn} · Out: {loc.transfersOut}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-            <TabsContent value="transfers" className="space-y-4">
-              <div className="grid gap-4">
-                <RecentTransfersTable transfers={safeData.recentTransfers} />
-                
-                {/* Transfer Statistics */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Transfer Statistics</CardTitle>
-                    <CardDescription>Summary of transfer activities</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div 
-                        className="space-y-2 p-4 bg-blue-50 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors"
-                        onClick={() => toast.info("Transfer Details", {
-                          description: `Total transfers: ${safeData.summary.totalTransfers}`,
-                        })}
-                      >
-                        <p className="text-sm font-medium text-blue-700">Total Transfers</p>
-                        <p className="text-2xl font-bold">{safeData.summary.totalTransfers}</p>
-                      </div>
-                      <div 
-                        className="space-y-2 p-4 bg-green-50 rounded-lg cursor-pointer hover:bg-green-100 transition-colors"
-                        onClick={() => toast.info("Transfer Volume", {
-                          description: `Total items transferred: ${safeData.summary.totalTransferQuantity.toLocaleString()}`,
-                        })}
-                      >
-                        <p className="text-sm font-medium text-green-700">Items Transferred</p>
-                        <p className="text-2xl font-bold">{safeData.summary.totalTransferQuantity.toLocaleString()}</p>
-                      </div>
-                      <div 
-                        className="space-y-2 p-4 bg-purple-50 rounded-lg cursor-pointer hover:bg-purple-100 transition-colors"
-                        onClick={() => toast.info("Average Items", {
-                          description: `Average items per transfer: ${safeData.recentTransfers.length > 0 
-                            ? Math.round(safeData.summary.totalTransferQuantity / safeData.summary.totalTransfers)
-                            : 0
-                          }`,
-                        })}
-                      >
-                        <p className="text-sm font-medium text-purple-700">Avg. Items/Transfer</p>
-                        <p className="text-2xl font-bold">
-                          {safeData.recentTransfers.length > 0 && safeData.summary.totalTransfers > 0
-                            ? Math.round(safeData.summary.totalTransferQuantity / safeData.summary.totalTransfers)
-                            : 0
-                          }
-                        </p>
-                      </div>
-                      <div 
-                        className="space-y-2 p-4 bg-orange-50 rounded-lg cursor-pointer hover:bg-orange-100 transition-colors"
-                        onClick={() => toast.info("Completion Rate", {
-                          description: `${safeData.summary.completedTransfers || 0} completed out of ${safeData.summary.totalTransfers} total transfers`,
-                        })}
-                      >
-                        <p className="text-sm font-medium text-orange-700">Completion Rate</p>
-                        <p className="text-2xl font-bold">
-                          {safeData.summary.completedTransfers && safeData.summary.totalTransfers > 0
-                            ? `${Math.round((safeData.summary.completedTransfers / safeData.summary.totalTransfers) * 100)}%`
-                            : "0%"
-                          }
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
+          {/* ════════════════ TRANSFERS ════════════════ */}
+          <TabsContent value="transfers" className="space-y-6">
+            <RecentTransfersTable transfers={safe.recentTransfers} />
 
-            <TabsContent value="adjustments" className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <AdjustmentChart data={safeData.adjustmentsByType} />
-                <TopAdjustedItemsTable items={safeData.topAdjustedItems} />
-              </div>
-              
-              <RecentAdjustmentsTable adjustments={safeData.recentAdjustments} />
-              
-              {/* Adjustment Summary */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Transfer Statistics</CardTitle>
+                <CardDescription>Summary of transfer activity</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[
+                    { label: "Total Transfers",     value: safe.summary.totalTransfers,                                                                         color: "blue"   },
+                    { label: "Items Transferred",   value: safe.summary.totalTransferQuantity.toLocaleString(),                                                  color: "green"  },
+                    { label: "Avg Items / Transfer", value: safe.summary.totalTransfers > 0
+                        ? Math.round(safe.summary.totalTransferQuantity / safe.summary.totalTransfers)
+                        : 0,                                                                                                                                     color: "purple" },
+                    { label: "Completion Rate",     value: safe.summary.totalTransfers > 0
+                        ? `${Math.round(((safe.summary.completedTransfers ?? 0) / safe.summary.totalTransfers) * 100)}%`
+                        : "0%",                                                                                                                                  color: "orange" },
+                  ].map((s) => (
+                    <div key={s.label} className={`p-4 rounded-xl bg-${s.color}-50`}>
+                      <p className={`text-sm font-medium text-${s.color}-700`}>{s.label}</p>
+                      <p className="text-2xl font-bold mt-1">{s.value}</p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ════════════════ ADJUSTMENTS ════════════════ */}
+          <TabsContent value="adjustments" className="space-y-6">
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* Pie chart */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Adjustment Summary</CardTitle>
-                  <CardDescription>Detailed breakdown by type</CardDescription>
+                  <CardTitle>Adjustments by Type</CardTitle>
+                  <CardDescription>Distribution of inventory adjustments</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Type</TableHead>
-                        <TableHead className="text-right">Count</TableHead>
-                        <TableHead className="text-right">Quantity</TableHead>
-                        <TableHead className="text-right">Avg. per Adjustment</TableHead>
-                        <TableHead className="text-right">% of Total</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {safeData.adjustmentsByType.map((adjustment) => (
-                        <TableRow 
-                          key={adjustment.adjustmentType}
-                          className="hover:bg-muted/50 cursor-pointer"
-                          onClick={() => toast.info(`${adjustment.adjustmentType.replace(/_/g, " ")} Details`, {
-                            description: `${adjustment.count} adjustments affecting ${adjustment.quantity.toLocaleString()} items`,
-                          })}
-                        >
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <div
-                                className="h-3 w-3 rounded-full"
-                                style={{
-                                  backgroundColor: adjustment.adjustmentType === "STOCK_COUNT" ? "#3b82f6" :
-                                                  adjustment.adjustmentType === "DAMAGE" ? "#ef4444" :
-                                                  adjustment.adjustmentType === "THEFT" ? "#dc2626" :
-                                                  adjustment.adjustmentType === "EXPIRED" ? "#f59e0b" :
-                                                  adjustment.adjustmentType === "WRITE_OFF" ? "#8b5cf6" :
-                                                  adjustment.adjustmentType === "CORRECTION" ? "#10b981" : "#6b7280",
-                                }}
-                              />
-                              {formatAdjustmentType(adjustment.adjustmentType)}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right">{adjustment.count}</TableCell>
-                          <TableCell className="text-right font-semibold">
-                            {adjustment.quantity.toLocaleString()}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {adjustment.count > 0 ? Math.round(adjustment.quantity / adjustment.count).toLocaleString() : "0"}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {safeData.summary.totalAdjustmentQuantity > 0
-                              ? `${Math.round((adjustment.quantity / safeData.summary.totalAdjustmentQuantity) * 100)}%`
-                              : "0%"
+                  {safe.adjustmentsByType.length === 0 ? (
+                    <div className="h-[320px] flex items-center justify-center text-muted-foreground text-sm">
+                      No adjustment data
+                    </div>
+                  ) : (
+                    <>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                          <Pie
+                            data={safe.adjustmentsByType}
+                            dataKey="quantity"
+                            nameKey="adjustmentType"
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={100}
+                            labelLine
+                            label={({ name, percent }) =>
+                              percent >= 0.05 ? `${formatType(name ?? "")} (${(percent * 100).toFixed(0)}%)` : null
                             }
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                          >
+                            {safe.adjustmentsByType.map((e, i) => (
+                              <Cell key={i} fill={ADJUSTMENT_COLORS[e.adjustmentType] ?? "#6b7280"} />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            formatter={(val: number, name: string) => [val, formatType(name)]}
+                            contentStyle={{ borderRadius: 8, fontSize: 12 }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t text-sm">
+                        {safe.adjustmentsByType.slice(0, 6).map((e) => (
+                          <div key={e.adjustmentType} className="flex items-center gap-2">
+                            <span className="h-3 w-3 rounded-full shrink-0"
+                              style={{ backgroundColor: ADJUSTMENT_COLORS[e.adjustmentType] ?? "#6b7280" }} />
+                            <span className="truncate">{formatType(e.adjustmentType)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </CardContent>
               </Card>
-            </TabsContent>
 
-            <TabsContent value="details" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>All Activity Timeline</CardTitle>
-                  <CardDescription>Combined transfers and adjustments</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {safeData.recentActivity.map((activity) => (
-                      <div 
-                        key={activity.id} 
-                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                        onClick={() => toast.info(`${activity.type} Details`, {
-                          description: `${activity.number} - ${activity.status}`,
+              {/* Top adjusted items table */}
+              <TopAdjustedItemsTable items={safe.topAdjustedItems} />
+            </div>
+
+            <RecentAdjustmentsTable adjustments={safe.recentAdjustments} />
+
+            {/* Adjustment summary table */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Adjustment Summary</CardTitle>
+                <CardDescription>Detailed breakdown by type</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Type</TableHead>
+                      <TableHead className="text-right">Count</TableHead>
+                      <TableHead className="text-right">Quantity</TableHead>
+                      <TableHead className="text-right">Avg / Adjustment</TableHead>
+                      <TableHead className="text-right">% of Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {safe.adjustmentsByType.map((adj) => (
+                      <TableRow key={adj.adjustmentType} className="hover:bg-muted/50">
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <span className="h-3 w-3 rounded-full"
+                              style={{ backgroundColor: ADJUSTMENT_COLORS[adj.adjustmentType] ?? "#6b7280" }} />
+                            {formatType(adj.adjustmentType)}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">{adj.count}</TableCell>
+                        <TableCell className="text-right font-semibold">{adj.quantity.toLocaleString()}</TableCell>
+                        <TableCell className="text-right">
+                          {adj.count > 0 ? Math.round(adj.quantity / adj.count).toLocaleString() : "0"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {safe.summary.totalAdjustmentQuantity > 0
+                            ? `${Math.round((adj.quantity / safe.summary.totalAdjustmentQuantity) * 100)}%`
+                            : "0%"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {safe.adjustmentsByType.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                          No adjustment data
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ════════════════ DETAILS ════════════════ */}
+          <TabsContent value="details" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>All Activity Timeline</CardTitle>
+                <CardDescription>Combined transfers and adjustments</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {safe.recentActivity.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <p>No recent activity found</p>
+                    <button
+                      onClick={handleRefresh}
+                      className="mt-2 text-sm text-blue-600 hover:text-blue-700"
+                    >
+                      Refresh data
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {safe.recentActivity.map((activity) => (
+                      <div
+                        key={activity.id}
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                        onClick={() => toast.info(`${activity.type} — ${activity.number}`, {
+                          description: activity.status,
                         })}
                       >
                         <div className="flex items-center gap-4">
@@ -588,81 +687,57 @@ export default function StockMovementReport({
                             {activity.type}
                           </Badge>
                           <div>
-                            <p className="font-medium">{activity.number}</p>
-                            <p className="text-sm text-muted-foreground">{activity.date}</p>
+                            <p className="font-medium text-sm">{activity.number}</p>
+                            <p className="text-xs text-muted-foreground">{activity.date}</p>
                           </div>
                         </div>
-                        
-                        <div className="text-right">
+
+                        <div className="text-right text-sm">
                           {activity.type === "TRANSFER" ? (
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm">{activity.fromLocation}</span>
-                              <ArrowRightLeft className="h-4 w-4" />
-                              <span className="text-sm">{activity.toLocation}</span>
-                            </div>
+                            <span className="flex items-center gap-1 text-muted-foreground">
+                              {activity.fromLocation}
+                              <ArrowRightLeft className="h-3 w-3" />
+                              {activity.toLocation}
+                            </span>
                           ) : (
-                            <p className="text-sm">
-                              {activity.location} • {activity.adjustmentType ? formatAdjustmentType(activity.adjustmentType) : "N/A"}
-                            </p>
+                            <span className="text-muted-foreground">
+                              {activity.location} · {activity.adjustmentType ? formatType(activity.adjustmentType) : "N/A"}
+                            </span>
                           )}
-                          <p className="text-sm text-muted-foreground">{activity.itemCount} items</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{activity.itemCount} items</p>
                         </div>
-                        
+
                         <Badge variant={
-                          activity.status === "COMPLETED" ? "default" :
-                          activity.status === "CANCELLED" ? "destructive" :
+                          activity.status === "COMPLETED"  ? "default"     :
+                          activity.status === "CANCELLED"  ? "destructive" :
                           "secondary"
                         }>
                           {activity.status}
                         </Badge>
                       </div>
                     ))}
-                    
-                    {safeData.recentActivity.length === 0 && (
-                      <div className="text-center py-8">
-                        <p className="text-muted-foreground">No recent activity found</p>
-                        <button
-                          onClick={() => toast.info("Refresh suggested", {
-                            description: "Try refreshing or adjusting your date filters",
-                          })}
-                          className="mt-2 text-sm text-blue-600 hover:text-blue-700"
-                        >
-                          Refresh data
-                        </button>
-                      </div>
-                    )}
                   </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-
-          {/* Action Footer */}
-          <div className="flex items-center justify-between pt-4 border-t">
-            <div className="text-sm text-muted-foreground">
-              Last updated: {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => toast("Report feedback sent", {
-                  description: "Thank you for your feedback!",
-                })}
-                className="text-sm text-muted-foreground hover:text-foreground"
-              >
-                Give feedback
-              </button>
-              <button
-                onClick={() => toast.info("Help requested", {
-                  description: "Our support team will contact you shortly",
-                })}
-                className="text-sm text-blue-600 hover:text-blue-700"
-              >
-                Need help?
-              </button>
-            </div>
-          </div>
-        </>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       )}
+
+      {/* ── Footer ──────────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between pt-4 border-t text-sm text-muted-foreground">
+        <span>
+          Last updated: {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}
+        </span>
+        <div className="flex gap-4">
+          <button onClick={() => toast("Feedback sent!")} className="hover:text-foreground">
+            Give feedback
+          </button>
+          <button onClick={() => toast.info("Support team notified")} className="text-blue-600 hover:text-blue-700">
+            Need help?
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

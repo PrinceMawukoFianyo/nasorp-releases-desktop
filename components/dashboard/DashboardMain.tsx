@@ -75,6 +75,7 @@ type DashboardData = {
     location: string;
     value: number;
     itemCount: number;
+    locationId: string; // ← ADDED: needed to wire up click navigation
   }>;
   salesByCategory: Array<{
     category: string;
@@ -106,13 +107,16 @@ function colorAt(index: number) {
   return LOCATION_COLORS[index % LOCATION_COLORS.length];
 }
 
-// ── Improved Bar Chart ─────────────────────────────────────────────────────────
+// ── Bar Chart (v2 — clickable, routes to master locations sales page) ──────────
 function BarChart({
   data,
+  dateRange = "7d",
 }: {
-  data: Array<{ label: string; value: number; itemCount: number }>;
+  data: Array<{ label: string; value: number; itemCount: number; locationId?: string }>;
+  dateRange?: string;
 }) {
-  // Show empty state only when there are literally no locations at all
+  const router = useRouter();
+
   if (!data || data.length === 0) {
     return (
       <div className="text-center text-muted-foreground py-8">
@@ -123,19 +127,28 @@ function BarChart({
     );
   }
 
-  const maxValue = Math.max(...data.map((d) => d.value), 1); // avoid divide-by-zero
+  const maxValue   = Math.max(...data.map((d) => d.value), 1);
   const totalValue = data.reduce((s, d) => s + d.value, 0);
+
+  // All bars navigate to the master locations summary page
+  function handleClick() {
+    router.push(`/dashboard/settings/locations/sales?range=${dateRange}`);
+  }
 
   return (
     <div className="space-y-4">
       {data.map((item, index) => {
-        const color = colorAt(index);
-        // Always render at least 4% so the bar is visible even at GHC0
-        const pct = item.value > 0 ? Math.max(4, (item.value / maxValue) * 100) : 4;
+        const color    = colorAt(index);
+        const pct      = item.value > 0 ? Math.max(4, (item.value / maxValue) * 100) : 4;
         const hasValue = item.value > 0;
 
         return (
-          <div key={index} className="space-y-1.5">
+          <div
+            key={index}
+            className="space-y-1.5 rounded-lg p-2 -mx-2 cursor-pointer hover:bg-muted/60 transition-colors group"
+            onClick={handleClick}
+            title="Click to view full location sales report"
+          >
             {/* Label row */}
             <div className="flex items-center justify-between text-sm gap-2">
               <div className="flex items-center gap-2 min-w-0">
@@ -144,7 +157,7 @@ function BarChart({
                   className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
                   style={{ backgroundColor: color.bar }}
                 />
-                <span className="font-medium truncate max-w-[140px]">
+                <span className="font-medium truncate max-w-[140px] group-hover:underline">
                   {item.label}
                 </span>
                 {/* Item count badge */}
@@ -152,13 +165,17 @@ function BarChart({
                   ({item.itemCount} {item.itemCount === 1 ? "item" : "items"})
                 </span>
               </div>
-              <span
-                className={`whitespace-nowrap font-semibold text-sm ${
-                  hasValue ? "" : "text-muted-foreground"
-                }`}
-              >
-                GH₵{item.value.toLocaleString()}
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span
+                  className={`whitespace-nowrap font-semibold text-sm ${
+                    hasValue ? "" : "text-muted-foreground"
+                  }`}
+                >
+                  GH₵{item.value.toLocaleString()}
+                </span>
+                {/* Arrow icon — appears on row hover */}
+                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
             </div>
 
             {/* Bar track */}
@@ -167,7 +184,7 @@ function BarChart({
                 className="h-2.5 rounded-full transition-all duration-500"
                 style={{
                   width: `${pct}%`,
-                  backgroundColor: hasValue ? color.bar : "#d1d5db", // gray for zero
+                  backgroundColor: hasValue ? color.bar : "#d1d5db",
                   opacity: hasValue ? 1 : 0.5,
                 }}
               />
@@ -398,21 +415,36 @@ export default function DashboardMain({
           {/* ── Inventory by Location ── */}
           <Card className="hover:shadow-md transition-shadow">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5" />
-                Inventory by Location
-              </CardTitle>
-              <CardDescription>
-                Value distribution across locations (quantity × cost price)
-              </CardDescription>
+              <div className="flex items-start justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5" />
+                    Inventory by Location
+                  </CardTitle>
+                  <CardDescription>
+                    Value distribution across locations (quantity × cost price)
+                  </CardDescription>
+                </div>
+                {/* ── "View sales report" shortcut link ── */}
+                <Link
+                  href="/dashboard/settings/locations/sales"
+                  className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 shrink-0 mt-1 transition-colors"
+                >
+                  View sales report
+                  <ArrowRight className="h-3 w-3" />
+                </Link>
+              </div>
             </CardHeader>
             <CardContent>
+              {/* Pass locationId + dateRange so bars are clickable */}
               <BarChart
                 data={(data.inventoryByLocation || []).map((loc) => ({
-                  label: loc.location,
-                  value: loc.value,
-                  itemCount: loc.itemCount ?? 0,
+                  label:      loc.location,
+                  value:      loc.value,
+                  itemCount:  loc.itemCount ?? 0,
+                  locationId: loc.locationId,   // ← from updated dashboard.ts
                 }))}
+                dateRange={initialPeriod}        // ← carries the current range to the target page
               />
             </CardContent>
           </Card>

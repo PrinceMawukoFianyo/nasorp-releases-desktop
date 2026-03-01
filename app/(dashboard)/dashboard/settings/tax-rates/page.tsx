@@ -1,29 +1,13 @@
-import DataTable from "@/components/DataTableComponents/DataTable";
+// app/dashboard/settings/tax-rates/page.tsx
 import { columns } from "./columns";
-import ModalTableHeader from "@/components/dashboard/Tables/ModalTableHeader";
 import { getAuthenticatedUser } from "@/config/useAuth";
-import { getOrgUnits } from "@/actions/units";
-import { UnitForm } from "@/components/Forms/Inventory/UnitForm";
 import { getOrgTaxes } from "@/actions/tax";
-import { TaxRateForm } from "@/components/Forms/Inventory/TaxRateForm";
+import TaxRatesClient from "./TaxRatesClient";
 
-export default async function page() {
-  
+
+export default async function TaxRatesPage() {
   const user = await getAuthenticatedUser();
-  const orgId = user.orgId;
-  const taxes = (await getOrgTaxes(orgId)) || [];  
-  return (
-    <div className="p-8">
-      <ModalTableHeader
-        title="Taxes"
-        linkTitle="Add Tax"
-        href="#"
-        data={taxes}
-        model="unit"
-        modalForm={<TaxRateForm orgId={orgId}/>}
-      />
-      <DataTable columns={columns} data={taxes} />
-    </div>
-  );
+  const taxes = (await getOrgTaxes(user.orgId)) || [];
+
+  return <TaxRatesClient taxes={taxes} orgId={user.orgId} />;
 }
- 

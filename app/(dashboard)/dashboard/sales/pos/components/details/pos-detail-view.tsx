@@ -287,8 +287,8 @@ export default function POSDetailView({
                   <thead className="border-b bg-slate-50">
                     <tr>
                       <th className="text-left py-3 px-4 font-semibold text-sm">Item</th>
-                      <th className="text-center py-3 px-4 font-semibold text-sm">Qty</th>
-                      <th className="text-right py-3 px-4 font-semibold text-sm">Unit Price</th>
+                      <th className="text-center py-3 px-4 font-semibold text-sm">Qty / Pack</th>
+                      <th className="text-right py-3 px-4 font-semibold text-sm">Price</th>
                       <th className="text-right py-3 px-4 font-semibold text-sm">Tax</th>
                       <th className="text-right py-3 px-4 font-semibold text-sm">Total</th>
                     </tr>
@@ -297,24 +297,75 @@ export default function POSDetailView({
                     {transaction.lines && transaction.lines.length > 0 ? (
                       transaction.lines.map((line: any) => {
                         const unitPrice = line.unitPrice || 0
-                        const quantity = line.quantity || 0
-                        const taxRate = line.taxRate || 0
-                        const lineSubtotal = quantity * unitPrice
-                        const lineTax = lineSubtotal * (taxRate / 100)
+                        const quantity  = line.quantity  || 0
+                        const taxRate   = line.taxRate   || 0
+
+                        // Parse wholesale tier metadata from line.notes JSON
+                        let tierName:              string | null = null
+                        let packQty:               number | null = null
+                        let unitsPerPack:           number | null = null
+                        let wholesalePricePerPack:  number | null = null
+                        try {
+                          if (line.notes) {
+                            const meta = JSON.parse(line.notes)
+                            tierName              = meta.tierName              ?? null
+                            packQty               = meta.packQty               ?? null
+                            unitsPerPack          = meta.unitsPerPack          ?? null
+                            wholesalePricePerPack = meta.wholesalePricePerPack ?? null
+                          }
+                        } catch { /* plain text notes */ }
+
+                        const isWholesale = !!tierName && !!packQty
+
+                        // Line subtotal — use pack price when wholesale, unit price when single
+                        const lineSubtotal = isWholesale && packQty && wholesalePricePerPack
+                          ? packQty * wholesalePricePerPack
+                          : quantity * unitPrice
+                        const lineTax   = lineSubtotal * (taxRate / 100)
                         const lineTotal = lineSubtotal + lineTax
                         
                         return (
                           <tr key={line.id} className="border-b hover:bg-slate-50 transition-colors">
+
+                            {/* Item name + wholesale badge */}
                             <td className="py-3 px-4 text-sm">
-                              <div>
-                                <p className="font-medium">{line.item?.name || "Unknown Item"}</p>
-                                <p className="text-xs text-muted-foreground">{line.item?.sku}</p>
-                              </div>
+                              <p className="font-medium">{line.item?.name || "Unknown Item"}</p>
+                              <p className="text-xs text-muted-foreground">{line.item?.sku}</p>
+                              {isWholesale && (
+                                <span className="inline-flex items-center gap-1 mt-0.5 text-[10px] bg-amber-50 text-amber-700 border border-amber-200 rounded px-1.5 py-0.5">
+                                  Wholesale · {tierName}
+                                </span>
+                              )}
                             </td>
-                            <td className="py-3 px-4 text-sm text-center font-semibold">{quantity}</td>
+
+                            {/* Qty / Pack breakdown */}
+                            <td className="py-3 px-4 text-sm text-center">
+                              {isWholesale && packQty && unitsPerPack ? (
+                                <div>
+                                  <p className="font-semibold">{packQty} × {tierName}</p>
+                                  <p className="text-xs text-muted-foreground">({quantity} units deducted)</p>
+                                </div>
+                              ) : (
+                                <span className="font-semibold">{quantity} unit{quantity !== 1 ? "s" : ""}</span>
+                              )}
+                            </td>
+
+                            {/* Price — per-pack for wholesale, per-unit for single */}
                             <td className="py-3 px-4 text-sm text-right">
-                              {formatCurrency(unitPrice)}
+                              {isWholesale && wholesalePricePerPack ? (
+                                <div>
+                                  <p className="font-semibold">{formatCurrency(wholesalePricePerPack)}</p>
+                                  <p className="text-xs text-muted-foreground">per {tierName}</p>
+                                  <p className="text-xs text-muted-foreground">({formatCurrency(unitPrice)}/unit)</p>
+                                </div>
+                              ) : (
+                                <div>
+                                  <p className="font-semibold">{formatCurrency(unitPrice)}</p>
+                                  <p className="text-xs text-muted-foreground">per unit</p>
+                                </div>
+                              )}
                             </td>
+
                             <td className="py-3 px-4 text-sm text-right">{taxRate}%</td>
                             <td className="py-3 px-4 text-sm text-right font-semibold">
                               {formatCurrency(lineTotal)}

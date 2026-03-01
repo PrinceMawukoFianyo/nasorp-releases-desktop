@@ -300,6 +300,7 @@ export async function getDashboardData(dateRange: string) {
 
         return {
           location: location.name,
+          locationId: location.id,   // ← FIX: required by DashboardMain
           value,
           itemCount: locationInventories.length,
         };
