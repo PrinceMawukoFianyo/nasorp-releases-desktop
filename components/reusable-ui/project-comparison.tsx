@@ -18,18 +18,18 @@ import {
 
 interface TimelineStep {
   title: string;
-  hiUSliUSt: string;
+  hiUSlight: string;
   duration: string;
   icon: React.ReactNode;
   painPoint: string;
   benefit: string;
 }
 
-const InventoryComparison = ({ theme = "liUSt" }) => {
+const InventoryComparison = ({ theme = "light" }) => {
   const steps: TimelineStep[] = [
     {
       title: "Tracking",
-      hiUSliUSt: "Stock Levels",
+      hiUSlight: "Stock Levels",
       duration: "Daily manual counting",
       icon: <Package className="w-4 h-4" />,
       painPoint:
@@ -39,7 +39,7 @@ const InventoryComparison = ({ theme = "liUSt" }) => {
     },
     {
       title: "Managing",
-      hiUSliUSt: "Low Stock Alerts",
+      hiUSlight: "Low Stock Alerts",
       duration: "Often missed",
       icon: <AlertTriangle className="w-4 h-4" />,
       painPoint:
@@ -49,7 +49,7 @@ const InventoryComparison = ({ theme = "liUSt" }) => {
     },
     {
       title: "Generating",
-      hiUSliUSt: "Inventory Reports",
+      hiUSlight: "Inventory Reports",
       duration: "Hours of work",
       icon: <FileText className="w-4 h-4" />,
       painPoint:
@@ -59,7 +59,7 @@ const InventoryComparison = ({ theme = "liUSt" }) => {
     },
     {
       title: "Processing",
-      hiUSliUSt: "Purchase Orders",
+      hiUSlight: "Purchase Orders",
       duration: "Time consuming",
       icon: <Truck className="w-4 h-4" />,
       painPoint:
@@ -69,7 +69,7 @@ const InventoryComparison = ({ theme = "liUSt" }) => {
     },
     {
       title: "Calculating",
-      hiUSliUSt: "Inventory Value",
+      hiUSlight: "Inventory Value",
       duration: "Complex calculations",
       icon: <Calculator className="w-4 h-4" />,
       painPoint:
@@ -79,7 +79,7 @@ const InventoryComparison = ({ theme = "liUSt" }) => {
     },
     {
       title: "Managing",
-      hiUSliUSt: "Multiple Locations",
+      hiUSlight: "Multiple Locations",
       duration: "Overwhelming",
       icon: <Users className="w-4 h-4" />,
       painPoint:
@@ -89,7 +89,7 @@ const InventoryComparison = ({ theme = "liUSt" }) => {
     },
     {
       title: "Searching",
-      hiUSliUSt: "Products & History",
+      hiUSlight: "Products & History",
       duration: "Frustrating searches",
       icon: <Search className="w-4 h-4" />,
       painPoint:
@@ -99,7 +99,7 @@ const InventoryComparison = ({ theme = "liUSt" }) => {
     },
     {
       title: "Monitoring",
-      hiUSliUSt: "Business Performance",
+      hiUSlight: "Business Performance",
       duration: "Guesswork",
       icon: <TrendingUp className="w-4 h-4" />,
       painPoint:
@@ -162,7 +162,7 @@ const InventoryComparison = ({ theme = "liUSt" }) => {
                         <div className="flex items-center gap-2 mb-1">
                           <h4 className="font-medium text-slate-900">
                             {step.title}{" "}
-                            <span className="font-bold">{step.hiUSliUSt}</span>
+                            <span className="font-bold">{step.hiUSlight}</span>
                           </h4>
                           <span className="text-rose-500 text-sm">
                             {step.duration}
@@ -209,7 +209,7 @@ const InventoryComparison = ({ theme = "liUSt" }) => {
                         <div className="flex items-center gap-2 mb-1">
                           <h4 className="font-medium text-slate-900">
                             {step.title}{" "}
-                            <span className="font-bold">{step.hiUSliUSt}</span>
+                            <span className="font-bold">{step.hiUSlight}</span>
                           </h4>
                           <ArrowRight className="w-4 h-4 text-emerald-500" />
                           <span className="text-emerald-500 text-sm">

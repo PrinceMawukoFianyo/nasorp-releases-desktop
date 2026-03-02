@@ -54,7 +54,7 @@ const features = [
       "Real-time data updates with server-side rendering",
       "User-friendly navigation and layout",
       "Integrated charts and data visualization tools",
-      "Dark and liUSt mode support",
+      "Dark and light mode support",
       "Role-specific dashboard views",
       "Seamless integration with backend APIs",
     ],

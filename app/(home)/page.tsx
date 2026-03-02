@@ -87,7 +87,7 @@ export default async function page() {
 
       <div id="demo" className="py-16 max-w-6xl mx-auto relative">
         <Iframe
-          url="https://www.youtube.com/embed/TcyKfjikcIA?si=naix1jg9I2r0CnSu"
+          url="https://www.youtube.com/watch?v=iyEWzl5iFc8&t=11s"
           width="100%"
           className="h-[32rem] rounded-lg"
           display="block"

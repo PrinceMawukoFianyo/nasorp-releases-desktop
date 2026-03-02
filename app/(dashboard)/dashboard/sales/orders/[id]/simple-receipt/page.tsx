@@ -25,15 +25,12 @@ const PAPER_LABELS: Record<PaperSize, string> = {
 }
 
 // ─── Build self-contained receipt HTML ───────────────────────────────────────
-// This generates HTML with its OWN embedded styles so it renders correctly
-// in a popup window that has no access to Tailwind or any parent CSS.
-
 function buildReceiptHTML(order: any, paperSize: PaperSize): string {
-  const subtotal    = order.subtotal    || 0
-  const taxAmount   = order.taxAmount   || 0
-  const discount    = order.discount    || 0
-  const shipping    = order.shippingCost || 0
-  const total       = subtotal + taxAmount + shipping - discount
+  const subtotal  = order.subtotal     || 0
+  const taxAmount = order.taxAmount    || 0
+  const discount  = order.discount     || 0
+  const shipping  = order.shippingCost || 0
+  const total     = subtotal + taxAmount + shipping - discount
 
   const createdAt   = new Date(order.createdAt)
   const dateStr     = createdAt.toLocaleDateString("en-GH", { month: "2-digit", day: "2-digit", year: "numeric" })
@@ -42,10 +39,9 @@ function buildReceiptHTML(order: any, paperSize: PaperSize): string {
 
   // ── Items rows HTML ──────────────────────────────────────────────────────
   const itemRows = (order.lines ?? []).map((line: any) => {
-    // Try to parse wholesale metadata from notes
-    let displayQty   = line.quantity
-    let displayDesc  = line.item?.name || "Unknown Item"
-    let displayAmt   = (line.quantity || 0) * (line.unitPrice || 0)
+    let displayQty  = line.quantity
+    let displayDesc = line.item?.name || "Unknown Item"
+    let displayAmt  = (line.quantity || 0) * (line.unitPrice || 0)
 
     try {
       if (line.notes) {
@@ -59,9 +55,9 @@ function buildReceiptHTML(order: any, paperSize: PaperSize): string {
 
     return `
       <tr>
-        <td style="padding:2px 0;vertical-align:top;width:10%;white-space:nowrap;">${displayQty}</td>
-        <td style="padding:2px 4px;vertical-align:top;">${displayDesc}</td>
-        <td style="padding:2px 0;vertical-align:top;text-align:right;white-space:nowrap;">GHS${displayAmt.toFixed(2)}</td>
+        <td style="padding:2px 0;vertical-align:top;width:28px;white-space:nowrap;">${displayQty}</td>
+        <td style="padding:2px 3px;vertical-align:top;word-break:break-word;">${displayDesc}</td>
+        <td style="padding:2px 0 2px 3px;vertical-align:top;text-align:right;white-space:nowrap;width:68px;">GHS${displayAmt.toFixed(2)}</td>
       </tr>`
   }).join("")
 
@@ -69,90 +65,96 @@ function buildReceiptHTML(order: any, paperSize: PaperSize): string {
   let totalRows = `
     <tr>
       <td colspan="2" style="padding:2px 0;">SUBTOTAL</td>
-      <td style="text-align:right;padding:2px 0;">GHS${subtotal.toFixed(2)}</td>
+      <td style="text-align:right;padding:2px 0 2px 3px;white-space:nowrap;width:68px;">GHS${subtotal.toFixed(2)}</td>
     </tr>`
 
   if (taxAmount > 0) totalRows += `
     <tr>
       <td colspan="2" style="padding:2px 0;">TAX</td>
-      <td style="text-align:right;padding:2px 0;">GHS${taxAmount.toFixed(2)}</td>
+      <td style="text-align:right;padding:2px 0 2px 3px;white-space:nowrap;width:68px;">GHS${taxAmount.toFixed(2)}</td>
     </tr>`
 
   if (discount > 0) totalRows += `
     <tr>
       <td colspan="2" style="padding:2px 0;color:#c00;">DISCOUNT</td>
-      <td style="text-align:right;padding:2px 0;color:#c00;">-GHS${discount.toFixed(2)}</td>
+      <td style="text-align:right;padding:2px 0 2px 3px;white-space:nowrap;width:68px;color:#c00;">-GHS${discount.toFixed(2)}</td>
     </tr>`
 
   if (shipping > 0) totalRows += `
     <tr>
       <td colspan="2" style="padding:2px 0;">SHIPPING</td>
-      <td style="text-align:right;padding:2px 0;">GHS${shipping.toFixed(2)}</td>
+      <td style="text-align:right;padding:2px 0 2px 3px;white-space:nowrap;width:68px;">GHS${shipping.toFixed(2)}</td>
     </tr>`
 
   totalRows += `
-    <tr style="border-top:2px solid #000;font-weight:bold;font-size:${paperSize === "thermal80mm" ? "12px" : "14px"};">
+    <tr style="border-top:2px solid #000;font-size:${paperSize === "thermal80mm" ? "11px" : "13px"};">
       <td colspan="2" style="padding:4px 0 2px;">TOTAL</td>
-      <td style="text-align:right;padding:4px 0 2px;">GHS${total.toFixed(2)}</td>
+      <td style="text-align:right;padding:4px 0 2px 3px;white-space:nowrap;width:68px;">GHS${total.toFixed(2)}</td>
     </tr>`
 
   // ── Customer section ─────────────────────────────────────────────────────
   const customerSection = order.customer ? `
-    <div style="border-top:1px dashed #aaa;margin:6px 0;padding-top:6px;font-size:9px;">
+    <div style="border-top:1px dashed #000;margin:6px 0;padding-top:6px;font-size:9px;">
       <strong>CUSTOMER</strong><br>
       ${order.customer.name}
       ${order.customer.phone ? `<br>Tel: ${order.customer.phone}` : ""}
     </div>` : ""
 
-  // ── Paper-specific CSS ───────────────────────────────────────────────────
-  const thermalCSS = `
-    @page {
-      size: 80mm auto;
-      margin: 0;
+  // FIX: Simpler font stack — Courier New is the most reliable for all ASCII chars
+  const ocrFontStack = `'Share Tech Mono', 'Courier New', Courier, monospace`
+
+  // FIX: Reduced text-shadow to 0.3px (was 0.5px) — heavy shadows caused
+  // characters like #, +, 0 to bleed and look garbled on thermal paper.
+  // font-weight reduced to 700 (was 900) — 900 caused stroke bleed on thermal heads.
+  const boldPrintBase = `
+    * {
+      margin: 0; padding: 0; box-sizing: border-box;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
     }
+
+    body, table, td, div, span, p {
+      font-weight: 700;
+      color: #000000 !important;
+      text-shadow: 0.3px 0 0 #000, -0.3px 0 0 #000 !important;
+      letter-spacing: 0.03em;
+    }
+
+    strong, b {
+      font-weight: 800;
+      text-shadow: 0.4px 0 0 #000, -0.4px 0 0 #000, 0 0.3px 0 #000 !important;
+    }
+
+    table { border-collapse: collapse; width: 100%; }
+    td { vertical-align: top; }
+    @media print { .no-print { display: none !important; } }`
+
+  // FIX: width reduced to 70mm with 3mm padding — stops right-edge AMT clipping
+  const thermalCSS = `
+    @page { size: 80mm auto; margin: 0; }
     html, body {
-      width: 76mm;
+      width: 70mm;
       margin: 0 auto;
-      padding: 3mm 0 5mm;
-      font-family: 'Courier New', Courier, monospace;
+      padding: 3mm 3mm 5mm 3mm;
+      font-family: ${ocrFontStack};
       font-size: 10px;
-      line-height: 1.35;
+      line-height: 1.45;
       background: white;
-      color: #000;
     }`
 
   const letterCSS = `
-    @page {
-      size: letter;
-      margin: 0.5in;
-    }
+    @page { size: letter; margin: 0.5in; }
     html, body {
-      width: 100%;
-      max-width: 3.5in;
-      margin: 0 auto;
-      padding: 0;
-      font-family: 'Courier New', Courier, monospace;
-      font-size: 11px;
-      line-height: 1.4;
-      background: white;
-      color: #000;
+      width: 100%; max-width: 3.5in; margin: 0 auto; padding: 0;
+      font-family: ${ocrFontStack}; font-size: 11px; line-height: 1.4; background: white;
     }`
 
   const a4CSS = `
-    @page {
-      size: A4;
-      margin: 15mm;
-    }
+    @page { size: A4; margin: 15mm; }
     html, body {
-      width: 100%;
-      max-width: 90mm;
-      margin: 0 auto;
-      padding: 0;
-      font-family: 'Courier New', Courier, monospace;
-      font-size: 11px;
-      line-height: 1.4;
-      background: white;
-      color: #000;
+      width: 100%; max-width: 90mm; margin: 0 auto; padding: 0;
+      font-family: ${ocrFontStack}; font-size: 11px; line-height: 1.4; background: white;
     }`
 
   const pageCSS = paperSize === "a4" ? a4CSS : paperSize === "letter" ? letterCSS : thermalCSS
@@ -162,77 +164,77 @@ function buildReceiptHTML(order: any, paperSize: PaperSize): string {
 <head>
   <meta charset="utf-8">
   <title>Receipt ${order.orderNumber}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    ${boldPrintBase}
     ${pageCSS}
-    table { width: 100%; border-collapse: collapse; }
-    td { vertical-align: top; }
-    .divider-solid  { border-top: 2px solid #000; margin: 4px 0; }
-    .divider-dashed { border-top: 1px dashed #aaa; margin: 4px 0; }
-    @media print {
-      .no-print { display: none !important; }
-    }
   </style>
 </head>
 <body>
 
   <!-- Store Header -->
-  <div style="text-align:center;margin-bottom:6px;padding-bottom:6px;border-bottom:1px dashed #aaa;">
-    <div style="font-weight:bold;font-size:${paperSize === "thermal80mm" ? "13px" : "15px"};letter-spacing:0.5px;">
-      AFK BERIMAH ENTERPRISE
+  <div style="text-align:center;margin-bottom:6px;padding-bottom:6px;border-bottom:1.5px dashed #000;">
+    <div style="font-weight:800;font-size:${paperSize === "thermal80mm" ? "13px" : "15px"};letter-spacing:1px;
+                text-shadow:0.4px 0 0 #000,-0.4px 0 0 #000;">
+      RICH 83 VENTURES
     </div>
     <div style="font-size:9px;margin-top:2px;">Near Bokankye Police Check Point</div>
     <div style="font-size:9px;">Digital Address: AA-T1257-6693</div>
-    <div style="font-size:9px;">Kumasi, Ghana</div>
-    <div style="font-size:9px;margin-top:2px;">Tel: +233 546 722 768</div>
+    <div style="font-size:9px;">Sunyani, Ghana</div>
+    <div style="font-size:9px;margin-top:2px;">Tel: +233 243 826 232</div>
   </div>
 
   <!-- Date / Receipt Number -->
+  <!-- FIX: Changed "RECEIPT #" to "RECEIPT NO." — # was printing as 8 on thermal -->
   <div style="text-align:center;margin-bottom:6px;font-size:9px;">
     ${dateStr}&nbsp;&nbsp;${timeStr}<br>
-    <strong style="font-size:10px;">RECEIPT #${order.orderNumber}</strong>
+    <span style="font-size:10px;font-weight:800;">RECEIPT NO. ${order.orderNumber}</span>
   </div>
 
   <!-- Transaction meta -->
-  <table style="margin-bottom:4px;font-size:9px;">
+  <table style="margin-bottom:4px;font-size:9px;table-layout:fixed;">
     <tr>
       <td>TABLE 1</td>
       <td style="text-align:right;">STAFF ${cashierName}</td>
     </tr>
     <tr>
       <td>${order.paymentMethod || "CASH"}</td>
-      <td style="text-align:right;color:#aaa;">#########19883</td>
+      <!-- FIX: Replaced "#########19883" with "REF: 19883" — # was printing as 8 -->
+      <td style="text-align:right;">REF: 19883</td>
     </tr>
   </table>
 
   <!-- Column headers -->
-  <table style="border-top:2px solid #000;border-bottom:1px solid #000;margin:4px 0;font-weight:bold;font-size:9px;">
+  <table style="border-top:2.5px solid #000;border-bottom:1.5px solid #000;margin:4px 0;font-size:9px;table-layout:fixed;">
     <tr>
-      <td style="padding:2px 0;width:10%;">QTY</td>
-      <td style="padding:2px 4px;">DESC</td>
-      <td style="padding:2px 0;text-align:right;">AMT</td>
+      <td style="padding:3px 0;width:28px;">QTY</td>
+      <td style="padding:3px 3px;">DESC</td>
+      <td style="padding:3px 0 3px 3px;text-align:right;width:68px;">AMT</td>
     </tr>
   </table>
 
   <!-- Items -->
-  <table style="margin-bottom:4px;font-size:9px;">
+  <table style="margin-bottom:4px;font-size:9px;table-layout:fixed;">
     ${itemRows}
   </table>
 
   <!-- Totals -->
-  <div class="divider-dashed"></div>
-  <table style="font-size:9px;">
+  <div style="border-top:1.5px dashed #000;margin:4px 0;"></div>
+  <table style="font-size:9px;table-layout:fixed;">
     ${totalRows}
   </table>
 
   ${customerSection}
 
   <!-- Footer -->
-  <div style="margin-top:8px;padding-top:6px;border-top:1px dashed #aaa;text-align:center;font-size:9px;">
+  <!-- FIX: Replaced "•" bullet with "-" dash — special chars can garble on thermal -->
+  <div style="margin-top:8px;padding-top:6px;border-top:1.5px dashed #000;text-align:center;font-size:9px;">
     <strong>Thank you for your patronage!</strong><br>
-    <span style="color:#aaa;font-size:8px;">${order.orderNumber} • ${dateStr}</span>
+    <span style="font-size:8px;">${order.orderNumber} - ${dateStr}</span>
     <div style="margin-top:6px;width:40px;height:40px;background:#f0f0f0;display:inline-flex;
-                align-items:center;justify-content:center;font-size:7px;color:#aaa;">
+                align-items:center;justify-content:center;font-size:7px;">
       QR CODE
     </div>
   </div>
@@ -255,9 +257,7 @@ export default function SimpleReceiptPage() {
   const [paperSize,  setPaperSize]  = useState<PaperSize>("thermal80mm")
   const [showMenu,   setShowMenu]   = useState(false)
 
-  useEffect(() => {
-    loadSalesOrder()
-  }, [orderId])
+  useEffect(() => { loadSalesOrder() }, [orderId])
 
   const loadSalesOrder = async () => {
     try {
@@ -277,55 +277,40 @@ export default function SimpleReceiptPage() {
     }
   }
 
-  // ── Print: open self-contained HTML in a popup ───────────────────────────
+  // ── Print ────────────────────────────────────────────────────────────────
   const handlePrint = () => {
     if (!salesOrder) return
     setIsPrinting(true)
-
     const html = buildReceiptHTML(salesOrder, paperSize)
     const win  = window.open("", "_blank", "width=400,height=600")
-
     if (!win) {
       toast.error("Please allow pop-ups for printing")
       setIsPrinting(false)
       return
     }
-
     win.document.open()
     win.document.write(html)
     win.document.close()
-
-    // Give images/fonts a moment then auto-print
     win.onload = () => {
-      setTimeout(() => {
-        win.print()
-        setTimeout(() => win.close(), 500)
-      }, 150)
+      setTimeout(() => { win.print(); setTimeout(() => win.close(), 500) }, 800)
     }
-
     setTimeout(() => setIsPrinting(false), 1500)
   }
 
-  // ── Plain-text receipt for sharing ──────────────────────────────────────
+  // ── Share text ───────────────────────────────────────────────────────────
   const getReceiptText = () => {
     if (!salesOrder) return ""
-    const subtotal = salesOrder.subtotal || 0
-    const taxAmount = salesOrder.taxAmount || 0
-    const discount  = salesOrder.discount || 0
-    const shipping  = salesOrder.shippingCost || 0
-    const total     = subtotal + taxAmount + shipping - discount
-
-    let t = `🧾 *AFK BERIMAH ENTERPRISE*\n`
-    t += `Receipt #${salesOrder.orderNumber}\n`
-    t += `${new Date(salesOrder.createdAt).toLocaleDateString()}\n\n`
-    t += `*ITEMS:*\n`
+    const s  = salesOrder.subtotal     || 0
+    const t  = salesOrder.taxAmount    || 0
+    const d  = salesOrder.discount     || 0
+    const sh = salesOrder.shippingCost || 0
+    const total = s + t + sh - d
+    let txt = `🧾 *RICH 83 VENTURES*\nReceipt ${salesOrder.orderNumber}\n${new Date(salesOrder.createdAt).toLocaleDateString()}\n\n*ITEMS:*\n`
     salesOrder.lines?.forEach((line: any) => {
-      t += `${line.quantity}x ${line.item?.name} — GHS${((line.quantity || 0) * (line.unitPrice || 0)).toFixed(2)}\n`
+      txt += `${line.quantity}x ${line.item?.name} — GHS${((line.quantity||0)*(line.unitPrice||0)).toFixed(2)}\n`
     })
-    t += `\n*TOTAL: GHS${total.toFixed(2)}*\n`
-    t += `Payment: ${salesOrder.paymentMethod || "CASH"}\n\n`
-    t += `Thank you for your patronage!`
-    return t
+    txt += `\n*TOTAL: GHS${total.toFixed(2)}*\nPayment: ${salesOrder.paymentMethod || "CASH"}\n\nThank you for your patronage!`
+    return txt
   }
 
   const handleCopyToClipboard = async () => {
@@ -334,18 +319,14 @@ export default function SimpleReceiptPage() {
       setCopied(true)
       toast.success("Receipt copied to clipboard")
       setTimeout(() => setCopied(false), 2000)
-    } catch {
-      toast.error("Failed to copy receipt")
-    }
+    } catch { toast.error("Failed to copy receipt") }
   }
 
   const handleDownloadTxt = () => {
     const blob = new Blob([getReceiptText()], { type: "text/plain" })
     const url  = URL.createObjectURL(blob)
     const a    = document.createElement("a")
-    a.href     = url
-    a.download = `receipt-${salesOrder?.orderNumber}.txt`
-    a.click()
+    a.href = url; a.download = `receipt-${salesOrder?.orderNumber}.txt`; a.click()
     URL.revokeObjectURL(url)
     toast.success("Receipt downloaded")
   }
@@ -357,7 +338,6 @@ export default function SimpleReceiptPage() {
       <p className="text-muted-foreground">Loading receipt…</p>
     </div>
   )
-
   if (!salesOrder) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <p className="text-muted-foreground mr-4">Receipt not found</p>
@@ -365,36 +345,30 @@ export default function SimpleReceiptPage() {
     </div>
   )
 
-  // ── Derived totals for screen preview ───────────────────────────────────
-  const subtotal  = salesOrder.subtotal    || 0
-  const taxAmount = salesOrder.taxAmount   || 0
-  const discount  = salesOrder.discount    || 0
+  const subtotal  = salesOrder.subtotal     || 0
+  const taxAmount = salesOrder.taxAmount    || 0
+  const discount  = salesOrder.discount     || 0
   const shipping  = salesOrder.shippingCost || 0
   const total     = subtotal + taxAmount + shipping - discount
+  const ocrFont   = `'Share Tech Mono', 'Courier New', Courier, monospace`
 
   return (
     <div className="min-h-screen bg-gray-100 p-4">
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');`}</style>
 
       {/* ── Toolbar ─────────────────────────────────────────────────────── */}
       <div className="max-w-lg mx-auto mb-5">
         <div className="bg-white rounded-xl shadow-sm px-4 py-3 flex items-center justify-between flex-wrap gap-3">
-
-          {/* Navigation */}
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
-            <Link href="/dashboard/sales/pos"
-              className="flex items-center gap-1.5 hover:text-foreground transition-colors">
+            <Link href="/dashboard/sales/pos" className="flex items-center gap-1.5 hover:text-foreground transition-colors">
               <ArrowLeft className="w-4 h-4" /> POS
             </Link>
             <span className="text-gray-300">|</span>
-            <Link href="/dashboard"
-              className="flex items-center gap-1.5 hover:text-foreground transition-colors">
+            <Link href="/dashboard" className="flex items-center gap-1.5 hover:text-foreground transition-colors">
               <Home className="w-4 h-4" /> Dashboard
             </Link>
           </div>
-
-          {/* Actions */}
           <div className="flex items-center gap-2">
-
             {/* Paper size picker */}
             <div className="relative">
               <Button variant="outline" size="sm" onClick={() => setShowMenu(v => !v)} className="gap-1.5 text-xs">
@@ -418,7 +392,6 @@ export default function SimpleReceiptPage() {
                 </>
               )}
             </div>
-
             {/* Share */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -428,16 +401,14 @@ export default function SimpleReceiptPage() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
                 <DropdownMenuItem onClick={handleCopyToClipboard}>
-                  {copied
-                    ? <><Check className="w-4 h-4 mr-2 text-green-600" /><span className="text-green-600">Copied!</span></>
-                    : <><Copy className="w-4 h-4 mr-2" />Copy to Clipboard</>}
+                  {copied ? <><Check className="w-4 h-4 mr-2 text-green-600" /><span className="text-green-600">Copied!</span></>
+                          : <><Copy className="w-4 h-4 mr-2" />Copy to Clipboard</>}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleDownloadTxt}>
                   <Download className="w-4 h-4 mr-2" />Download as Text
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-
             {/* Print */}
             <Button size="sm" onClick={handlePrint} disabled={isPrinting} className="gap-1.5 text-xs min-w-[110px]">
               {isPrinting ? <Spinner className="w-3.5 h-3.5" /> : <Printer className="w-3.5 h-3.5" />}
@@ -448,45 +419,44 @@ export default function SimpleReceiptPage() {
       </div>
 
       {/* ── Screen Preview ───────────────────────────────────────────────── */}
-      {/* This preview uses Tailwind/Shadcn classes normally — only for display */}
       <div className="max-w-xs mx-auto">
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-          <div className="p-6 font-mono text-[11px] leading-relaxed">
+          <div className="p-6 leading-relaxed" style={{ fontFamily: ocrFont, fontSize: "11px", fontWeight: 700 }}>
 
             {/* Store header */}
             <div className="text-center border-b border-dashed border-gray-300 pb-3 mb-3">
-              <div className="font-bold text-sm tracking-tight">AFK BERIMAH ENTERPRISE</div>
-              <div className="text-gray-500 mt-0.5">Near Bokankye Police Check Point</div>
-              <div className="text-gray-500">Digital Address: AA-T1257-6693</div>
-              <div className="text-gray-500">Kumasi, Ghana</div>
-              <div className="text-gray-500 mt-0.5">Tel: +233 546 722 768</div>
+              <div style={{ fontWeight: 800, fontSize: "13px", letterSpacing: "1px" }}>RICH 83 VENTURES</div>
+              <div className="text-gray-700 mt-0.5">Near Bokankye Police Check Point</div>
+              <div className="text-gray-700">Digital Address: AA-T1257-6693</div>
+              <div className="text-gray-700">Kumasi, Ghana</div>
+              <div className="text-gray-700 mt-0.5">Tel: +233 546 722 768</div>
             </div>
 
             {/* Receipt meta */}
             <div className="text-center mb-3">
-              <div className="text-gray-500">
+              <div className="text-gray-800">
                 {new Date(salesOrder.createdAt).toLocaleDateString("en-GH", { month: "2-digit", day: "2-digit", year: "numeric" })}
                 &nbsp;&nbsp;
                 {new Date(salesOrder.createdAt).toLocaleTimeString("en-GH", { hour: "2-digit", minute: "2-digit", hour12: true }).toUpperCase()}
               </div>
-              <div className="font-bold mt-1">RECEIPT #{salesOrder.orderNumber}</div>
+              <div style={{ fontWeight: 800 }} className="mt-1">RECEIPT NO. {salesOrder.orderNumber}</div>
             </div>
 
-            {/* Staff / payment method */}
-            <div className="flex justify-between text-gray-500 mb-3">
+            {/* Staff / payment */}
+            <div className="flex justify-between text-gray-800 mb-1">
               <span>TABLE 1</span>
               <span>STAFF {salesOrder.createdBy?.name?.split(" ")[0]?.toUpperCase() || "CASHIER"}</span>
             </div>
-            <div className="flex justify-between text-gray-500 mb-3">
+            <div className="flex justify-between text-gray-800 mb-3">
               <span>{salesOrder.paymentMethod || "CASH"}</span>
-              <span className="text-gray-300">#########19883</span>
+              <span className="text-gray-500">REF: 19883</span>
             </div>
 
             {/* Column headers */}
-            <div className="flex justify-between font-bold border-t-2 border-b border-black py-1 mb-2">
-              <span className="w-12">QTY</span>
-              <span className="flex-1">DESC</span>
-              <span>AMT</span>
+            <div className="flex justify-between border-t-2 border-b border-black py-1 mb-2" style={{ fontWeight: 800 }}>
+              <span style={{ width: "28px", flexShrink: 0 }}>QTY</span>
+              <span className="flex-1 px-1">DESC</span>
+              <span style={{ width: "72px", textAlign: "right", flexShrink: 0 }}>AMT</span>
             </div>
 
             {/* Line items */}
@@ -499,48 +469,64 @@ export default function SimpleReceiptPage() {
                   if (line.notes) {
                     const meta = JSON.parse(line.notes)
                     if (meta.tierId) {
-                      displayQty  = `${meta.packQty} ${meta.tierName}`
-                      displayAmt  = meta.packQty * meta.wholesalePricePerPack
+                      displayQty = `${meta.packQty} ${meta.tierName}`
+                      displayAmt = meta.packQty * meta.wholesalePricePerPack
                     }
                   }
                 } catch { /* ok */ }
-
                 return (
-                  <div key={line.id} className="flex items-start gap-2">
-                    <span className="w-12 shrink-0 font-semibold">{displayQty}</span>
-                    <span className="flex-1">{displayDesc}</span>
-                    <span className="shrink-0 font-semibold">GHS{displayAmt.toFixed(2)}</span>
+                  <div key={line.id} className="flex items-start">
+                    <span style={{ width: "28px", flexShrink: 0, fontWeight: 700 }}>{displayQty}</span>
+                    <span className="flex-1 px-1">{displayDesc}</span>
+                    <span style={{ width: "72px", textAlign: "right", flexShrink: 0, fontWeight: 700 }}>
+                      GHS{displayAmt.toFixed(2)}
+                    </span>
                   </div>
                 )
               })}
             </div>
 
             {/* Totals */}
-            <div className="border-t border-dashed border-gray-300 pt-2 space-y-1">
-              <div className="flex justify-between"><span>SUBTOTAL</span><span>GHS{subtotal.toFixed(2)}</span></div>
-              {taxAmount > 0 && <div className="flex justify-between"><span>TAX</span><span>GHS{taxAmount.toFixed(2)}</span></div>}
-              {discount  > 0 && <div className="flex justify-between text-red-600"><span>DISCOUNT</span><span>-GHS{discount.toFixed(2)}</span></div>}
-              {shipping  > 0 && <div className="flex justify-between"><span>SHIPPING</span><span>GHS{shipping.toFixed(2)}</span></div>}
-              <div className="flex justify-between font-bold text-sm border-t-2 border-black pt-2 mt-1">
-                <span>TOTAL</span>
-                <span>GHS{total.toFixed(2)}</span>
+            <div className="border-t border-dashed border-gray-400 pt-2 space-y-1">
+              {[
+                { label: "SUBTOTAL", value: subtotal,  show: true },
+                { label: "TAX",      value: taxAmount,  show: taxAmount > 0 },
+                { label: "SHIPPING", value: shipping,   show: shipping > 0 },
+              ].filter(r => r.show).map(r => (
+                <div key={r.label} className="flex items-center">
+                  <span className="flex-1">{r.label}</span>
+                  <span style={{ width: "72px", textAlign: "right", flexShrink: 0 }}>GHS{r.value.toFixed(2)}</span>
+                </div>
+              ))}
+              {discount > 0 && (
+                <div className="flex items-center text-red-600">
+                  <span className="flex-1">DISCOUNT</span>
+                  <span style={{ width: "72px", textAlign: "right", flexShrink: 0 }}>-GHS{discount.toFixed(2)}</span>
+                </div>
+              )}
+              <div className="flex items-center border-t-2 border-black pt-2 mt-1" style={{ fontWeight: 800, fontSize: "13px" }}>
+                <span className="flex-1">TOTAL</span>
+                <span style={{ width: "72px", textAlign: "right", flexShrink: 0 }}>GHS{total.toFixed(2)}</span>
               </div>
             </div>
 
             {/* Customer */}
             {salesOrder.customer && (
-              <div className="border-t border-dashed border-gray-300 pt-2 mt-3">
-                <div className="font-bold">CUSTOMER</div>
-                <div className="text-gray-600">{salesOrder.customer.name}</div>
-                {salesOrder.customer.phone && <div className="text-gray-600">Tel: {salesOrder.customer.phone}</div>}
+              <div className="border-t border-dashed border-gray-400 pt-2 mt-3">
+                <div style={{ fontWeight: 800 }}>CUSTOMER</div>
+                <div className="text-gray-800">{salesOrder.customer.name}</div>
+                {salesOrder.customer.phone && <div className="text-gray-800">Tel: {salesOrder.customer.phone}</div>}
               </div>
             )}
 
             {/* Footer */}
-            <div className="border-t border-dashed border-gray-300 mt-3 pt-3 text-center">
-              <div className="font-bold">Thank you for your patronage!</div>
-              <div className="text-gray-400 text-[9px] mt-1">{salesOrder.orderNumber} • {new Date(salesOrder.createdAt).toLocaleDateString()}</div>
-              <div className="mt-3 w-10 h-10 bg-gray-100 rounded mx-auto flex items-center justify-center text-[7px] text-gray-400">QR CODE</div>
+            <div className="border-t border-dashed border-gray-400 mt-3 pt-3 text-center">
+              <div style={{ fontWeight: 800 }}>Thank you for your patronage!</div>
+              <div className="text-gray-500 mt-1" style={{ fontSize: "9px" }}>
+                {salesOrder.orderNumber} - {new Date(salesOrder.createdAt).toLocaleDateString()}
+              </div>
+              <div className="mt-3 w-10 h-10 bg-gray-100 rounded mx-auto flex items-center justify-center text-gray-400"
+                style={{ fontSize: "7px" }}>QR CODE</div>
             </div>
           </div>
         </div>

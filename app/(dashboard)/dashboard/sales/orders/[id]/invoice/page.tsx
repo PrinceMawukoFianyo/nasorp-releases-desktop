@@ -946,7 +946,7 @@ export default function SalesOrderInvoicePage() {
               {/* Footer */}
               <div className="footer-section mt-4 pt-3 border-t border-gray-200 text-center">
                 <p className="text-xs text-gray-600">
-                  {salesOrder.organisation?.email || "info@afkberimah.com"} | {salesOrder.organisation?.phone || "+233 (123) 456-7890"}
+                  {salesOrder.organisation?.email || "info@afk.com"} | {salesOrder.organisation?.phone || "+233 (123) 456-7890"}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
                   {isPOS ? "Thank you for your purchase!" : "Thank you for your business!"}

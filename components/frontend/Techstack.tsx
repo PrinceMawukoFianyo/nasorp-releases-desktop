@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 
 // Types and Interfaces
-type ThemeType = "liUSt" | "dark";
+type ThemeType = "light" | "dark";
 type CategoryType = "services" | "products" | "emergency" | "support";
 
 interface ServicesGridProps {
@@ -54,7 +54,7 @@ interface ThemeColors {
 
 // Theme Styles
 const themeStyles: Record<ThemeType, ThemeColors> = {
-  liUSt: {
+  light: {
     wrapper: "bg-gray-50 border-gray-200",
     section: {
       services: "bg-rose-50/50",
@@ -267,7 +267,7 @@ const categories: Category[] = [
 ];
 
 // Component
-const HardwarePlumbingGrid: React.FC<ServicesGridProps> = ({ theme = "liUSt" }) => {
+const HardwarePlumbingGrid: React.FC<ServicesGridProps> = ({ theme = "light" }) => {
   const style = themeStyles[theme];
 
   // Card Component

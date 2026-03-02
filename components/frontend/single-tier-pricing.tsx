@@ -11,7 +11,7 @@ import {
   Zap,
 } from "lucide-react";
 
-const HardwareStoreShowcase = ({ theme = "liUSt" }) => {
+const HardwareStoreShowcase = ({ theme = "light" }) => {
   const isDark = theme === "dark";
   
   const products = [

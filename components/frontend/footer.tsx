@@ -178,8 +178,8 @@ export default function HardwarePlumbingFooter() {
                     <Mail className="w-4 h-4 text-orange-400" />
                   </div>
                   <div>
-                    <div>info@afkberimah.com</div>
-                    <div>service@afkberimah.com</div>
+                    <div>info@rich83ventures.com</div>
+                    <div>service@rich83ventures.com</div>
                   </div>
                 </li>
                 <li className="text-gray-400 text-sm flex items-start gap-3">
@@ -188,8 +188,8 @@ export default function HardwarePlumbingFooter() {
                   </div>
                   <div>
                     <div className="font-medium text-gray-300">Visit Our Store</div>
-                    <div>123 Main Street</div>
-                    <div>Abesim , HC 12345</div>
+                    <div>Victorial Park</div>
+                    <div>Sunyani, Area One</div>
                   </div>
                 </li>
               </ul>
@@ -229,7 +229,7 @@ export default function HardwarePlumbingFooter() {
             <div className="text-gray-400 text-sm">
               © {new Date().getFullYear()}{" "}
               <span className="hover:text-rose-400 transition-colors font-medium">
-                A.F.K. BERIMAH
+                PRINCE MAWUKO FIANYOH
               </span>
               {" | "}
               <a href="/privacy" className="hover:text-rose-400 transition-colors">
@@ -245,7 +245,7 @@ export default function HardwarePlumbingFooter() {
               </a>
             </div>
             <div className="text-gray-400 text-sm">
-              Licensed • Bonded • Insured
+              Licensed • Bonded • Insured 
             </div>
           </div>
         </div>

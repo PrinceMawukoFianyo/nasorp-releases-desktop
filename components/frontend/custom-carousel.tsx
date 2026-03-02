@@ -5,24 +5,24 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 const carouselItems = [
  {
   image: "/images/slide-1.jpg",
-  title: "Quality Hardware Solutions,",
-  subtitle: "Build Your Success with AFK Berimah",
-},
-{
+  title: "Premium Bath Essentials,",
+  subtitle: "Luxury Care for Your Daily Routine",
+ },
+ {
   image: "/images/slide-2.jpg",
-  title: "Premium Tools & Materials,",
-  subtitle: "Everything for Your Projects",
-},
-{
+  title: "Fresh & Clean Collection,",
+  subtitle: "Everything You Need for Personal Care",
+ },
+ {
   image: "/images/slide-3.jpg",
-  title: "Construction Grade Quality,",
-  subtitle: "Expert Materials for Every Job",
-},
-{
+  title: "Spa Quality Toiletries,",
+  subtitle: "Indulge in Everyday Luxury",
+ },
+ {
   image: "/images/slide-4.jpg",
-  title: "Professional Grade Equipment,",
-  subtitle: "Trusted by Local Builders",
-},
+  title: "Complete Bathroom Solutions,",
+  subtitle: "Trusted Brands for Total Freshness",
+ },
 ];
 
 export default function CustomCarousel() {

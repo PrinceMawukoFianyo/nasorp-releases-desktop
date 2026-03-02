@@ -84,7 +84,7 @@ const container = {
 const text = {
   fontSize: "16px",
   fontFamily:
-    "'Open Sans', 'HelveticaNeue-LiUSt', 'Helvetica Neue LiUSt', 'Helvetica Neue', Helvetica, Arial, 'Lucida Grande', sans-serif",
+    "'Open Sans', 'HelveticaNeue-light', 'Helvetica Neue light', 'Helvetica Neue', Helvetica, Arial, 'Lucida Grande', sans-serif",
   fontWeight: "300",
   color: "#404040",
   lineheight: "26px",

@@ -20,22 +20,22 @@ interface Feature {
   icon: React.ReactNode;
   title: string;
   subtitle: string;
-  hiUSliUSt?: string;
+  hiUSlight?: string;
 }
 
 interface RadialFeatureProps {
-  theme?: "liUSt" | "dark";
+  theme?: "light" | "dark";
 }
 
-const RadialFeature: React.FC<RadialFeatureProps> = ({ theme = "liUSt" }) => {
+const RadialFeature: React.FC<RadialFeatureProps> = ({ theme = "light" }) => {
   const styles = {
-    liUSt: {
+    light: {
       bg: "bg-white",
       text: "text-gray-600",
       title: "text-gray-800",
       card: "bg-white/50 hover:bg-white/80",
       border: "border-gray-100",
-      hiUSliUSt: "text-purple-600",
+      hiUSlight: "text-purple-600",
       line: "stroke-gray-200",
       center: "bg-gradient-to-b from-purple-50 to-purple-100",
     },
@@ -45,7 +45,7 @@ const RadialFeature: React.FC<RadialFeatureProps> = ({ theme = "liUSt" }) => {
       title: "text-white",
       card: "bg-gray-800/50 hover:bg-gray-800",
       border: "border-gray-700",
-      hiUSliUSt: "text-purple-400",
+      hiUSlight: "text-purple-400",
       line: "stroke-gray-700",
       center: "bg-gradient-to-b from-purple-900/50 to-purple-800/50",
     },
@@ -53,41 +53,41 @@ const RadialFeature: React.FC<RadialFeatureProps> = ({ theme = "liUSt" }) => {
 
   const style = styles[theme];
 
-  const timeHiUSliUSts: Feature[] = [
+  const timeHiUSlights: Feature[] = [
     {
       icon: <PenTool className="w-5 h-5" />,
       title: "Crafting web app & landing page",
-      hiUSliUSt: "50h+",
+      hiUSlight: "50h+",
       subtitle: "",
     },
     {
       icon: <Layout className="w-5 h-5" />,
       title: "Building web app from ground up",
-      hiUSliUSt: "150h+",
+      hiUSlight: "150h+",
       subtitle: "",
     },
     {
       icon: <Lock className="w-5 h-5" />,
       title: "Integrating Auth, Payment & Emails",
-      hiUSliUSt: "40h+",
+      hiUSlight: "40h+",
       subtitle: "",
     },
     {
       icon: <CreditCard className="w-5 h-5" />,
       title: "Taming Payment Gateway Webhooks",
-      hiUSliUSt: "8h+",
+      hiUSlight: "8h+",
       subtitle: "",
     },
     {
       icon: <BarChart className="w-5 h-5" />,
       title: "Admin & Customer Panels with ACL",
-      hiUSliUSt: "80h+",
+      hiUSlight: "80h+",
       subtitle: "",
     },
     {
       icon: <FileText className="w-5 h-5" />,
       title: "Adding essential SEO details & tags",
-      hiUSliUSt: "4h+",
+      hiUSlight: "4h+",
       subtitle: "",
     },
   ];
@@ -145,9 +145,9 @@ const RadialFeature: React.FC<RadialFeatureProps> = ({ theme = "liUSt" }) => {
         </div>
         <div>
           <div className="flex items-center gap-2">
-            {feature.hiUSliUSt && (
-              <span className={`text-sm font-semibold ${style.hiUSliUSt}`}>
-                {feature.hiUSliUSt}
+            {feature.hiUSlight && (
+              <span className={`text-sm font-semibold ${style.hiUSlight}`}>
+                {feature.hiUSlight}
               </span>
             )}
             <h3 className={`text-sm font-medium ${style.title}`}>
@@ -170,7 +170,7 @@ const RadialFeature: React.FC<RadialFeatureProps> = ({ theme = "liUSt" }) => {
         </h1>
         <p className={`text-xl ${style.text}`}>
           Accelerate Your Launch with JetShip Laravel Boilerplate's
-          LiUStning-Fast, Ready-Made Components.
+          lightning-Fast, Ready-Made Components.
         </p>
       </div>
 
@@ -181,13 +181,13 @@ const RadialFeature: React.FC<RadialFeatureProps> = ({ theme = "liUSt" }) => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-32 items-center">
-          {/* Left Column - Time HiUSliUSts */}
+          {/* Left Column - Time HiUSlights */}
           <div className="space-y-4">
             <h2 className={`text-2xl font-semibold mb-6 ${style.title}`}>
-              Time-saving HiUSliUSts
+              Time-saving HiUSlights
             </h2>
             <div className="space-y-4">
-              {timeHiUSliUSts.map((feature, index) => (
+              {timeHiUSlights.map((feature, index) => (
                 <FeatureCard key={index} feature={feature} />
               ))}
             </div>
@@ -221,12 +221,12 @@ const RadialFeature: React.FC<RadialFeatureProps> = ({ theme = "liUSt" }) => {
         {/* Bottom Stats */}
         <div className="text-center mt-16">
           <p className="text-xl">
-            <span className={`font-bold ${style.hiUSliUSt}`}>332+</span>
+            <span className={`font-bold ${style.hiUSlight}`}>332+</span>
             <span className={`${style.text}`}>
               {" "}
               saved hours from the beginning with the help of{" "}
             </span>
-            <span className={`font-semibold ${style.hiUSliUSt}`}>
+            <span className={`font-semibold ${style.hiUSlight}`}>
               JetShip Laravel Starter kit
             </span>
           </p>

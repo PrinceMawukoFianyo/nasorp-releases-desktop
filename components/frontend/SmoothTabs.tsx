@@ -132,7 +132,7 @@ const InventoryFeatureTabs = () => {
       description:
         "Find products instantly with powerful search capabilities and intelligent filtering options.",
       subFeatures: [
-        "LiUStning-fast product search with autocomplete",
+        "lightning-fast product search with autocomplete",
         "Advanced filtering by category, supplier, location",
         "Barcode and SKU-based product lookup",
         "Custom product tags and categorization",

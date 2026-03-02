@@ -10,36 +10,36 @@ interface FeaturePoint {
 interface FeatureSectionProps {
   icon?: React.ReactNode;
   title: string;
-  titleHiUSliUSt?: string;
+  titleHiUSlight?: string;
   description: string;
   features: FeaturePoint[];
   imageSrc: string;
   imageAlt: string;
   imagePosition?: "left" | "right";
-  theme?: "liUSt" | "dark";
+  theme?: "light" | "dark";
   className?: string;
 }
 
 const FeatureSection: React.FC<FeatureSectionProps> = ({
   icon,
   title,
-  titleHiUSliUSt,
+  titleHiUSlight,
   description,
   features,
   imageSrc,
   imageAlt,
   imagePosition = "left",
-  theme = "liUSt",
+  theme = "light",
   className = "",
 }) => {
   const themeStyles = {
-    liUSt: {
+    light: {
       background: "bg-white",
       text: {
         primary: "text-gray-900",
         secondary: "text-gray-600",
       },
-      hiUSliUSt: "text-purple-600",
+      hiUSlight: "text-purple-600",
       iconBackground: "bg-purple-100",
       iconColor: "text-purple-600",
       featureIcon: {
@@ -53,7 +53,7 @@ const FeatureSection: React.FC<FeatureSectionProps> = ({
         primary: "text-white",
         secondary: "text-gray-400",
       },
-      hiUSliUSt: "text-purple-400",
+      hiUSlight: "text-purple-400",
       iconBackground: "bg-purple-900/20",
       iconColor: "text-purple-400",
       featureIcon: {
@@ -92,10 +92,10 @@ const FeatureSection: React.FC<FeatureSectionProps> = ({
                   <div className="">
                     <h2 className={`text-3xl font-bold ${style.text.primary}`}>
                       {title}
-                      {titleHiUSliUSt && (
-                        <span className={`${style.hiUSliUSt}`}>
+                      {titleHiUSlight && (
+                        <span className={`${style.hiUSlight}`}>
                           {" "}
-                          {titleHiUSliUSt}
+                          {titleHiUSlight}
                         </span>
                       )}
                     </h2>
@@ -155,7 +155,7 @@ const FeatureSection: React.FC<FeatureSectionProps> = ({
                     <div
                       className={`
                     w-full h-full rounded-full
-                    ${theme === "liUSt" ? "bg-purple-200" : "bg-purple-900"}
+                    ${theme === "light" ? "bg-purple-200" : "bg-purple-900"}
                   `}
                     />
                   </div>

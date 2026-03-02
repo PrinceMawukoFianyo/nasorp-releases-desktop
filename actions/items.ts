@@ -5,7 +5,6 @@ import { getAuthenticatedApi } from "@/config/axios";
 import { getAuthenticatedUser } from "@/config/useAuth";
 import { db } from "@/prisma/db";
 import { BriefItemDTO, ItemCreateProps, ProductResponse, ProductData } from "@/types/item";
-import axios from "axios";
 import { revalidatePath } from "next/cache";
 
 interface ApiResponse {
@@ -291,17 +290,34 @@ export async function getBriefItemById(id: string) {
   }
 }
 
+// ✅ FIXED: Use Prisma directly — bypasses the broken /api/v1/items/:id route
 export async function getItemById(id: string): Promise<ProductResponse> {
   try {
-    const api = await getAuthenticatedApi();
-    const res = await api.get(`/items/${id}`);
-    return res.data;
+    const item = await db.item.findUnique({
+      where: { id },
+      include: {
+        category: true,
+        brand: true,
+        unit: true,
+        taxRate: true,
+        inventories: {
+          include: { location: true },
+        },
+        supplierRelations: {
+          include: { supplier: true },
+        },
+        pricingTiers: {
+          include: { packagingUnit: true },
+        },
+      },
+    });
+
+    if (!item) throw new Error("Item not found");
+
+    return { success: true, data: item as any };
   } catch (error) {
     console.error("Error fetching item:", error);
-    if (axios.isAxiosError(error)) {
-      const message = error.response?.data?.error || "Failed to fetch item";
-      throw new Error(message);
-    }
+    if (error instanceof Error) throw error;
     throw new Error("An unexpected error occurred");
   }
 }
@@ -382,15 +398,14 @@ export async function deleteItem(id: string) {
     const item = await db.item.findUnique({
       where: { id },
       include: {
-        salesOrderLines: { take: 1 },
+        salesOrderLines:    { take: 1 },
         purchaseOrderLines: { take: 1 },
-        goodsReceiptLines: { take: 1 },
-        transferLines: { take: 1 },
-        adjustmentLines: { take: 1 },
-        serialNumbers: { take: 1 },
-        // ✅ No `take` limit here — we need to know they exist to delete them
-        inventories: { take: 1 },
-        supplierRelations: { take: 1 },
+        goodsReceiptLines:  { take: 1 },
+        transferLines:      { take: 1 },
+        adjustmentLines:    { take: 1 },
+        serialNumbers:      { take: 1 },
+        inventories:        { take: 1 },
+        supplierRelations:  { take: 1 },
       },
     });
 
@@ -463,8 +478,7 @@ export async function deleteItem(id: string) {
   }
 }
 
-// ✅ NEW: Bulk delete — this was missing and caused the FK error shown in the screenshot.
-// The raw SQL was attempting to delete multiple items without cleaning up Inventory first.
+// ✅ Bulk delete — cleans up Inventory and ItemSupplier before deleting items
 export async function bulkDeleteItems(ids: string[]) {
   if (!ids || ids.length === 0) {
     return { success: false, error: "No item IDs provided", deleted: 0, skipped: [] };
@@ -477,12 +491,12 @@ export async function bulkDeleteItems(ids: string[]) {
   const items = await db.item.findMany({
     where: { id: { in: ids } },
     include: {
-      salesOrderLines: { take: 1 },
+      salesOrderLines:    { take: 1 },
       purchaseOrderLines: { take: 1 },
-      goodsReceiptLines: { take: 1 },
-      transferLines: { take: 1 },
-      adjustmentLines: { take: 1 },
-      serialNumbers: { take: 1 },
+      goodsReceiptLines:  { take: 1 },
+      transferLines:      { take: 1 },
+      adjustmentLines:    { take: 1 },
+      serialNumbers:      { take: 1 },
     },
   });
 
@@ -514,15 +528,12 @@ export async function bulkDeleteItems(ids: string[]) {
   }
 
   try {
-    // ✅ Delete inside a single transaction: inventory first, then supplier relations, then items
     await db.$transaction(async (tx) => {
-      // 1. Remove inventory records for all items being deleted
+      // 1. Remove inventory records
       await tx.inventory.deleteMany({ where: { itemId: { in: toDelete } } });
-
       // 2. Remove supplier relations
       await tx.itemSupplier.deleteMany({ where: { itemId: { in: toDelete } } });
-
-      // 3. Now safe to delete items
+      // 3. Delete items
       await tx.item.deleteMany({ where: { id: { in: toDelete } } });
     });
 

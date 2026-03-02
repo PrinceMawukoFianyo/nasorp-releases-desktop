@@ -2,14 +2,14 @@
 import React from "react";
 
 interface ConnectingLinesProps {
-  theme?: "liUSt" | "dark";
+  theme?: "light" | "dark";
 }
 
 const ConnectingLines: React.FC<ConnectingLinesProps> = ({
-  theme = "liUSt",
+  theme = "light",
 }) => {
   const strokeColor =
-    theme === "liUSt" ? "rgba(226, 232, 240, 0.8)" : "rgba(51, 65, 85, 0.8)";
+    theme === "light" ? "rgba(226, 232, 240, 0.8)" : "rgba(51, 65, 85, 0.8)";
 
   return (
     <svg

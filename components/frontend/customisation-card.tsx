@@ -11,7 +11,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 
-const CustomizationCard = ({ theme = "liUSt" }) => {
+const CustomizationCard = ({ theme = "light" }) => {
   const isDark = theme === "dark";
 
   return (
