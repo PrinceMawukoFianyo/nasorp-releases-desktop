@@ -33,19 +33,19 @@ export default async function page() {
       <ReUsableHero
         theme="dark"
         announcement={{
-          text: "New Stock: Steel Rect Pipes, Round Pipes & Premium Building Materials",
+          text: "New Arrivals: Premium Shampoos, Body Washes & Organic Skincare Products",
         }}
         title={
-          <>
-            Premium Building Materials
-            <br />& Plumbing Supply Store
-          </>
-        }
-        mobileTitle="Premium Building & Plumbing Supplies"
-        subtitle="Your one-stop shop for quality steel rect pipes, round metal pipes, reducers, fittings, and complete building materials. From plumbing essentials to decorative hardware, we supply contractors, builders, and homeowners with everything needed for residential and commercial construction projects."
+              <>
+                Premium Toiletries & Personal Care
+                <br />Everyday Freshness
+              </>
+            }
+        mobileTitle="Premium Toiletries & Personal Care"
+        subtitle="Your one-stop shop for luxury shampoos, nourishing conditioners, invigorating body washes, and organic skincare products. From daily essentials to spa-quality treatments, we supply hotels, salons, and homeowners with everything needed for personal care and ultimate freshness."
         buttons={[
           {
-            label: "Browse Our Catalog",
+            label: "Shop Our Collection",
             href: "/register",
             primary: true,
           },
@@ -56,10 +56,10 @@ export default async function page() {
         ]}
         icons={[
           { icon: Code2, position: "left" },
-          { icon: Layout, position: "right" }, // Changed to Layout for dashboard representation
-          { icon: Rocket, position: "center" }, // Changed to Rocket for launch/speed representation
+          { icon: Layout, position: "right" },
+          { icon: Rocket, position: "center" },
         ]}
-        backgroundStyle="green"
+        backgroundStyle="rose"
         className="min-h-[70vh]"
         userCount={currentUsers > 1 ? currentUsers : null}
       />
@@ -73,7 +73,7 @@ export default async function page() {
           <BorderBeam />
           <Image
             src="/images/dash-2.webp"
-            alt="Building Materials Inventory Dashboard"
+            alt="Toiletries & Personal Care Products Dashboard"
             width={1775}
             height={1109}
             className="w-full h-full rounded-lg object-cover  border shadow-2xl"
