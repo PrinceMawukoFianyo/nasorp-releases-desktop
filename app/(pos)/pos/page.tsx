@@ -39,9 +39,6 @@ import { cn } from "@/lib/utils"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BARCODE SCANNER HOOK
-// Detects scanner input by timing gaps between keystrokes.
-// Scanners type all characters in < 50 ms then fire Enter.
-// Normal keyboard typing is far slower — so we can tell them apart.
 // ─────────────────────────────────────────────────────────────────────────────
 
 function useBarcodeScanner({
@@ -70,23 +67,17 @@ function useBarcodeScanner({
     if (!enabled) return
 
     const onKey = (e: KeyboardEvent) => {
-      // Skip if user is typing inside any input / textarea / select
       const tag = (e.target as HTMLElement)?.tagName?.toLowerCase()
       const editable = (e.target as HTMLElement)?.isContentEditable
       if (tag === "input" || tag === "textarea" || tag === "select" || editable) return
-
-      // Skip modifier-only keys
       if (["Shift", "Control", "Alt", "Meta"].includes(e.key)) return
 
       const now = Date.now()
-
-      // Gap too large → manual typing, reset buffer
       if (lastTime.current && now - lastTime.current > maxGap) buffer.current = ""
       lastTime.current = now
 
       if (timer.current) clearTimeout(timer.current)
 
-      // Enter or Tab = scanner suffix → submit
       if (e.key === "Enter" || e.key === "Tab") {
         e.preventDefault()
         flush()
@@ -95,7 +86,6 @@ function useBarcodeScanner({
 
       if (e.key.length === 1) buffer.current += e.key
 
-      // Auto-flush after silence (catches scanners without a suffix)
       timer.current = setTimeout(() => {
         if (buffer.current.trim().length >= minLength) flush()
         else buffer.current = ""
@@ -112,8 +102,6 @@ function useBarcodeScanner({
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SCAN FEEDBACK OVERLAY
-// Appears in the top-right corner for ~1 second after every scan.
-// Green = found & added  |  Red = not found  |  Amber = low stock
 // ─────────────────────────────────────────────────────────────────────────────
 
 type ScanStatus = "scanning" | "found" | "not_found" | "low_stock" | "error" | null
@@ -167,7 +155,7 @@ function ScanOverlay({ fb }: { fb: ScanFeedback }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TYPES  (unchanged)
+// TYPES
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface CartLine {
@@ -192,9 +180,10 @@ interface CartLine {
 function uid() { return Math.random().toString(36).slice(2, 9) }
 
 function makeSingleLine(item: any, stock: number): CartLine {
+  const taxRate = typeof item.tax === "number" && item.tax > 0 ? item.tax : 0
   return {
     cartLineId: uid(), itemId: item.id, name: item.name,
-    sku: item.sku || "", stock, taxRate: 16,
+    sku: item.sku || "", stock, taxRate,
     sellingPrice: item.sellingPrice || 0,
     saleMode: "single", tierId: null, tierName: null,
     packQuantity: 1, unitsPerPack: 1,
@@ -205,7 +194,7 @@ function makeSingleLine(item: any, stock: number): CartLine {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// VIRTUAL TIER GENERATION  (unchanged)
+// VIRTUAL TIER GENERATION
 // ─────────────────────────────────────────────────────────────────────────────
 
 type VirtualTier = PricingTierRecord & { isVirtual: true; fracLabel: "½" | "¼" | "⅓"; fracDisplay: string }
@@ -256,7 +245,7 @@ function tierStyle(t: DisplayTier) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PACK SELECTOR  (unchanged)
+// PACK SELECTOR
 // ─────────────────────────────────────────────────────────────────────────────
 
 function PackSelector({
@@ -427,7 +416,12 @@ export default function POSPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
   const [searchQuery,      setSearchQuery]      = useState("")
   const [cart,             setCart]             = useState<CartLine[]>([])
-  const [selectedLocation, setSelectedLocation] = useState("")
+
+  // ── CHANGED: default to "ALL" so products load immediately on mount ────────
+  const [selectedLocation, setSelectedLocation] = useState("ALL")
+  const [saleLocation,     setSaleLocation]     = useState("")
+  // ──────────────────────────────────────────────────────────────────────────
+
   const [selectedCustomer, setSelectedCustomer] = useState("")
   const [customerSearch,   setCustomerSearch]   = useState("")
 
@@ -454,35 +448,39 @@ export default function POSPage() {
   const [isLookingUp,   setIsLookingUp]   = useState(false)
   const scanLock = useRef(false)
 
-  // Disable scanner while any modal is open (prevents scanning into dialog inputs)
   const scannerEnabled =
     !showCustomerModal && !showAddCustomerModal &&
     !showPaymentModal  && !showInvoiceModal     && !isLoading
 
-  // ── Data loading  (unchanged) ──────────────────────────────────────────────
+  // ── Data loading ───────────────────────────────────────────────────────────
 
   useEffect(() => { loadData() }, [])
 
-  // Reload items whenever the selected location changes.
-  // Empty string = "Select Location" / All Locations → load everything.
-  // A real locationId → load only items with stock at that location.
+  // ── CHANGED: "" = nothing selected → skip loading; "ALL" = all items ───────
   useEffect(() => {
-    loadItems(selectedLocation || undefined)
+    if (selectedLocation === "") return // no location chosen yet — show nothing
+
+    const locId = selectedLocation === "ALL" ? undefined : selectedLocation
+    loadItems(locId)
+
+    if (selectedLocation !== "ALL") {
+      setSaleLocation(selectedLocation)
+    } else {
+      setSaleLocation("") // must choose at checkout
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedLocation])
+  // ──────────────────────────────────────────────────────────────────────────
 
   const loadData = async () => {
     setIsLoading(true)
     try {
-      // Load support data in parallel; items are loaded by the location effect above.
       const [catRes, custRes, locRes] = await Promise.all([
         getPOSCategories(), getPOSCustomers(), getPOSLocations(),
       ])
       if (catRes.success  && catRes.data)  setCategories(catRes.data)
       if (custRes.success && custRes.data) setCustomers(custRes.data)
       if (locRes.success  && locRes.data)  setLocations(locRes.data)
-      // selectedLocation starts as "" so the effect fires immediately and
-      // loads ALL items — matching the "Select Location" default state.
     } catch (err) {
       console.error(err)
       toast.error("Failed to load POS data")
@@ -491,15 +489,25 @@ export default function POSPage() {
     }
   }
 
-  // locationId = undefined → all items (no location filter)
-  // locationId = "someId" → only items with stock > 0 at that location
   const loadItems = async (locationId?: string) => {
     try {
       const result = await getPOSItems(locationId)
       if (result.success && result.data) {
-        setItems(result.data)
-        buildTiersMap(result.data)
-        setSearchQuery("") // clear search when location changes
+        // Normalise stock: if totalStock/availableStock is missing or zero,
+        // fall back to summing the raw inventories array so no item is hidden.
+        const normalised = result.data.map((item: any) => {
+          const inventoryTotal = Array.isArray(item.inventories)
+            ? item.inventories.reduce((s: number, i: any) => s + (i.quantity ?? 0), 0)
+            : 0
+          return {
+            ...item,
+            totalStock:     ((item.totalStock     ?? 0) > 0) ? item.totalStock     : inventoryTotal,
+            availableStock: ((item.availableStock  ?? 0) > 0) ? item.availableStock : inventoryTotal,
+          }
+        })
+        setItems(normalised)
+        buildTiersMap(normalised)
+        setSearchQuery("")
       }
     } catch (err) { console.error(err) }
   }
@@ -512,10 +520,8 @@ export default function POSPage() {
     setTiersMap(map)
   }
 
-  // ── Filtering  (unchanged) ─────────────────────────────────────────────────
+  // ── Filtering ──────────────────────────────────────────────────────────────
 
-  // Category filter is client-side (instant).
-  // Search is server-side via searchPOSItems so it always respects location scope.
   const filteredItems = items.filter(item =>
     selectedCategory === "all" || item.categoryId === selectedCategory
   )
@@ -526,19 +532,26 @@ export default function POSPage() {
     c.phone?.toLowerCase().includes(customerSearch.toLowerCase())
   )
 
-  // ── Show scan overlay briefly ──────────────────────────────────────────────
+  // ── Scan feedback helper ───────────────────────────────────────────────────
 
   const showFb = useCallback((fb: ScanFeedback, ms = 1200) => {
     setScanFeedback(fb)
     setTimeout(() => setScanFeedback({ status: null }), ms)
   }, [])
 
-  // ── addToCart  (now returns boolean so scanner can react) ─────────────────
+  // ── addToCart ──────────────────────────────────────────────────────────────
 
   const addToCart = useCallback((item: any): boolean => {
     if (!selectedLocation) { toast.error("Please select a location first"); return false }
-    const inv   = item.inventories?.find((i: any) => i.locationId === selectedLocation)
-    const stock = inv?.quantity || 0
+
+    const inventoryTotal = Array.isArray(item.inventories)
+      ? item.inventories.reduce((s: number, i: any) => s + (i.quantity ?? 0), 0)
+      : 0
+    const isAllLocations = selectedLocation === "ALL"
+    const stock = isAllLocations
+      ? (item.totalStock ?? item.availableStock ?? inventoryTotal)
+      : (item.inventories?.find((i: any) => i.locationId === selectedLocation)?.quantity ?? 0)
+
     if (stock <= 0) { toast.error(`${item.name} is out of stock`); return false }
 
     setCart(prev => {
@@ -567,7 +580,6 @@ export default function POSPage() {
     showFb({ status: "scanning" }, 6000)
 
     try {
-      // Step 1 — instant local lookup (no network): match barcode field or SKU
       const lv    = scannedValue.trim().toLowerCase()
       const local = items.find(item =>
         item.barcode?.toLowerCase() === lv ||
@@ -575,9 +587,10 @@ export default function POSPage() {
       )
 
       if (local) {
-        const stock = selectedLocation
-          ? local.inventories?.find((i: any) => i.locationId === selectedLocation)?.quantity ?? 0
-          : local.inventories?.reduce((s: number, i: any) => s + i.quantity, 0) ?? 0
+        const isAll = !selectedLocation || selectedLocation === "ALL"
+        const stock = isAll
+          ? (local.totalStock ?? local.inventories?.reduce((s: number, i: any) => s + (i.quantity ?? 0), 0) ?? 0)
+          : (local.inventories?.find((i: any) => i.locationId === selectedLocation)?.quantity ?? 0)
 
         if (stock <= 0) {
           showFb({ status: "not_found", itemName: local.name, message: "Out of stock here" })
@@ -594,7 +607,6 @@ export default function POSPage() {
         return
       }
 
-      // Step 2 — server lookup: handles UPC, EAN, serial numbers etc.
       const result = await lookupByBarcode(scannedValue.trim())
 
       if (!result.found || !result.item) {
@@ -612,7 +624,6 @@ export default function POSPage() {
         return
       }
 
-      // Match server result back to our loaded items list (which has pricingTiers, inventories etc.)
       const matched = items.find(i => i.id === result.item!.id)
 
       if (!matched) {
@@ -621,9 +632,10 @@ export default function POSPage() {
         return
       }
 
-      const stock = selectedLocation
-        ? matched.inventories?.find((i: any) => i.locationId === selectedLocation)?.quantity ?? 0
-        : matched.inventories?.reduce((s: number, i: any) => s + i.quantity, 0) ?? 0
+      const isAllLoc = !selectedLocation || selectedLocation === "ALL"
+      const stock = isAllLoc
+        ? (matched.totalStock ?? matched.inventories?.reduce((s: number, i: any) => s + (i.quantity ?? 0), 0) ?? 0)
+        : (matched.inventories?.find((i: any) => i.locationId === selectedLocation)?.quantity ?? 0)
 
       if (stock <= 0) {
         showFb({ status: "not_found", itemName: matched.name, message: "Out of stock" })
@@ -643,15 +655,13 @@ export default function POSPage() {
       toast.error("Scan error", { description: err.message })
     } finally {
       setIsLookingUp(false)
-      // Short lockout prevents double-firing on fast scanners
       setTimeout(() => { scanLock.current = false }, 300)
     }
   }, [items, selectedLocation, addToCart, showFb])
 
-  // ── Wire up the global scanner ─────────────────────────────────────────────
   useBarcodeScanner({ onScan: handleScan, enabled: scannerEnabled })
 
-  // ── Cart helpers  (unchanged) ──────────────────────────────────────────────
+  // ── Cart helpers ───────────────────────────────────────────────────────────
 
   const updateLine = useCallback((cartLineId: string, update: Partial<CartLine>) => {
     setCart(prev => prev.map(l => l.cartLineId === cartLineId ? { ...l, ...update } : l))
@@ -660,17 +670,21 @@ export default function POSPage() {
   const removeLine = (cartLineId: string) =>
     setCart(prev => prev.filter(l => l.cartLineId !== cartLineId))
 
-  // ── Totals  (unchanged) ────────────────────────────────────────────────────
+  // ── Totals ─────────────────────────────────────────────────────────────────
 
   const subtotal   = cart.reduce((s, l) => s + l.lineTotal, 0)
-  const totalTax   = cart.reduce((s, l) => s + l.lineTotal * (l.taxRate / 100), 0)
+  const totalTax   = cart.reduce((s, l) => s + (l.taxRate > 0 ? l.lineTotal * (l.taxRate / 100) : 0), 0)
   const grandTotal = subtotal + totalTax + shipping - discount
 
-  // ── Sale submission  (unchanged) ───────────────────────────────────────────
+  // ── Sale submission ────────────────────────────────────────────────────────
 
   const handleCompleteSale = async () => {
-    if (!selectedLocation) { toast.error("Please select a location"); return }
     if (cart.length === 0)  { toast.error("Cart is empty"); return }
+    const effectiveLocation = selectedLocation === "ALL" ? saleLocation : selectedLocation
+    if (!effectiveLocation) {
+      toast.error("Please select which location this sale is from", { duration: 4000 })
+      return
+    }
 
     for (const line of cart) {
       if (line.totalUnits > line.stock) {
@@ -686,7 +700,7 @@ export default function POSPage() {
     try {
       const result = await createPOSSale({
         customerId:   selectedCustomer || undefined,
-        locationId:   selectedLocation,
+        locationId:   effectiveLocation,
         paymentMethod,
         discount,
         shippingCost: shipping,
@@ -712,7 +726,7 @@ export default function POSPage() {
         setShowPaymentModal(false)
         setShowInvoiceModal(true)
         toast.success("Sale completed!")
-        await loadItems(selectedLocation)
+        await loadItems(effectiveLocation === "ALL" ? undefined : effectiveLocation)
       } else {
         toast.error(result.error || "Failed to complete sale")
       }
@@ -770,7 +784,7 @@ export default function POSPage() {
   return (
     <div className="h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col">
 
-      {/* ── Scan feedback overlay — floats above everything, auto-hides ── */}
+      {/* ── Scan feedback overlay ── */}
       <ScanOverlay fb={scanFeedback} />
 
       {/* ── Header ── */}
@@ -858,7 +872,10 @@ export default function POSPage() {
               <MapPin className="w-4 h-4 text-slate-400" />
               <select value={selectedLocation} onChange={e => setSelectedLocation(e.target.value)}
                 className="flex-1 text-sm font-medium text-slate-700 bg-transparent border-none focus:outline-none cursor-pointer">
+                {/* ── CHANGED: "Select Location" is now a true placeholder that hides products ── */}
                 <option value="">Select Location</option>
+                <option value="ALL">📦 All Locations</option>
+                <option disabled>──────────────</option>
                 {locations.map(loc => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
               </select>
             </div>
@@ -888,10 +905,15 @@ export default function POSPage() {
                   clearTimeout((window as any).__posSearchTimer)
                   ;(window as any).__posSearchTimer = setTimeout(async () => {
                     try {
-                      // If query is empty, reload the full list for this location
+                      // Convert "ALL" → undefined so the backend returns all items.
+                      // Passing the literal string "ALL" would be treated as a real
+                      // location ID, match nothing, and return an empty list.
+                      const locId = (!selectedLocation || selectedLocation === "ALL")
+                        ? undefined
+                        : selectedLocation
                       const res = q.trim()
-                        ? await searchPOSItems(q.trim(), selectedLocation || undefined)
-                        : await getPOSItems(selectedLocation || undefined)
+                        ? await searchPOSItems(q.trim(), locId)
+                        : await getPOSItems(locId)
                       if (res.success && res.data) {
                         setItems(res.data)
                         buildTiersMap(res.data)
@@ -920,65 +942,79 @@ export default function POSPage() {
             </div>
           </div>
 
+          {/* ── CHANGED: gate products behind a location selection ── */}
           <ScrollArea className="flex-1 p-4">
-            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
-              {filteredItems.map(item => {
-                // When a specific location is selected, show that location's stock.
-                // When "Select Location" (empty), show org-wide totalStock.
-                const stock = selectedLocation
-                  ? (item.inventories?.find((i: any) => i.locationId === selectedLocation)?.quantity ?? item.availableStock ?? 0)
-                  : (item.totalStock ?? item.availableStock ?? 0)
-                const hasTiers = (tiersMap[item.id]?.length || 0) > 0
-
-                return (
-                  <Card key={item.id}
-                    onClick={() => stock > 0 && addToCart(item)}
-                    className={`overflow-hidden group ${stock > 0 ? "cursor-pointer hover:shadow-xl hover:scale-105" : "opacity-60"} transition-all duration-200`}>
-                    <div className="aspect-square bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center relative">
-                      {item.imageUrl?.length > 0
-                        ? <img src={item.imageUrl[0]} alt={item.name} className="w-full h-full object-cover" />
-                        : <div className="text-6xl">📦</div>
-                      }
-                      {stock <= 0 && (
-                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                          <Badge variant="destructive" className="text-xs">Out of Stock</Badge>
-                        </div>
-                      )}
-                      {stock > 0 && stock <= 5 && (
-                        <Badge variant="destructive" className="absolute top-2 right-2 text-xs">Low Stock</Badge>
-                      )}
-                      {hasTiers && stock > 0 && (
-                        <div className="absolute bottom-2 left-2">
-                          <span className="text-[9px] bg-amber-500 text-white px-1.5 py-0.5 rounded font-medium flex items-center gap-0.5">
-                            <Package2 className="w-2.5 h-2.5" /> Wholesale
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-3">
-                      <p className="text-xs text-slate-500 mb-1">{item.sku}</p>
-                      <h3 className="font-semibold text-sm text-slate-900 mb-2 line-clamp-2 min-h-[2.5rem]">
-                        {item.name}
-                      </h3>
-                      <div className="flex items-center justify-between">
-                        <span className="text-lg font-bold text-blue-600">
-                          GHS{(item.sellingPrice || 0).toFixed(2)}
-                        </span>
-                        <span className={`text-xs font-medium ${stock <= 5 ? "text-red-600" : "text-slate-500"}`}>
-                          {stock} in stock
-                        </span>
-                      </div>
-                    </div>
-                  </Card>
-                )
-              })}
-            </div>
-            {filteredItems.length === 0 && (
+            {selectedLocation === "" ? (
               <div className="text-center py-16 text-slate-400">
-                <Search className="w-16 h-16 mx-auto mb-4 opacity-20" />
-                <p className="text-lg font-medium">No products found</p>
-                <p className="text-sm mt-2">Try adjusting your search or scan a barcode</p>
+                <MapPin className="w-16 h-16 mx-auto mb-4 opacity-20" />
+                <p className="text-lg font-medium">No location selected</p>
+                <p className="text-sm mt-2">
+                  Choose a specific location or <strong>"All Locations"</strong> above to browse products
+                </p>
               </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+                  {filteredItems.map(item => {
+                    const inventoryTotal = Array.isArray(item.inventories)
+                      ? item.inventories.reduce((s: number, i: any) => s + (i.quantity ?? 0), 0)
+                      : 0
+                    const stock = (selectedLocation && selectedLocation !== "ALL")
+                      ? (item.inventories?.find((i: any) => i.locationId === selectedLocation)?.quantity ?? 0)
+                      : (item.totalStock ?? item.availableStock ?? inventoryTotal)
+                    const hasTiers = (tiersMap[item.id]?.length || 0) > 0
+
+                    return (
+                      <Card key={item.id}
+                        onClick={() => stock > 0 && addToCart(item)}
+                        className={`overflow-hidden group ${stock > 0 ? "cursor-pointer hover:shadow-xl hover:scale-105" : "opacity-60"} transition-all duration-200`}>
+                        <div className="aspect-square bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center relative">
+                          {item.imageUrl?.length > 0
+                            ? <img src={item.imageUrl[0]} alt={item.name} className="w-full h-full object-cover" />
+                            : <div className="text-6xl">📦</div>
+                          }
+                          {stock <= 0 && (
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                              <Badge variant="destructive" className="text-xs">Out of Stock</Badge>
+                            </div>
+                          )}
+                          {stock > 0 && stock <= 5 && (
+                            <Badge variant="destructive" className="absolute top-2 right-2 text-xs">Low Stock</Badge>
+                          )}
+                          {hasTiers && stock > 0 && (
+                            <div className="absolute bottom-2 left-2">
+                              <span className="text-[9px] bg-amber-500 text-white px-1.5 py-0.5 rounded font-medium flex items-center gap-0.5">
+                                <Package2 className="w-2.5 h-2.5" /> Wholesale
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-3">
+                          <p className="text-xs text-slate-500 mb-1">{item.sku}</p>
+                          <h3 className="font-semibold text-sm text-slate-900 mb-2 line-clamp-2 min-h-[2.5rem]">
+                            {item.name}
+                          </h3>
+                          <div className="flex items-center justify-between">
+                            <span className="text-lg font-bold text-blue-600">
+                              GHS{(item.sellingPrice || 0).toFixed(2)}
+                            </span>
+                            <span className={`text-xs font-medium ${stock <= 5 ? "text-red-600" : "text-slate-500"}`}>
+                              {stock} in stock
+                            </span>
+                          </div>
+                        </div>
+                      </Card>
+                    )
+                  })}
+                </div>
+                {filteredItems.length === 0 && (
+                  <div className="text-center py-16 text-slate-400">
+                    <Search className="w-16 h-16 mx-auto mb-4 opacity-20" />
+                    <p className="text-lg font-medium">No products found</p>
+                    <p className="text-sm mt-2">Try adjusting your search or scan a barcode</p>
+                  </div>
+                )}
+              </>
             )}
           </ScrollArea>
         </div>
@@ -1021,7 +1057,6 @@ export default function POSPage() {
                 <ShoppingCart className="w-20 h-20 mb-4 opacity-20" />
                 <p className="text-lg font-medium">Cart is empty</p>
                 <p className="text-sm text-center mt-2">Click an item or scan a barcode to add</p>
-                {/* Scanner ready pill inside empty cart */}
                 <div className="mt-6 flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-full text-xs text-green-700">
                   <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
                   <ScanLine className="h-3.5 w-3.5" />
@@ -1095,10 +1130,12 @@ export default function POSPage() {
                     <span className="text-slate-600">Sub-Total:</span>
                     <span className="font-semibold">GHS{subtotal.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-600">Tax:</span>
-                    <span className="font-semibold">GHS{totalTax.toFixed(2)}</span>
-                  </div>
+                  {totalTax > 0 && (
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-600">Tax:</span>
+                      <span className="font-semibold">GHS{totalTax.toFixed(2)}</span>
+                    </div>
+                  )}
                   {discount > 0 && (
                     <div className="flex justify-between text-xs">
                       <span className="text-slate-600">Discount:</span>
@@ -1139,7 +1176,7 @@ export default function POSPage() {
         </div>
       </div>
 
-      {/* ════════════════ MODALS (unchanged) ════════════════ */}
+      {/* ════════════════ MODALS ════════════════ */}
 
       {/* Customer Selection */}
       <Dialog open={showCustomerModal} onOpenChange={setShowCustomerModal}>
@@ -1248,7 +1285,7 @@ export default function POSPage() {
               <Label className="block text-sm font-medium text-slate-700 mb-2">Payment Method</Label>
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { value: "CASH",         label: "Cash",   icon: Banknote  },
+                  { value: "CASH",         label: "Cash",   icon: Banknote   },
                   { value: "CARD",         label: "Card",   icon: CreditCard },
                   { value: "MOBILE_MONEY", label: "Mobile", icon: DollarSign },
                 ].map(m => (
@@ -1264,6 +1301,30 @@ export default function POSPage() {
                 ))}
               </div>
             </div>
+
+            {/* Location picker — only shown when browsing All Locations */}
+            {selectedLocation === "ALL" && (
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
+                  <MapPin className="w-4 h-4 text-rose-500" />
+                  Sale Location <span className="text-rose-500">*</span>
+                </Label>
+                <select
+                  value={saleLocation}
+                  onChange={e => setSaleLocation(e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+                >
+                  <option value="">— Select which location this sale is from —</option>
+                  {locations.map(loc => (
+                    <option key={loc.id} value={loc.id}>{loc.name}</option>
+                  ))}
+                </select>
+                {!saleLocation && (
+                  <p className="text-xs text-rose-500">Required when browsing All Locations</p>
+                )}
+              </div>
+            )}
+
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <div className="flex items-start gap-2">
                 <Check className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
@@ -1271,7 +1332,11 @@ export default function POSPage() {
                   <p className="font-medium mb-1">Ready to complete sale</p>
                   <ul className="list-disc list-inside text-xs space-y-1">
                     <li>{cart.length} line{cart.length !== 1 ? "s" : ""} ({cart.reduce((s, l) => s + l.totalUnits, 0)} total units)</li>
-                    <li>Location: {selectedLocationData?.name}</li>
+                    <li>Location: {
+                      selectedLocation === "ALL"
+                        ? (locations.find(l => l.id === saleLocation)?.name ?? "Not selected yet")
+                        : selectedLocationData?.name
+                    }</li>
                     {selectedCustomerData && <li>Customer: {selectedCustomerData.name}</li>}
                     {cart.some(l => l.saleMode === "wholesale") && (
                       <li className="text-amber-700">
@@ -1285,8 +1350,10 @@ export default function POSPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" disabled={isProcessing} onClick={() => setShowPaymentModal(false)}>Cancel</Button>
-            <Button onClick={handleCompleteSale} disabled={isProcessing}
-              className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700">
+            <Button
+              onClick={handleCompleteSale}
+              disabled={isProcessing || (selectedLocation === "ALL" && !saleLocation)}
+              className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 disabled:opacity-50">
               {isProcessing
                 ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Processing...</>
                 : <><Check className="w-5 h-5 mr-2" />Confirm Payment</>

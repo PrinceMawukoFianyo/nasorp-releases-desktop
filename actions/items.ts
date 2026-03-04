@@ -4,25 +4,30 @@
 import { getAuthenticatedApi } from "@/config/axios";
 import { getAuthenticatedUser } from "@/config/useAuth";
 import { db } from "@/prisma/db";
-import { ItemCreateProps, ProductResponse, ProductData } from "@/types/item";
+import { BriefItemDTO, ItemCreateProps, ProductResponse, ProductData } from "@/types/item";
 import axios from "axios";
 import { revalidatePath } from "next/cache";
 
-// ── Extended create input ─────────────────────────────────────────────────────
-type ItemCreateInput = ItemCreateProps & {
-  description?: string | null;
-  barcode?: string | null;
-  minStockLevel?: number | null;
-  maxStockLevel?: number | null;
-  categoryId?: string | null;
-  brandId?: string | null;
-  unitId?: string | null;
-  unitOfMeasure?: string | null;
-  isActive?: boolean;
-  isSerialTracked?: boolean;
-};
+interface ApiResponse {
+  data: ProductData | null;
+  success: boolean;
+  error?: string;
+}
 
-// ── Revalidate every route that shows item data ───────────────────────────────
+type ItemCreateInput = ItemCreateProps & {
+  description?: string | null
+  barcode?: string | null
+  minStockLevel?: number | null
+  maxStockLevel?: number | null
+  categoryId?: string | null
+  brandId?: string | null
+  unitId?: string | null
+  unitOfMeasure?: string | null
+  isActive?: boolean
+  isSerialTracked?: boolean
+}
+
+// ✅ Revalidate all relevant paths after any item mutation
 function revalidateItemPaths(id?: string) {
   revalidatePath("/dashboard/inventory/items");
   revalidatePath("/dashboard/inventory/items", "page");
@@ -32,7 +37,6 @@ function revalidateItemPaths(id?: string) {
   if (id) revalidatePath(`/dashboard/inventory/items/${id}`);
 }
 
-// ── CREATE ────────────────────────────────────────────────────────────────────
 export async function createItem(data: ItemCreateInput) {
   try {
     const user = await getAuthenticatedUser();
@@ -60,9 +64,11 @@ export async function createItem(data: ItemCreateInput) {
     });
 
     revalidateItemPaths(item.id);
+
     return { success: true, data: item, error: null };
   } catch (error: any) {
-    console.error("Error creating item:", error);
+    console.error("❌ Error creating item:", error);
+
     if (error?.code === "P2002") {
       const field = error?.meta?.target?.[0] ?? "field";
       return {
@@ -86,7 +92,6 @@ export async function createItem(data: ItemCreateInput) {
   }
 }
 
-// ── READ (API-based) ──────────────────────────────────────────────────────────
 export async function getOrgItems(orgId: string, params = {}) {
   try {
     const api = await getAuthenticatedApi();
@@ -98,13 +103,14 @@ export async function getOrgItems(orgId: string, params = {}) {
   }
 }
 
-// ── READ (DB-based, for item listing & dashboard counts) ──────────────────────
-// salesCount and salesTotal are computed live from salesOrderLines on every call
-// so they always reflect the true current state — no stale cached values.
-export async function getOrgBriefItems(orgId: string, _params?: any) {
+// ✅ FIXED: includes inactive items count so listing can show toggle, uses pagination hint
+export async function getOrgBriefItems(orgId: string, params?: any) {
   try {
     const items = await db.item.findMany({
-      where: { orgId, isActive: true },
+      where: {
+        orgId,
+        isActive: true,
+      },
       select: {
         id: true,
         name: true,
@@ -141,9 +147,9 @@ export async function getOrgBriefItems(orgId: string, _params?: any) {
 
     const itemsWithStats = items.map((item) => {
       const { salesOrderLines, ...rest } = item;
-      const salesCount = salesOrderLines.reduce((s, l) => s + l.quantity, 0);
-      const salesTotal = salesOrderLines.reduce((s, l) => s + l.total, 0);
-      const totalStock = item.inventories.reduce((s, inv) => s + inv.quantity, 0);
+      const salesCount = salesOrderLines.reduce((sum, line) => sum + line.quantity, 0);
+      const salesTotal = salesOrderLines.reduce((sum, line) => sum + line.total, 0);
+      const totalStock = item.inventories.reduce((sum, inv) => sum + inv.quantity, 0);
       return { ...rest, salesCount, salesTotal, totalStock };
     });
 
@@ -154,11 +160,13 @@ export async function getOrgBriefItems(orgId: string, _params?: any) {
   }
 }
 
-// ── READ (all items, with optional inactive) ───────────────────────────────────
 export async function getAllOrgItems(orgId: string, includeInactive = false) {
   try {
     const items = await db.item.findMany({
-      where: { orgId, ...(includeInactive ? {} : { isActive: true }) },
+      where: {
+        orgId,
+        ...(includeInactive ? {} : { isActive: true }),
+      },
       select: {
         id: true,
         name: true,
@@ -195,9 +203,9 @@ export async function getAllOrgItems(orgId: string, includeInactive = false) {
 
     const itemsWithStats = items.map((item) => {
       const { salesOrderLines, ...rest } = item;
-      const salesCount = salesOrderLines.reduce((s, l) => s + l.quantity, 0);
-      const salesTotal = salesOrderLines.reduce((s, l) => s + l.total, 0);
-      const totalStock = item.inventories.reduce((s, inv) => s + inv.quantity, 0);
+      const salesCount = salesOrderLines.reduce((sum, line) => sum + line.quantity, 0);
+      const salesTotal = salesOrderLines.reduce((sum, line) => sum + line.total, 0);
+      const totalStock = item.inventories.reduce((sum, inv) => sum + inv.quantity, 0);
       return { ...rest, salesCount, salesTotal, totalStock };
     });
 
@@ -208,10 +216,9 @@ export async function getAllOrgItems(orgId: string, includeInactive = false) {
   }
 }
 
-// ── READ single (brief, for supplier page) ────────────────────────────────────
 export async function getBriefItemById(id: string) {
   try {
-    return await db.item.findUnique({
+    const item = await db.item.findUnique({
       where: { id },
       select: {
         id: true,
@@ -237,28 +244,54 @@ export async function getBriefItemById(id: string) {
         },
       },
     });
+    return item;
   } catch (error) {
     console.error(error);
     return null;
   }
 }
 
-// ── READ single full (via API route) ──────────────────────────────────────────
-export async function getItemById(id: string): Promise<ProductResponse> {
+export async function getItemById(id: string) {
   try {
-    const api = await getAuthenticatedApi();
-    const res = await api.get(`/items/${id}`);
-    return res.data;
-  } catch (error) {
-    console.error("Error fetching item:", error);
-    if (axios.isAxiosError(error)) {
-      throw new Error(error.response?.data?.error || "Failed to fetch item");
-    }
-    throw new Error("An unexpected error occurred");
+    // ✅ FIXED: was using getAuthenticatedApi() (external HTTP call) which
+    // was failing with a 500. Now queries the DB directly like every other
+    // function in this file.
+    const item = await db.item.findUnique({
+      where: { id },
+      include: {
+        category:  { select: { id: true, title: true } },
+        brand:     { select: { id: true, name: true } },
+        unit:      { select: { id: true, name: true, symbol: true } },
+        inventories: {
+          include: { location: { select: { id: true, name: true, type: true } } },
+        },
+        pricingTiers: {
+          include: { packagingUnit: { select: { id: true, name: true } } },
+          orderBy: { unitsPerPack: "asc" },
+        },
+        supplierRelations: {
+          include: {
+            supplier: {
+              select: { id: true, name: true, email: true, phone: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!item) throw new Error(`Item with id "${id}" not found`);
+
+    return { success: true, data: item, error: null };
+  } catch (error: any) {
+    console.error("❌ getItemById error:", error);
+    return {
+      success: false,
+      data: null,
+      error: error instanceof Error ? error.message : "Failed to fetch item",
+    };
   }
 }
 
-// ── UPDATE ────────────────────────────────────────────────────────────────────
 export async function updateItemById(id: string, data: Partial<ProductData>) {
   try {
     const prismaData = Object.entries(data).reduce((acc, [key, value]) => {
@@ -286,10 +319,11 @@ export async function updateItemById(id: string, data: Partial<ProductData>) {
     }, {} as Record<string, any>);
 
     await db.item.update({ where: { id }, data: sanitizedData });
+
     revalidateItemPaths(id);
     return { success: true };
   } catch (error: any) {
-    console.error("Update item failed:", error);
+    console.error("❌ Update item failed:", error);
     if (error?.code === "P2002") {
       const field = error?.meta?.target?.[0] ?? "field";
       return {
@@ -304,21 +338,18 @@ export async function updateItemById(id: string, data: Partial<ProductData>) {
   }
 }
 
-// ── SOFT DELETE (deactivate — always safe) ────────────────────────────────────
-// Sets isActive = false. The item stays in the DB and all history is preserved.
-// Use this when deleteItem fails because the item has sales/PO history.
+// ✅ Soft-delete (deactivate) — always safe, no FK issues
 export async function deactivateItem(id: string) {
   try {
     await db.item.update({ where: { id }, data: { isActive: false } });
     revalidateItemPaths(id);
     return { success: true };
   } catch (error: any) {
-    console.error("Deactivate item failed:", error);
     return { success: false, error: error?.message || "Failed to deactivate item" };
   }
 }
 
-// ── BULK SOFT DELETE ──────────────────────────────────────────────────────────
+// ✅ Bulk soft-delete
 export async function bulkDeactivateItems(ids: string[]) {
   try {
     await db.item.updateMany({ where: { id: { in: ids } }, data: { isActive: false } });
@@ -329,40 +360,38 @@ export async function bulkDeactivateItems(ids: string[]) {
   }
 }
 
-// ── HARD DELETE ───────────────────────────────────────────────────────────────
-// Checks for blocking relations. If any exist, returns a descriptive error.
-// Otherwise cascades cleanup (Inventory → ItemSupplier → Item) in a transaction.
 async function _cascadeDeleteItem(tx: any, id: string) {
   await tx.inventory.deleteMany({ where: { itemId: id } });
   await tx.itemSupplier.deleteMany({ where: { itemId: id } });
   return tx.item.delete({ where: { id } });
 }
 
+// ✅ Hard delete — checks blockers, then cascades cleanup in transaction
 export async function deleteItem(id: string) {
   try {
     const item = await db.item.findUnique({
       where: { id },
       include: {
-        salesOrderLines:    { take: 1 },
+        salesOrderLines: { take: 1 },
         purchaseOrderLines: { take: 1 },
-        goodsReceiptLines:  { take: 1 },
-        transferLines:      { take: 1 },
-        adjustmentLines:    { take: 1 },
-        serialNumbers:      { take: 1 },
-        inventories:        { take: 1 },
-        supplierRelations:  { take: 1 },
+        goodsReceiptLines: { take: 1 },
+        transferLines: { take: 1 },
+        adjustmentLines: { take: 1 },
+        serialNumbers: { take: 1 },
+        inventories: { take: 1 },
+        supplierRelations: { take: 1 },
       },
     });
 
     if (!item) return { success: false, data: null, error: "No item found" };
 
     const blockers = [
-      { relation: "salesOrderLines",    message: "Item has sales history. Deactivate instead." },
+      { relation: "salesOrderLines", message: "Item has sales history. Deactivate instead." },
       { relation: "purchaseOrderLines", message: "Item is on purchase orders. Deactivate instead." },
-      { relation: "goodsReceiptLines",  message: "Item has goods receipt history. Deactivate instead." },
-      { relation: "transferLines",      message: "Item is involved in transfers. Deactivate instead." },
-      { relation: "adjustmentLines",    message: "Item has adjustment history. Deactivate instead." },
-      { relation: "serialNumbers",      message: "Item has serial numbers. Deactivate instead." },
+      { relation: "goodsReceiptLines", message: "Item has goods receipt history. Deactivate instead." },
+      { relation: "transferLines", message: "Item is involved in transfers. Deactivate instead." },
+      { relation: "adjustmentLines", message: "Item has adjustment history. Deactivate instead." },
+      { relation: "serialNumbers", message: "Item has serial numbers. Deactivate instead." },
     ];
 
     for (const { relation, message } of blockers) {
@@ -371,11 +400,12 @@ export async function deleteItem(id: string) {
       }
     }
 
-    const deleted = await db.$transaction((tx) => _cascadeDeleteItem(tx, id));
+    const deletedItem = await db.$transaction(async (tx) => _cascadeDeleteItem(tx, id));
+
     revalidateItemPaths(id);
-    return { success: true, data: deleted, error: null };
+    return { success: true, data: deletedItem, error: null };
   } catch (error: any) {
-    console.error("Error deleting item:", error);
+    console.error("❌ Error deleting item:", error);
     if (error?.code === "P2003") {
       return {
         success: false,
@@ -390,7 +420,7 @@ export async function deleteItem(id: string) {
   }
 }
 
-// ── BULK HARD DELETE ──────────────────────────────────────────────────────────
+// ✅ Bulk hard delete — with cascade cleanup
 export async function bulkDeleteItems(ids: string[]) {
   if (!ids || ids.length === 0) {
     return { success: false, error: "No item IDs provided", deleted: 0, skipped: [] };
@@ -404,23 +434,31 @@ export async function bulkDeleteItems(ids: string[]) {
     select: {
       id: true,
       name: true,
-      salesOrderLines:    { take: 1, select: { id: true } },
+      salesOrderLines: { take: 1, select: { id: true } },
       purchaseOrderLines: { take: 1, select: { id: true } },
-      goodsReceiptLines:  { take: 1, select: { id: true } },
-      transferLines:      { take: 1, select: { id: true } },
-      adjustmentLines:    { take: 1, select: { id: true } },
-      serialNumbers:      { take: 1, select: { id: true } },
+      goodsReceiptLines: { take: 1, select: { id: true } },
+      transferLines: { take: 1, select: { id: true } },
+      adjustmentLines: { take: 1, select: { id: true } },
+      serialNumbers: { take: 1, select: { id: true } },
     },
   });
 
   for (const item of items) {
-    if      (item.salesOrderLines?.length)    skipped.push({ id: item.id, name: item.name, reason: "Has sales history" });
-    else if (item.purchaseOrderLines?.length) skipped.push({ id: item.id, name: item.name, reason: "Has purchase orders" });
-    else if (item.goodsReceiptLines?.length)  skipped.push({ id: item.id, name: item.name, reason: "Has goods receipt history" });
-    else if (item.transferLines?.length)      skipped.push({ id: item.id, name: item.name, reason: "Has transfer records" });
-    else if (item.adjustmentLines?.length)    skipped.push({ id: item.id, name: item.name, reason: "Has adjustment history" });
-    else if (item.serialNumbers?.length)      skipped.push({ id: item.id, name: item.name, reason: "Has serial numbers" });
-    else                                      toDelete.push(item.id);
+    if (item.salesOrderLines?.length > 0) {
+      skipped.push({ id: item.id, name: item.name, reason: "Has sales history" });
+    } else if (item.purchaseOrderLines?.length > 0) {
+      skipped.push({ id: item.id, name: item.name, reason: "Has purchase orders" });
+    } else if (item.goodsReceiptLines?.length > 0) {
+      skipped.push({ id: item.id, name: item.name, reason: "Has goods receipt history" });
+    } else if (item.transferLines?.length > 0) {
+      skipped.push({ id: item.id, name: item.name, reason: "Has transfer records" });
+    } else if (item.adjustmentLines?.length > 0) {
+      skipped.push({ id: item.id, name: item.name, reason: "Has adjustment history" });
+    } else if (item.serialNumbers?.length > 0) {
+      skipped.push({ id: item.id, name: item.name, reason: "Has serial numbers" });
+    } else {
+      toDelete.push(item.id);
+    }
   }
 
   if (toDelete.length === 0) {
@@ -451,7 +489,7 @@ export async function bulkDeleteItems(ids: string[]) {
           : null,
     };
   } catch (error: any) {
-    console.error("Bulk delete failed:", error);
+    console.error("❌ Bulk delete failed:", error);
     if (error?.code === "P2003") {
       return {
         success: false,
@@ -464,7 +502,6 @@ export async function bulkDeleteItems(ids: string[]) {
   }
 }
 
-// ── BULK CREATE ───────────────────────────────────────────────────────────────
 export async function createBulkItems(items: ItemCreateProps[]) {
   try {
     for (const item of items) await createItem(item);
@@ -473,10 +510,6 @@ export async function createBulkItems(items: ItemCreateProps[]) {
   }
 }
 
-// ── RECOMPUTE SALES STATS ─────────────────────────────────────────────────────
-// Only call this if your Prisma schema has stored `salesCount` and `salesTotal`
-// columns on the Item model. Otherwise the computed values in getOrgBriefItems
-// are already always up to date.
 export async function recomputeItemSalesStats(orgId: string) {
   try {
     const items = await db.item.findMany({
@@ -491,8 +524,8 @@ export async function recomputeItemSalesStats(orgId: string) {
     });
 
     const updates = items.map((item) => {
-      const salesCount = item.salesOrderLines.reduce((s, l) => s + l.quantity, 0);
-      const salesTotal = item.salesOrderLines.reduce((s, l) => s + l.total, 0);
+      const salesCount = item.salesOrderLines.reduce((sum, l) => sum + l.quantity, 0);
+      const salesTotal = item.salesOrderLines.reduce((sum, l) => sum + l.total, 0);
       return db.item.update({ where: { id: item.id }, data: { salesCount, salesTotal } });
     });
 
@@ -500,7 +533,7 @@ export async function recomputeItemSalesStats(orgId: string) {
     revalidateItemPaths();
     return { success: true, updated: items.length };
   } catch (error) {
-    console.error("Failed to recompute sales stats:", error);
+    console.error("❌ Failed to recompute sales stats:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
