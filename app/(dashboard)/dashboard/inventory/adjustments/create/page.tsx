@@ -47,8 +47,13 @@ export default function CreateAdjustmentPage() {
 
   const [selectedItem, setSelectedItem] = useState("")
   const [beforeQuantity, setBeforeQuantity] = useState<number>(0)
-  const [afterQuantity, setAfterQuantity] = useState<number>(0)
+  // changeAmount: positive = add stock, negative = remove stock
+  const [changeAmount, setChangeAmount] = useState<number | string>(0)
   const [itemNotes, setItemNotes] = useState("")
+
+  // Derived — afterQuantity always = current stock + change entered
+  const afterQuantity = beforeQuantity + (Number(changeAmount) || 0)
+  const isChangeValid = afterQuantity >= 0
 
   useEffect(() => {
     const loadData = async () => {
@@ -115,25 +120,33 @@ export default function CreateAdjustmentPage() {
     setSelectedItem(itemId)
     const currentStock = getCurrentStock(itemId)
     setBeforeQuantity(currentStock)
-    setAfterQuantity(currentStock)
+    setChangeAmount(0)          // start with no change
     setSearchQuery("")
     setIsDropdownOpen(false)
   }
 
   const handleAddItem = () => {
-    if (!selectedItem || beforeQuantity < 0 || afterQuantity < 0) return
+    if (!selectedItem) return
+    if (!isChangeValid) {
+      alert(`Cannot reduce stock by ${Math.abs(Number(changeAmount))} — current stock is only ${beforeQuantity}`)
+      return
+    }
+    if (Number(changeAmount) === 0 || changeAmount === "") {
+      alert("Please enter a change amount (positive to add, negative to reduce)")
+      return
+    }
 
     const newAdjustmentItem: AdjustmentItem = {
       itemId: selectedItem,
       beforeQuantity,
-      afterQuantity,
+      afterQuantity,       // derived: beforeQuantity + changeAmount
       notes: itemNotes || undefined,
     }
 
     setAdjustmentItems([...adjustmentItems, newAdjustmentItem])
     setSelectedItem("")
     setBeforeQuantity(0)
-    setAfterQuantity(0)
+    setChangeAmount(0)
     setItemNotes("")
     setSearchQuery("")
   }
@@ -366,35 +379,81 @@ export default function CreateAdjustmentPage() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+                      {/* Current Stock — read-only */}
                       <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">Before Quantity *</label>
-                        <Input
-                          type="number"
-                          min="0"
-                          value={beforeQuantity}
-                          onChange={(e) => setBeforeQuantity(Math.max(0, Number.parseInt(e.target.value) || 0))}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">After Quantity *</label>
-                        <Input
-                          type="number"
-                          min="0"
-                          value={afterQuantity}
-                          onChange={(e) => setAfterQuantity(Math.max(0, Number.parseInt(e.target.value) || 0))}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">Difference</label>
-                        <div className={`h-10 px-3 rounded-md flex items-center font-semibold ${
-                          afterQuantity > beforeQuantity ? 'bg-green-100 text-green-700' :
-                          afterQuantity < beforeQuantity ? 'bg-red-100 text-red-700' :
-                          'bg-gray-100 text-gray-700'
-                        }`}>
-                          {afterQuantity > beforeQuantity && '+'}
-                          {afterQuantity - beforeQuantity}
+                        <label className="block text-sm font-medium text-gray-700">
+                          Current Stock
+                        </label>
+                        <div className="h-10 px-3 rounded-md border border-gray-200 bg-gray-50 flex items-center font-semibold text-gray-700">
+                          {beforeQuantity}
                         </div>
+                        <p className="text-xs text-gray-400">Locked — actual stock on hand</p>
                       </div>
+
+                      {/* Change Amount — the only editable field */}
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Change Amount *
+                        </label>
+                        <Input
+                          type="number"
+                          placeholder="e.g. 10 or -4"
+                          value={changeAmount}
+                          onChange={(e) => {
+                            const raw = e.target.value
+                            // Allow empty string (user is mid-typing) or any integer
+                            if (raw === "" || raw === "-") {
+                              setChangeAmount(raw)
+                            } else {
+                              setChangeAmount(Number.parseInt(raw) || 0)
+                            }
+                          }}
+                          className={`font-semibold ${
+                            !isChangeValid
+                              ? "border-red-400 focus-visible:ring-red-400"
+                              : Number(changeAmount) > 0
+                                ? "border-green-400 focus-visible:ring-green-400"
+                                : Number(changeAmount) < 0
+                                  ? "border-orange-400 focus-visible:ring-orange-400"
+                                  : ""
+                          }`}
+                        />
+                        <p className="text-xs text-gray-400">
+                          Positive to add &nbsp;·&nbsp; Negative to reduce
+                        </p>
+                      </div>
+
+                      {/* New Stock — derived, shown for confirmation */}
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">
+                          New Stock Level
+                        </label>
+                        <div className={`h-10 px-3 rounded-md border flex items-center font-bold text-lg ${
+                          !isChangeValid
+                            ? "bg-red-50 border-red-300 text-red-600"
+                            : Number(changeAmount) > 0
+                              ? "bg-green-50 border-green-300 text-green-700"
+                              : Number(changeAmount) < 0
+                                ? "bg-orange-50 border-orange-300 text-orange-700"
+                                : "bg-gray-50 border-gray-200 text-gray-500"
+                        }`}>
+                          {!isChangeValid
+                            ? <span className="text-sm font-semibold">❌ Below zero</span>
+                            : (
+                              <>
+                                {Number(changeAmount) > 0 && <span className="text-xs mr-1 font-normal text-green-600">▲</span>}
+                                {Number(changeAmount) < 0 && <span className="text-xs mr-1 font-normal text-orange-500">▼</span>}
+                                {afterQuantity}
+                              </>
+                            )
+                          }
+                        </div>
+                        <p className="text-xs text-gray-400">
+                          {beforeQuantity} {Number(changeAmount) >= 0 ? "+" : "−"} {Math.abs(Number(changeAmount))} = {isChangeValid ? afterQuantity : "invalid"}
+                        </p>
+                      </div>
+
                     </div>
 
                     <div className="space-y-2 mt-4">
@@ -406,10 +465,11 @@ export default function CreateAdjustmentPage() {
                       />
                     </div>
 
-                    <Button 
-                      type="button" 
-                      onClick={handleAddItem} 
-                      className="w-full mt-4 bg-blue-600 hover:bg-blue-700"
+                    <Button
+                      type="button"
+                      onClick={handleAddItem}
+                      disabled={!isChangeValid || changeAmount === "" || Number(changeAmount) === 0}
+                      className="w-full mt-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Plus className="w-4 h-4 mr-2" />
                       Add to Adjustment

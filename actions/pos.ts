@@ -208,72 +208,240 @@ export async function createPOSSale(data: CreatePOSSaleData) {
 }
 
 /**
- * Get active items for POS with inventory
+ * Get items for POS with inventory.
+ *
+ * Behaviour:
+ *  - locationId provided → return ONLY items that have stock > 0 at that
+ *    location. Items that exist in other locations (or have no inventory
+ *    record for this location) are NOT returned at all — they must not show
+ *    as "Out of Stock"; they simply don't exist in this location's context.
+ *
+ *  - No locationId (All Locations view) → return every active item with its
+ *    total org-wide stock so the cashier can see everything and search freely.
  */
 export async function getPOSItems(locationId?: string) {
   try {
     const user = await getAuthenticatedUser()
-    
+
+    // ── SHARED INCLUDE SHAPE ────────────────────────────────────────────────
+    const commonInclude = {
+      category: {
+        select: { id: true, title: true },
+      },
+      pricingTiers: {
+        include: {
+          packagingUnit: { select: { name: true } },
+        },
+        orderBy: { unitsPerPack: "asc" as const },
+      },
+    }
+
+    // ── LOCATION-SPECIFIC: only items that have stock here ──────────────────
+    if (locationId) {
+      const items = await db.item.findMany({
+        where: {
+          orgId: user.orgId,
+          isActive: true,
+          // KEY FIX: only include items that have an inventory record with
+          // quantity > 0 at this specific location.
+          inventories: {
+            some: {
+              locationId,
+              quantity: { gt: 0 },
+            },
+          },
+        },
+        include: {
+          ...commonInclude,
+          // Fetch ALL inventories for this location so we can compute stock.
+          inventories: {
+            where: { locationId },
+            select: { quantity: true, locationId: true },
+          },
+        },
+        orderBy: { name: "asc" },
+      })
+
+      const shapedItems = items.map((item) => {
+        const locationStock = item.inventories.reduce((s, inv) => s + inv.quantity, 0)
+        return {
+          ...item,
+          // availableStock = stock at the selected location
+          availableStock: locationStock,
+          // totalStock = same as availableStock when a location is selected
+          totalStock: locationStock,
+          pricingTiers: item.pricingTiers.map((t: any) => ({
+            id:                t.id,
+            itemId:            t.itemId,
+            packagingUnitId:   t.packagingUnitId,
+            packagingUnitName: t.packagingUnit.name,
+            unitsPerPack:      t.unitsPerPack,
+            wholesalePrice:    t.wholesalePrice,
+            pricePerUnit:      t.wholesalePrice / t.unitsPerPack,
+          })),
+        }
+      })
+
+      return { success: true, data: shapedItems }
+    }
+
+    // ── ALL LOCATIONS: every active item, org-wide stock ────────────────────
     const items = await db.item.findMany({
       where: {
         orgId: user.orgId,
         isActive: true,
       },
       include: {
-        category: {
-          select: {
-            id: true,
-            title: true,
-          },
-        },
-        inventories: locationId ? {
-          where: {
-            locationId,
-          },
-          select: {
-            quantity: true,
-            locationId: true,
-          },
-        } : {
-          select: {
-            quantity: true,
-            locationId: true,
-          },
-        },
-        // ── Include wholesale pricing tiers so POS gets them in one query ──
-        pricingTiers: {
-          include: {
-            packagingUnit: {
-              select: { name: true },
-            },
-          },
-          orderBy: { unitsPerPack: "asc" },
+        ...commonInclude,
+        inventories: {
+          select: { quantity: true, locationId: true },
         },
       },
-      orderBy: {
-        name: 'asc',
-      },
+      orderBy: { name: "asc" },
     })
 
-    // Shape pricingTiers to match PricingTierRecord so the POS page
-    // can use them directly without a separate getPricingTiersForItems call
-    const shapedItems = items.map((item) => ({
-      ...item,
-      pricingTiers: item.pricingTiers.map((t: any) => ({
-        id:                t.id,
-        itemId:            t.itemId,
-        packagingUnitId:   t.packagingUnitId,
-        packagingUnitName: t.packagingUnit.name,
-        unitsPerPack:      t.unitsPerPack,
-        wholesalePrice:    t.wholesalePrice,
-        pricePerUnit:      t.wholesalePrice / t.unitsPerPack,
-      })),
-    }))
+    const shapedItems = items.map((item) => {
+      const totalStock = item.inventories.reduce((s, inv) => s + inv.quantity, 0)
+      return {
+        ...item,
+        availableStock: totalStock,
+        totalStock,
+        pricingTiers: item.pricingTiers.map((t: any) => ({
+          id:                t.id,
+          itemId:            t.itemId,
+          packagingUnitId:   t.packagingUnitId,
+          packagingUnitName: t.packagingUnit.name,
+          unitsPerPack:      t.unitsPerPack,
+          wholesalePrice:    t.wholesalePrice,
+          pricePerUnit:      t.wholesalePrice / t.unitsPerPack,
+        })),
+      }
+    })
 
     return { success: true, data: shapedItems }
   } catch (error: any) {
     console.error("Error fetching POS items:", error)
     return { success: false, error: error.message || "Failed to fetch items" }
+  }
+}
+
+/**
+ * Search POS items by name, SKU, or barcode.
+ *
+ * Respects the same location-scoping rules as getPOSItems:
+ *  - locationId provided → only items with stock > 0 at that location
+ *  - no locationId → all active items org-wide
+ *
+ * Call this from the POS search bar (debounced) instead of client-side
+ * array filtering so results are always accurate and fast.
+ */
+export async function searchPOSItems(query: string, locationId?: string) {
+  try {
+    const user = await getAuthenticatedUser()
+
+    if (!query?.trim()) {
+      return getPOSItems(locationId)
+    }
+
+    const commonInclude = {
+      category: {
+        select: { id: true, title: true },
+      },
+      pricingTiers: {
+        include: {
+          packagingUnit: { select: { name: true } },
+        },
+        orderBy: { unitsPerPack: "asc" as const },
+      },
+    }
+
+    const searchWhere = {
+      orgId: user.orgId,
+      isActive: true,
+      OR: [
+        { name:        { contains: query, mode: "insensitive" as const } },
+        { sku:         { contains: query, mode: "insensitive" as const } },
+        { barcode:     { contains: query, mode: "insensitive" as const } },
+        { description: { contains: query, mode: "insensitive" as const } },
+      ],
+    }
+
+    if (locationId) {
+      const items = await db.item.findMany({
+        where: {
+          ...searchWhere,
+          inventories: {
+            some: {
+              locationId,
+              quantity: { gt: 0 },
+            },
+          },
+        },
+        include: {
+          ...commonInclude,
+          inventories: {
+            where: { locationId },
+            select: { quantity: true, locationId: true },
+          },
+        },
+        orderBy: { name: "asc" },
+      })
+
+      const shapedItems = items.map((item) => {
+        const locationStock = item.inventories.reduce((s, inv) => s + inv.quantity, 0)
+        return {
+          ...item,
+          availableStock: locationStock,
+          totalStock: locationStock,
+          pricingTiers: item.pricingTiers.map((t: any) => ({
+            id:                t.id,
+            itemId:            t.itemId,
+            packagingUnitId:   t.packagingUnitId,
+            packagingUnitName: t.packagingUnit.name,
+            unitsPerPack:      t.unitsPerPack,
+            wholesalePrice:    t.wholesalePrice,
+            pricePerUnit:      t.wholesalePrice / t.unitsPerPack,
+          })),
+        }
+      })
+
+      return { success: true, data: shapedItems }
+    }
+
+    // No location — search all active items
+    const items = await db.item.findMany({
+      where: searchWhere,
+      include: {
+        ...commonInclude,
+        inventories: {
+          select: { quantity: true, locationId: true },
+        },
+      },
+      orderBy: { name: "asc" },
+    })
+
+    const shapedItems = items.map((item) => {
+      const totalStock = item.inventories.reduce((s, inv) => s + inv.quantity, 0)
+      return {
+        ...item,
+        availableStock: totalStock,
+        totalStock,
+        pricingTiers: item.pricingTiers.map((t: any) => ({
+          id:                t.id,
+          itemId:            t.itemId,
+          packagingUnitId:   t.packagingUnitId,
+          packagingUnitName: t.packagingUnit.name,
+          unitsPerPack:      t.unitsPerPack,
+          wholesalePrice:    t.wholesalePrice,
+          pricePerUnit:      t.wholesalePrice / t.unitsPerPack,
+        })),
+      }
+    })
+
+    return { success: true, data: shapedItems }
+  } catch (error: any) {
+    console.error("Error searching POS items:", error)
+    return { success: false, error: error.message || "Failed to search items" }
   }
 }
 

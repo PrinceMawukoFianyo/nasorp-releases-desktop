@@ -1,4 +1,4 @@
-// components/dashboard/items/item-listing.tsx
+/*// components/dashboard/items/item-listing.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -311,9 +311,10 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
           />
         )}
         pageSize={100} // ADDED: Set default page size to 100
-      />
+      />*/
 
       {/* Product Form Dialog */}
+      /*
       <EntityForm
         size="md"
         open={formDialogOpen}
@@ -425,9 +426,10 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
             />
           </div>
         </div>
-      </EntityForm>
+      </EntityForm>*/
 
       {/* Delete Confirmation Dialog */}
+      /*
       <ConfirmationDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
@@ -450,4 +452,4 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
       />
     </>
   );
-}
+}*/

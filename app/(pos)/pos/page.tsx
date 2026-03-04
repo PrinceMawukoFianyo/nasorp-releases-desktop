@@ -26,6 +26,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { toast } from "sonner"
 import {
   getPOSItems,
+  searchPOSItems,
   getPOSCategories,
   getPOSCustomers,
   getPOSLocations,
@@ -461,24 +462,27 @@ export default function POSPage() {
   // ── Data loading  (unchanged) ──────────────────────────────────────────────
 
   useEffect(() => { loadData() }, [])
-  useEffect(() => { if (selectedLocation) loadItems(selectedLocation) }, [selectedLocation])
+
+  // Reload items whenever the selected location changes.
+  // Empty string = "Select Location" / All Locations → load everything.
+  // A real locationId → load only items with stock at that location.
+  useEffect(() => {
+    loadItems(selectedLocation || undefined)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLocation])
 
   const loadData = async () => {
     setIsLoading(true)
     try {
-      const [catRes, itemsRes, custRes, locRes] = await Promise.all([
-        getPOSCategories(), getPOSItems(), getPOSCustomers(), getPOSLocations(),
+      // Load support data in parallel; items are loaded by the location effect above.
+      const [catRes, custRes, locRes] = await Promise.all([
+        getPOSCategories(), getPOSCustomers(), getPOSLocations(),
       ])
       if (catRes.success  && catRes.data)  setCategories(catRes.data)
       if (custRes.success && custRes.data) setCustomers(custRes.data)
-      if (locRes.success  && locRes.data) {
-        setLocations(locRes.data)
-        if (locRes.data.length > 0) setSelectedLocation(locRes.data[0].id)
-      }
-      if (itemsRes.success && itemsRes.data) {
-        setItems(itemsRes.data)
-        buildTiersMap(itemsRes.data)
-      }
+      if (locRes.success  && locRes.data)  setLocations(locRes.data)
+      // selectedLocation starts as "" so the effect fires immediately and
+      // loads ALL items — matching the "Select Location" default state.
     } catch (err) {
       console.error(err)
       toast.error("Failed to load POS data")
@@ -487,12 +491,15 @@ export default function POSPage() {
     }
   }
 
-  const loadItems = async (locationId: string) => {
+  // locationId = undefined → all items (no location filter)
+  // locationId = "someId" → only items with stock > 0 at that location
+  const loadItems = async (locationId?: string) => {
     try {
       const result = await getPOSItems(locationId)
       if (result.success && result.data) {
         setItems(result.data)
         buildTiersMap(result.data)
+        setSearchQuery("") // clear search when location changes
       }
     } catch (err) { console.error(err) }
   }
@@ -507,12 +514,11 @@ export default function POSPage() {
 
   // ── Filtering  (unchanged) ─────────────────────────────────────────────────
 
-  const filteredItems = items.filter(item => {
-    const matchesCat    = selectedCategory === "all" || item.categoryId === selectedCategory
-    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          item.sku?.toLowerCase().includes(searchQuery.toLowerCase())
-    return matchesCat && matchesSearch
-  })
+  // Category filter is client-side (instant).
+  // Search is server-side via searchPOSItems so it always respects location scope.
+  const filteredItems = items.filter(item =>
+    selectedCategory === "all" || item.categoryId === selectedCategory
+  )
 
   const filteredCustomers = customers.filter(c =>
     c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
@@ -875,7 +881,24 @@ export default function POSPage() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
               <Input placeholder="Search product code or name… (or just scan!)"
-                value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                value={searchQuery}
+                onChange={e => {
+                  const q = e.target.value
+                  setSearchQuery(q)
+                  clearTimeout((window as any).__posSearchTimer)
+                  ;(window as any).__posSearchTimer = setTimeout(async () => {
+                    try {
+                      // If query is empty, reload the full list for this location
+                      const res = q.trim()
+                        ? await searchPOSItems(q.trim(), selectedLocation || undefined)
+                        : await getPOSItems(selectedLocation || undefined)
+                      if (res.success && res.data) {
+                        setItems(res.data)
+                        buildTiersMap(res.data)
+                      }
+                    } catch (err) { console.error("POS search error:", err) }
+                  }, 300)
+                }}
                 className="pl-11 h-11" />
             </div>
           </div>
@@ -900,8 +923,11 @@ export default function POSPage() {
           <ScrollArea className="flex-1 p-4">
             <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
               {filteredItems.map(item => {
-                const inv    = item.inventories?.find((i: any) => i.locationId === selectedLocation)
-                const stock  = inv?.quantity || 0
+                // When a specific location is selected, show that location's stock.
+                // When "Select Location" (empty), show org-wide totalStock.
+                const stock = selectedLocation
+                  ? (item.inventories?.find((i: any) => i.locationId === selectedLocation)?.quantity ?? item.availableStock ?? 0)
+                  : (item.totalStock ?? item.availableStock ?? 0)
                 const hasTiers = (tiersMap[item.id]?.length || 0) > 0
 
                 return (

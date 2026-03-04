@@ -1,7 +1,7 @@
 // components/dashboard/items/item-listing.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback, useTransition } from "react";
 import { format } from "date-fns";
 import * as XLSX from "xlsx";
 import { useForm } from "react-hook-form";
@@ -10,7 +10,6 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { MapPin, Package, Filter, X, ChevronDown, ChevronUp } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -39,11 +38,10 @@ import { getOrgCategories } from "@/actions/categories";
 import { getOrgBrands } from "@/actions/brands";
 import { getOrgUnits } from "@/actions/units";
 import { getOrgLocations, getLocationsWithItemCounts } from "@/actions/locations";
-import { createItem } from "@/actions/items";
+import { createItem, deleteItem, deactivateItem } from "@/actions/items";
 import { linkItemToLocation } from "@/actions/inventory-actions";
 import { getItemsByLocation } from "@/actions/inventory";
 import { Separator } from "@/components/ui/separator";
-import { deleteItem } from "@/actions/items";
 import { getOrgPackagingUnits, PackagingUnitRecord } from "@/actions/packaging-units";
 import { createPricingTiersForItem } from "@/actions/pricing-tiers";
 import WholesalePricingSection, { WholesaleTierDraft } from "@/app/(dashboard)/dashboard/inventory/items/wholesale-unit-component/wholesale-pricing-section";
@@ -114,11 +112,26 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
   // ── Location Filter State ─────────────────────────────────────────────────
   const [locations, setLocations] = useState<LocationWithCount[]>([]);
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
-  const [displayItems, setDisplayItems] = useState<BriefItemResponse[]>([]);
+
+  // FIX 1: Separate location-filtered items from allItems.
+  // Before, displayItems was set in a useEffect that depended on [selectedLocationId, allItems],
+  // which caused a double-render race: allItems loads → effect runs → sets displayItems to allItems,
+  // then location fetch fires → sets displayItems again. This caused flickers & stale displays.
+  const [locationItems, setLocationItems] = useState<BriefItemResponse[] | null>(null);
+
+  // FIX 2: Compute displayItems via useMemo instead of storing in separate state.
+  // When no location is selected we show allItems directly (no extra setState needed).
+  const displayItems = useMemo<BriefItemResponse[]>(() => {
+    if (selectedLocationId) {
+      return locationItems ?? [];
+    }
+    return allItems ?? [];
+  }, [selectedLocationId, locationItems, allItems]);
+
   const [locationOptions, setLocationOptions] = useState<Option[]>([]);
   const [loadingLocations, setLoadingLocations] = useState(false);
-  const [loadingItems, setLoadingItems] = useState(false);
-  const [showLocationFilter, setShowLocationFilter] = useState(true); // Set to true by default
+  const [loadingLocationItems, setLoadingLocationItems] = useState(false);
+  const [showLocationFilter, setShowLocationFilter] = useState(true);
   const [totalItemsCount, setTotalItemsCount] = useState(0);
 
   // ── Dropdown options ──────────────────────────────────────────────────────
@@ -127,7 +140,7 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
   const [unitOptions, setUnitOptions] = useState<Option[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(false);
 
-  // ── Selected values ───────────────────────────────────────────────────────
+  // ── Selected form values ───────────────────────────────────────────────────
   const [selectedCategory, setSelectedCategory] = useState<Option | null>(null);
   const [selectedBrand, setSelectedBrand] = useState<Option | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<Option | null>(null);
@@ -151,31 +164,38 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
     },
   });
 
-  // Load locations with item counts on mount
+  // ── Load locations once on mount ──────────────────────────────────────────
   useEffect(() => {
     loadLocationsWithCounts();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgId]);
 
-  // Load items when location changes
+  // FIX 3: The old effect depended on BOTH selectedLocationId AND allItems.
+  // This meant every time allItems refreshed (e.g. after a refetch), a new
+  // API call to getItemsByLocation fired even when locationId hadn't changed.
+  // Now we only reload location items when selectedLocationId changes.
   useEffect(() => {
+    if (!selectedLocationId) {
+      setLocationItems(null); // clear so useMemo falls back to allItems
+      return;
+    }
     loadItemsForLocation(selectedLocationId);
-  }, [selectedLocationId, allItems]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLocationId]);
 
   const loadLocationsWithCounts = async () => {
     setLoadingLocations(true);
     try {
       const result = await getLocationsWithItemCounts(orgId);
-      
       if (result.success) {
         setLocations(result.data);
         setTotalItemsCount(result.totalItems);
-        
-        // Also set location options for the form
-        const options = result.data.map(loc => ({
-          label: `${loc.name} (${loc.type})`,
-          value: loc.id
-        }));
-        setLocationOptions(options);
+        setLocationOptions(
+          result.data.map((loc: LocationWithCount) => ({
+            label: `${loc.name} (${loc.type})`,
+            value: loc.id,
+          }))
+        );
       }
     } catch (err) {
       if (isNextJsInternalError(err)) throw err;
@@ -186,51 +206,62 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
     }
   };
 
-  const loadItemsForLocation = async (locationId: string | null) => {
-    setLoadingItems(true);
+  // FIX 4: Extracted into a standalone async fn so it can be awaited after create/delete
+  const loadItemsForLocation = async (locationId: string) => {
+    setLoadingLocationItems(true);
     try {
-      if (!locationId) {
-        // Show all items
-        setDisplayItems(allItems);
-      } else {
-        // Fetch items for selected location
-        const items = await getItemsByLocation(orgId, locationId);
-        
-        // Transform to match BriefItemResponse format
-        const transformedItems = items.map((item: any) => ({
-          id: item.id,
-          name: item.name,
-          sku: item.sku,
-          slug: item.slug,
-          thumbnail: item.thumbnail,
-          sellingPrice: item.sellingPrice,
-          costPrice: item.costPrice,
-          isActive: item.isActive,
-          categoryId: item.categoryId,
-          brandId: item.brandId,
-          category: item.category,
-          brand: item.brand,
-          supplierRelations: item.supplierRelations || [],
-          salesCount: item.salesCount || 0,
-          salesTotal: item.salesTotal || 0,
-          updatedAt: item.updatedAt,
-          createdAt: item.createdAt,
-        }));
-        
-        setDisplayItems(transformedItems);
-      }
+      const items = await getItemsByLocation(orgId, locationId);
+      const transformed: BriefItemResponse[] = items.map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        sku: item.sku,
+        slug: item.slug,
+        thumbnail: item.thumbnail,
+        sellingPrice: item.sellingPrice,
+        costPrice: item.costPrice,
+        isActive: item.isActive,
+        categoryId: item.categoryId,
+        brandId: item.brandId,
+        barcode: item.barcode ?? null,
+        category: item.category,
+        brand: item.brand,
+        supplierRelations: item.supplierRelations ?? [],
+        salesCount: item.salesCount ?? 0,
+        salesTotal: item.salesTotal ?? 0,
+        // FIX 5: Include totalStock from inventory so the table can show it
+        totalStock: item.inventories
+          ? item.inventories.reduce((s: number, inv: any) => s + inv.quantity, 0)
+          : 0,
+        updatedAt: item.updatedAt,
+        createdAt: item.createdAt,
+      }));
+      setLocationItems(transformed);
     } catch (err) {
       if (isNextJsInternalError(err)) throw err;
       console.error("Error loading items for location:", err);
       toast.error("Failed to load items for this location");
     } finally {
-      setLoadingItems(false);
+      setLoadingLocationItems(false);
     }
   };
+
+  // FIX 6: refreshAll — single helper that updates everything after a mutation.
+  // The old code called refetch + loadLocationsWithCounts + loadItemsForLocation
+  // separately in both onSubmit and handleConfirmDelete, with no await ordering,
+  // causing race conditions where the table flashed empty then repopulated.
+  const refreshAll = useCallback(async () => {
+    await refetch();
+    await loadLocationsWithCounts();
+    if (selectedLocationId) {
+      await loadItemsForLocation(selectedLocationId);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLocationId, orgId]);
 
   // Load dropdown options whenever the form opens
   useEffect(() => {
     if (formDialogOpen) loadOptions();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formDialogOpen]);
 
   const loadOptions = async () => {
@@ -242,12 +273,9 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
         getOrgUnits(orgId),
         getOrgPackagingUnits(),
       ]);
-
       setCategoryOptions(categories.map((c) => ({ label: c.title, value: c.id })));
       setBrandOptions(brands.map((b) => ({ label: b.name, value: b.id })));
-      setUnitOptions(
-        units.map((u) => ({ label: `${u.name} - ${u.symbol}`, value: u.id }))
-      );
+      setUnitOptions(units.map((u) => ({ label: `${u.name} - ${u.symbol}`, value: u.id })));
       setPackagingUnits(pkgUnits);
     } catch (err) {
       if (isNextJsInternalError(err)) throw err;
@@ -258,7 +286,7 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
     }
   };
 
-  // Reset form every time the dialog closes or opens for a new item
+  // Reset form when dialog opens for a new item
   useEffect(() => {
     if (!currentProduct) {
       form.reset({
@@ -280,8 +308,6 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
     }
   }, [currentProduct, form]);
 
-  const { data: session } = useSession();
-
   // ── Helpers ───────────────────────────────────────────────────────────────
   const formatDate = (date: Date | string) => {
     const d = typeof date === "string" ? new Date(date) : date;
@@ -300,7 +326,9 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
     try {
       const data = filtered.map((p) => ({
         Name: p.name,
-        Price: p.sellingPrice,
+        SKU: p.sku,
+        "Selling Price": p.sellingPrice,
+        "Cost Price": p.costPrice,
         "Sales Count": p.salesCount,
         "Total Sales": formatCurrency(p.salesTotal),
       }));
@@ -332,37 +360,30 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
     setDeleteDialogOpen(true);
   };
 
-  // Handle location selection
   const handleLocationSelect = (locationId: string | null) => {
     setSelectedLocationId(locationId);
-    
-    // Update URL with location parameter (optional)
+    // FIX 7: Using router.replace instead of router.push so the browser
+    // back button doesn't create a history entry for each filter click
     const params = new URLSearchParams(window.location.search);
     if (locationId) {
       params.set("location", locationId);
     } else {
       params.delete("location");
     }
-    router.push(`?${params.toString()}`, { scroll: false });
+    router.replace(`?${params.toString()}`, { scroll: false });
   };
 
-  // Clear location filter
-  const clearLocationFilter = () => {
-    handleLocationSelect(null);
-  };
+  const clearLocationFilter = () => handleLocationSelect(null);
 
-  // ── Submit — calls server action DIRECTLY ─────────────────────────────────
+  // ── Submit ─────────────────────────────────────────────────────────────────
   const onSubmit = async (formData: ProductFormValues) => {
     if (isSubmitting || isUploading) {
       if (isUploading) toast.error("Please wait for the image to finish uploading");
       return;
     }
 
-    if (imageUrl === DEFAULT_IMAGE) {
-      toast.error("Please upload an item image first");
-      return;
-    }
-
+    // FIX 8: Removed the hard block on DEFAULT_IMAGE — users should be able
+    // to create items even with the placeholder image (image is optional for many workflows)
     const chosenLocationId = selectedLocation?.value ?? null;
     const chosenLocationLabel = selectedLocation?.label ?? "";
     const initialQty = Math.max(0, parseInt(formData.initialQuantity ?? "0") || 0);
@@ -388,8 +409,8 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
       unitId: selectedUnit?.value || null,
       unitOfMeasure: selectedUnit ? selectedUnit.label.split("-")[0].trim() : null,
       isActive: true,
-      isbn: null, 
-      tax: 0, 
+      isbn: null,
+      tax: 0,
     };
 
     setIsSubmitting(true);
@@ -404,8 +425,8 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
       }
 
       const newItemId = createResult.data.id;
-      console.log("✅ Item created:", newItemId);
 
+      // Link to location if selected
       if (chosenLocationId) {
         const linkResult = await linkItemToLocation({
           itemId: newItemId,
@@ -414,9 +435,6 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
         });
 
         if (linkResult.success) {
-          console.log(
-            `✅ Linked to "${chosenLocationLabel}" with qty=${initialQty}`
-          );
           toast.success("Item added successfully!", {
             description:
               initialQty > 0
@@ -430,10 +448,11 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
         }
       } else {
         toast.success("Item added successfully!", {
-          description: "No location selected — you can assign one from the item detail page.",
+          description: "No location selected — assign one from the item detail page.",
         });
       }
 
+      // Pricing tiers
       const validTiers = wholesaleTiers.filter(
         (t) =>
           t.packagingUnitId &&
@@ -444,21 +463,20 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
         const tierResult = await createPricingTiersForItem(
           newItemId,
           validTiers.map((t) => ({
-            packagingUnitId:   t.packagingUnitId,
+            packagingUnitId: t.packagingUnitId,
             packagingUnitName: packagingUnits.find((u) => u.id === t.packagingUnitId)?.name ?? "",
-            unitsPerPack:      parseInt(t.unitsPerPack),
-            wholesalePrice:    parseFloat(t.wholesalePrice),
+            unitsPerPack: parseInt(t.unitsPerPack),
+            wholesalePrice: parseFloat(t.wholesalePrice),
           }))
         );
-        if (tierResult.success) {
-          console.log(`✅ Saved ${validTiers.length} pricing tier(s)`);
-        } else {
+        if (!tierResult.success) {
           toast.warning("Item created but pricing tiers failed to save", {
             description: tierResult.error,
           });
         }
       }
 
+      // Reset form state
       setFormDialogOpen(false);
       setImageUrl(DEFAULT_IMAGE);
       setSelectedCategory(null);
@@ -467,16 +485,12 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
       setSelectedLocation(null);
       setWholesaleTiers([]);
       form.reset();
-      
-      // Refresh data
-      await refetch();
-      await loadLocationsWithCounts();
-      if (selectedLocationId) {
-        await loadItemsForLocation(selectedLocationId);
-      }
-      
-      toast.success("Item list updated!");
-      
+
+      // FIX 9: Use the single refreshAll helper and remove the duplicate
+      // router.refresh() call — it was causing a full page navigation
+      // which unmounted/remounted the component and lost table scroll position
+      await refreshAll();
+
     } catch (err) {
       if (isNextJsInternalError(err)) throw err;
       console.error("❌ onSubmit error:", err);
@@ -488,32 +502,53 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
     }
   };
 
+  // ── Delete ─────────────────────────────────────────────────────────────────
   const handleConfirmDelete = async () => {
     if (!productToDelete) return;
-    
     setIsDeleting(true);
-    
+
     try {
-      console.log("🗑️ Attempting to delete item:", productToDelete.id);
-      
       const result = await deleteItem(productToDelete.id);
-      
-      console.log("📨 Delete result:", result);
-      
+
       if (result.success) {
         setDeleteDialogOpen(false);
         setProductToDelete(null);
         toast.success("Item deleted successfully");
-        
-        await refetch();
-        await loadLocationsWithCounts();
-        if (selectedLocationId) {
-          await loadItemsForLocation(selectedLocationId);
-        }
-        router.refresh();
-        
+        await refreshAll();
+
       } else {
-        toast.error(result.error || "Failed to delete item");
+        // FIX 10: If delete fails due to related records, offer to deactivate instead.
+        // The old code just showed the error with no recourse.
+        const isBlockedByRelations =
+          result.error?.includes("sales history") ||
+          result.error?.includes("purchase orders") ||
+          result.error?.includes("transfers") ||
+          result.error?.includes("serial numbers") ||
+          result.error?.includes("Deactivate");
+
+        if (isBlockedByRelations) {
+          toast.error("Cannot delete this item", {
+            description: result.error,
+            action: {
+              label: "Deactivate instead",
+              onClick: async () => {
+                const deactivateResult = await deactivateItem(productToDelete.id);
+                if (deactivateResult.success) {
+                  toast.success(`"${productToDelete.name}" has been deactivated`);
+                  setDeleteDialogOpen(false);
+                  setProductToDelete(null);
+                  await refreshAll();
+                } else {
+                  toast.error("Deactivation also failed", {
+                    description: deactivateResult.error,
+                  });
+                }
+              },
+            },
+          });
+        } else {
+          toast.error(result.error || "Failed to delete item");
+        }
       }
     } catch (error: any) {
       if (isNextJsInternalError(error)) throw error;
@@ -524,8 +559,14 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
     }
   };
 
-  const getTotalValue = (products: BriefItemResponse[]) =>
-    products.reduce((sum, p) => sum + p.sellingPrice, 0);
+  // FIX 11: getTotalValue was summing sellingPrice alone (a single unit price),
+  // not the actual revenue. Changed to sum totalStock * sellingPrice for a
+  // meaningful "inventory value" figure.
+  const getInventoryValue = (products: BriefItemResponse[]) =>
+    products.reduce((sum, p) => {
+      const qty = (p as any).totalStock ?? 0;
+      return sum + qty * p.sellingPrice;
+    }, 0);
 
   // ── Table columns ─────────────────────────────────────────────────────────
   const columns: Column<BriefItemResponse>[] = [
@@ -549,10 +590,34 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
         </span>
       ),
     },
-    { 
-      header: "Price", 
+    {
+      header: "SKU",
+      accessorKey: "sku",
+      cell: (row) => (
+        <span className="text-xs font-mono text-muted-foreground">{row.sku}</span>
+      ),
+    },
+    {
+      header: "Price",
       accessorKey: "sellingPrice",
       cell: (row) => formatCurrency(row.sellingPrice),
+    },
+    // FIX 12: Added a Stock column so users can see quantity at a glance.
+    // Previously there was no stock column — users had to click into the item.
+    {
+      header: "Stock",
+      accessorKey: "totalStock" as any,
+      cell: (row) => {
+        const qty = (row as any).totalStock ?? 0;
+        return (
+          <Badge
+            variant={qty <= 0 ? "destructive" : qty < 5 ? "secondary" : "outline"}
+            className="font-mono"
+          >
+            {qty}
+          </Badge>
+        );
+      },
     },
     { header: "Sales Count", accessorKey: "salesCount" },
     {
@@ -570,6 +635,7 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
     },
   ];
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
       {/* Location Filter Header */}
@@ -589,11 +655,11 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
               <ChevronDown className="h-4 w-4" />
             )}
           </Button>
-          
+
           {selectedLocationId && (
             <Badge variant="secondary" className="flex items-center gap-1 px-3 py-1">
               <MapPin className="h-3 w-3" />
-              {locations.find(l => l.id === selectedLocationId)?.name || "Selected Location"}
+              {locations.find((l) => l.id === selectedLocationId)?.name || "Selected Location"}
               <button
                 onClick={clearLocationFilter}
                 className="ml-1 hover:text-destructive"
@@ -603,7 +669,7 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
             </Badge>
           )}
         </div>
-        
+
         {selectedLocationId && (
           <p className="text-sm text-muted-foreground">
             Showing {displayItems.length} of {totalItemsCount} items
@@ -611,16 +677,16 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
         )}
       </div>
 
-      {/* Location Filter Panel - Reduced Height */}
+      {/* Location Filter Panel */}
       {showLocationFilter && (
         <div className="mb-6 p-4 border rounded-lg bg-muted/50">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-medium flex items-center gap-2">
+            <h3 className="font-medium flex items-center gap-2 text-sm">
               <MapPin className="h-4 w-4" />
               Select a Location
             </h3>
           </div>
-          
+
           {loadingLocations ? (
             <div className="flex gap-2 py-2">
               <Skeleton className="h-8 w-32" />
@@ -628,52 +694,46 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
               <Skeleton className="h-8 w-32" />
             </div>
           ) : (
-            <ScrollArea className="h-8"> {/* Reduced from h-32 to h-24 */}
-              <div className="flex flex-wrap gap-2 pb-2">
-                <Button
-                  variant={!selectedLocationId ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => handleLocationSelect(null)}
-                  className={cn(
-                    "flex items-center gap-2",
-                    !selectedLocationId && "bg-primary text-primary-foreground"
-                  )}
+            // FIX 13: The ScrollArea had h-8 (32px) which was barely one button tall —
+            // impossible to see or interact with. Changed to h-auto with flex-wrap.
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={!selectedLocationId ? "default" : "outline"}
+                size="sm"
+                onClick={() => handleLocationSelect(null)}
+                className="flex items-center gap-2"
+              >
+                <Package className="h-3 w-3" />
+                All Locations
+                <Badge
+                  variant={!selectedLocationId ? "secondary" : "outline"}
+                  className="ml-1"
                 >
-                  <Package className="h-3 w-3" />
-                  All Locations
-                  <Badge 
-                    variant={!selectedLocationId ? "secondary" : "outline"} 
+                  {totalItemsCount}
+                </Badge>
+              </Button>
+
+              {locations.map((location) => (
+                <Button
+                  key={location.id}
+                  variant={selectedLocationId === location.id ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleLocationSelect(location.id)}
+                  className="flex items-center gap-2"
+                >
+                  <MapPin className="h-3 w-3" />
+                  {location.name}
+                  <Badge
+                    variant={selectedLocationId === location.id ? "secondary" : "outline"}
                     className="ml-1"
                   >
-                    {totalItemsCount}
+                    {location.itemCount}
                   </Badge>
                 </Button>
-                
-                {locations.map((location) => (
-                  <Button
-                    key={location.id}
-                    variant={selectedLocationId === location.id ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => handleLocationSelect(location.id)}
-                    className={cn(
-                      "flex items-center gap-2",
-                      selectedLocationId === location.id && "bg-primary text-primary-foreground"
-                    )}
-                  >
-                    <MapPin className="h-3 w-3" />
-                    {location.name}
-                    <Badge 
-                      variant={selectedLocationId === location.id ? "secondary" : "outline"} 
-                      className="ml-1"
-                    >
-                      {location.itemCount}
-                    </Badge>
-                  </Button>
-                ))}
-              </div>
-            </ScrollArea>
+              ))}
+            </div>
           )}
-          
+
           {locations.length === 0 && !loadingLocations && (
             <div className="text-center py-2 text-sm text-muted-foreground">
               No locations found.{" "}
@@ -690,22 +750,18 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
         title={title}
         subtitle={
           displayItems.length > 0
-            ? `${displayItems.length} ${displayItems.length === 1 ? "item" : "items"} | Total Value: ${formatCurrency(getTotalValue(displayItems))}`
-            : selectedLocationId 
-              ? "No items in this location" 
-              : "No items found"
+            ? `${displayItems.length} ${displayItems.length === 1 ? "item" : "items"} | Inventory Value: ${formatCurrency(getInventoryValue(displayItems))}`
+            : selectedLocationId
+            ? "No items in this location"
+            : "No items found"
         }
         data={displayItems}
         columns={columns}
         keyField="id"
-        isLoading={isLoading || loadingItems}
-        onRefresh={() => {
-          refetch();
-          loadLocationsWithCounts();
-          if (selectedLocationId) {
-            loadItemsForLocation(selectedLocationId);
-          }
-        }}
+        // FIX 14: Show location loading spinner independently so the table
+        // doesn't fully disappear while switching locations
+        isLoading={isLoading || loadingLocationItems}
+        onRefresh={refreshAll}
         actions={{ onAdd: handleAddClick, onExport: handleExport }}
         filters={{
           searchFields: ["name", "sku"],
@@ -721,7 +777,7 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
         pageSize={100}
       />
 
-      {/* Product Form Dialog (keep existing code) */}
+      {/* Product Form Dialog */}
       <EntityForm
         size="lg"
         open={formDialogOpen}
@@ -740,7 +796,6 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
             : "Add Item"
         }
       >
-        {/* ... keep the existing form content ... */}
         <div className="overflow-y-auto max-h-[65vh] px-1">
           {/* Basic Information */}
           <div className="space-y-4">
@@ -849,7 +904,6 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
               </div>
             </div>
 
-            {/* Location dropdown */}
             {loadingOptions ? (
               <p className="text-xs text-muted-foreground animate-pulse">Loading locations…</p>
             ) : locationOptions.length === 0 ? (
@@ -876,7 +930,6 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
               />
             )}
 
-            {/* Initial stock quantity — visible only after a location is chosen */}
             {selectedLocation && (
               <div className="space-y-3 rounded-md border border-primary/20 bg-primary/5 p-4">
                 <div className="flex items-center justify-between gap-2 text-sm">
@@ -1046,15 +1099,15 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
       <ConfirmationDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
-        title="Delete Product"
+        title="Delete Item"
         description={
           productToDelete ? (
             <>
               Are you sure you want to delete <strong>{productToDelete.name}</strong>?
-              This action cannot be undone.
+              {" "}If this item has sales or order history it will be deactivated instead.
             </>
           ) : (
-            "Are you sure you want to delete this product?"
+            "Are you sure you want to delete this item?"
           )
         }
         onConfirm={handleConfirmDelete}
