@@ -113,14 +113,8 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
   const [locations, setLocations] = useState<LocationWithCount[]>([]);
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
 
-  // FIX 1: Separate location-filtered items from allItems.
-  // Before, displayItems was set in a useEffect that depended on [selectedLocationId, allItems],
-  // which caused a double-render race: allItems loads → effect runs → sets displayItems to allItems,
-  // then location fetch fires → sets displayItems again. This caused flickers & stale displays.
   const [locationItems, setLocationItems] = useState<BriefItemResponse[] | null>(null);
 
-  // FIX 2: Compute displayItems via useMemo instead of storing in separate state.
-  // When no location is selected we show allItems directly (no extra setState needed).
   const displayItems = useMemo<BriefItemResponse[]>(() => {
     if (selectedLocationId) {
       return locationItems ?? [];
@@ -170,13 +164,9 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgId]);
 
-  // FIX 3: The old effect depended on BOTH selectedLocationId AND allItems.
-  // This meant every time allItems refreshed (e.g. after a refetch), a new
-  // API call to getItemsByLocation fired even when locationId hadn't changed.
-  // Now we only reload location items when selectedLocationId changes.
   useEffect(() => {
     if (!selectedLocationId) {
-      setLocationItems(null); // clear so useMemo falls back to allItems
+      setLocationItems(null);
       return;
     }
     loadItemsForLocation(selectedLocationId);
@@ -206,7 +196,6 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
     }
   };
 
-  // FIX 4: Extracted into a standalone async fn so it can be awaited after create/delete
   const loadItemsForLocation = async (locationId: string) => {
     setLoadingLocationItems(true);
     try {
@@ -228,7 +217,6 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
         supplierRelations: item.supplierRelations ?? [],
         salesCount: item.salesCount ?? 0,
         salesTotal: item.salesTotal ?? 0,
-        // FIX 5: Include totalStock from inventory so the table can show it
         totalStock: item.inventories
           ? item.inventories.reduce((s: number, inv: any) => s + inv.quantity, 0)
           : 0,
@@ -245,10 +233,6 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
     }
   };
 
-  // FIX 6: refreshAll — single helper that updates everything after a mutation.
-  // The old code called refetch + loadLocationsWithCounts + loadItemsForLocation
-  // separately in both onSubmit and handleConfirmDelete, with no await ordering,
-  // causing race conditions where the table flashed empty then repopulated.
   const refreshAll = useCallback(async () => {
     await refetch();
     await loadLocationsWithCounts();
@@ -362,8 +346,6 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
 
   const handleLocationSelect = (locationId: string | null) => {
     setSelectedLocationId(locationId);
-    // FIX 7: Using router.replace instead of router.push so the browser
-    // back button doesn't create a history entry for each filter click
     const params = new URLSearchParams(window.location.search);
     if (locationId) {
       params.set("location", locationId);
@@ -382,8 +364,6 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
       return;
     }
 
-    // FIX 8: Removed the hard block on DEFAULT_IMAGE — users should be able
-    // to create items even with the placeholder image (image is optional for many workflows)
     const chosenLocationId = selectedLocation?.value ?? null;
     const chosenLocationLabel = selectedLocation?.label ?? "";
     const initialQty = Math.max(0, parseInt(formData.initialQuantity ?? "0") || 0);
@@ -486,9 +466,6 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
       setWholesaleTiers([]);
       form.reset();
 
-      // FIX 9: Use the single refreshAll helper and remove the duplicate
-      // router.refresh() call — it was causing a full page navigation
-      // which unmounted/remounted the component and lost table scroll position
       await refreshAll();
 
     } catch (err) {
@@ -517,8 +494,6 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
         await refreshAll();
 
       } else {
-        // FIX 10: If delete fails due to related records, offer to deactivate instead.
-        // The old code just showed the error with no recourse.
         const isBlockedByRelations =
           result.error?.includes("sales history") ||
           result.error?.includes("purchase orders") ||
@@ -559,9 +534,9 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
     }
   };
 
-  // FIX 11: getTotalValue was summing sellingPrice alone (a single unit price),
-  // not the actual revenue. Changed to sum totalStock * sellingPrice for a
-  // meaningful "inventory value" figure.
+  // ── Inventory Value ────────────────────────────────────────────────────────
+  // Retail value: quantity × sellingPrice — "how much is my stock worth if sold?"
+  // Dashboard uses the same formula so both figures always match.
   const getInventoryValue = (products: BriefItemResponse[]) =>
     products.reduce((sum, p) => {
       const qty = (p as any).totalStock ?? 0;
@@ -602,8 +577,6 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
       accessorKey: "sellingPrice",
       cell: (row) => formatCurrency(row.sellingPrice),
     },
-    // FIX 12: Added a Stock column so users can see quantity at a glance.
-    // Previously there was no stock column — users had to click into the item.
     {
       header: "Stock",
       accessorKey: "totalStock" as any,
@@ -694,8 +667,6 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
               <Skeleton className="h-8 w-32" />
             </div>
           ) : (
-            // FIX 13: The ScrollArea had h-8 (32px) which was barely one button tall —
-            // impossible to see or interact with. Changed to h-auto with flex-wrap.
             <div className="flex flex-wrap gap-2">
               <Button
                 variant={!selectedLocationId ? "default" : "outline"}
@@ -758,8 +729,6 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
         data={displayItems}
         columns={columns}
         keyField="id"
-        // FIX 14: Show location loading spinner independently so the table
-        // doesn't fully disappear while switching locations
         isLoading={isLoading || loadingLocationItems}
         onRefresh={refreshAll}
         actions={{ onAdd: handleAddClick, onExport: handleExport }}

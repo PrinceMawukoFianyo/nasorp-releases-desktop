@@ -65,19 +65,22 @@ export async function getDashboardData(dateRange: string) {
 
     console.log('🔍 Fetching dashboard data for org:', orgId, 'range:', dateRange);
 
-    // 1. Get Inventory Value and Total Items - FIXED
+    // 1. Get Inventory Value and Total Items
+    // Only include active items so this matches the item listing figure exactly.
+    // Formula: SUM(quantity × sellingPrice) — retail value of stock on hand.
+    // Matches what the item listing shows: "how much is my stock worth if sold?"
     const inventories = await db.inventory.findMany({
       where: {
         orgId,
+        item: { isActive: true },
       },
       include: {
-        item: true,
-        location: true,
+        item: { select: { sellingPrice: true } },
       },
     });
 
     const inventoryValue = inventories.reduce((sum, inv) => {
-      return sum + (inv.quantity * (inv.item.costPrice || 0));
+      return sum + (inv.quantity * ((inv.item as any).sellingPrice || 0));
     }, 0);
 
     const totalItems = await db.item.count({
@@ -288,14 +291,15 @@ export async function getDashboardData(dateRange: string) {
           where: {
             locationId: location.id,
             orgId,
+            item: { isActive: true },
           },
           include: {
-            item: true,
+            item: { select: { sellingPrice: true } },
           },
         });
 
         const value = locationInventories.reduce((sum, inv) => {
-          return sum + (inv.quantity * (inv.item.costPrice || 0));
+          return sum + (inv.quantity * ((inv.item as any).sellingPrice || 0));
         }, 0);
 
         return {
@@ -540,13 +544,13 @@ export async function getInventoryMetrics(dateRange: string) {
     // NOTE: No date filter here — Inventory is a current snapshot.
     // Filtering by createdAt would exclude items whose quantities were updated (not re-created).
     const inventoryItems = await db.inventory.findMany({
-      where: { orgId },
-      include: { item: true },
+      where: { orgId, item: { isActive: true } },
+      include: { item: { select: { sellingPrice: true } } },
     });
 
-    // Calculate total inventory value
+    // Calculate total inventory value (retail: quantity × sellingPrice)
     const totalValue = inventoryItems.reduce((sum: number, inventory) => {
-      return sum + (inventory.quantity * (inventory.item.costPrice || 0));
+      return sum + (inventory.quantity * ((inventory.item as any).sellingPrice || 0));
     }, 0);
 
     // Count low stock items (based on item's minStockLevel)
@@ -586,14 +590,16 @@ export async function getInventoryMetrics(dateRange: string) {
         const inventories = await db.inventory.findMany({
           where: {
             locationId: location.id,
+            orgId,
+            item: { isActive: true },
           },
           include: {
-            item: true,
+            item: { select: { sellingPrice: true } },
           },
         });
 
         const totalValue = inventories.reduce((sum: number, inv) => {
-          return sum + (inv.quantity * (inv.item.costPrice || 0));
+          return sum + (inv.quantity * ((inv.item as any).sellingPrice || 0));
         }, 0);
 
         return {

@@ -251,44 +251,52 @@ export async function getBriefItemById(id: string) {
   }
 }
 
-export async function getItemById(id: string) {
+export async function getItemById(id: string): Promise<ProductResponse> {
   try {
-    // ✅ FIXED: was using getAuthenticatedApi() (external HTTP call) which
-    // was failing with a 500. Now queries the DB directly like every other
-    // function in this file.
     const item = await db.item.findUnique({
       where: { id },
       include: {
-        category:  { select: { id: true, title: true } },
-        brand:     { select: { id: true, name: true } },
-        unit:      { select: { id: true, name: true, symbol: true } },
+        category: { select: { id: true, title: true } },
+        brand:    { select: { id: true, name: true } },
+        unit:     { select: { id: true, name: true, symbol: true } },
+        taxRate:  { select: { id: true, name: true, rate: true } },
         inventories: {
-          include: { location: { select: { id: true, name: true, type: true } } },
-        },
-        pricingTiers: {
-          include: { packagingUnit: { select: { id: true, name: true } } },
-          orderBy: { unitsPerPack: "asc" },
+          include: {
+            location: { select: { id: true, name: true, type: true } },
+          },
         },
         supplierRelations: {
           include: {
             supplier: {
-              select: { id: true, name: true, email: true, phone: true },
+              select: {
+                id: true, name: true, email: true,
+                phone: true, contactPerson: true, isActive: true,
+              },
             },
+          },
+        },
+        pricingTiers: {
+          include: {
+            packagingUnit: { select: { id: true, name: true } },
           },
         },
       },
     });
 
-    if (!item) throw new Error(`Item with id "${id}" not found`);
+    if (!item) {
+      throw new Error("Item not found");
+    }
 
-    return { success: true, data: item, error: null };
-  } catch (error: any) {
-    console.error("❌ getItemById error:", error);
+    // Shape the response to match ProductResponse so the edit page works unchanged
     return {
-      success: false,
-      data: null,
-      error: error instanceof Error ? error.message : "Failed to fetch item",
-    };
+      data:    item as any,
+      success: true,
+      error:   null,
+    } as any;
+  } catch (error) {
+    console.error("Error fetching item:", error);
+    if (error instanceof Error) throw error;
+    throw new Error("An unexpected error occurred");
   }
 }
 
