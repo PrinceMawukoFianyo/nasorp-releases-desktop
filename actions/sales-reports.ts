@@ -131,6 +131,32 @@ export interface WholesaleVsSingleSummary {
   }[];
 }
 
+// ── Credit & Payment breakdown types ─────────────────────────────────────────
+
+export interface CreditPaymentBreakdown {
+  // Revenue by collection method
+  cashRevenue:        number;
+  momoRevenue:        number;
+  cardRevenue:        number;
+  creditRevenue:      number;   // amount still outstanding
+  // Order counts by payment status
+  paidOrders:         number;
+  partialOrders:      number;
+  pendingOrders:      number;
+  cancelledOrders:    number;
+  // Totals
+  totalCollected:     number;
+  totalOutstanding:   number;
+  totalCancelled:     number;
+  // Top debtors (customers with most outstanding)
+  topDebtors: {
+    customerName:  string;
+    totalOwing:    number;
+    orderCount:    number;
+    isOverdue:     boolean;
+  }[];
+}
+
 export interface SalesReportData {
   summary: SalesSummary;
   salesByCustomer: SalesByCustomer[];
@@ -145,12 +171,17 @@ export interface SalesReportData {
     date: string;
     total: number;
     status: string;
+    paymentStatus: string;
+    amountPaid: number;
+    amountOwing: number;
     itemCount: number;
   }>;
-  // NEW: wholesale vs single breakdown
+  // Wholesale vs single breakdown
   wholesaleVsSingle: WholesaleVsSingleSummary;
   wholesaleDetails:  WholesaleSaleDetail[];
   singleDetails:     SingleSaleDetail[];
+  // Credit & payment breakdown
+  creditPayment: CreditPaymentBreakdown;
 }
 
 // ============================================
@@ -309,15 +340,23 @@ export async function getSalesReport(
 
   // ── Recent orders ─────────────────────────────────────────────────────────
 
-  const recentOrders = salesOrders.slice(0, 10).map((order) => ({
-    id:           order.id,
-    orderNumber:  order.orderNumber || "N/A",
-    customerName: order.customer?.name || "Unknown",
-    date:         format(order.createdAt, "MMM dd, yyyy"),
-    total: (order.subtotal || 0) + (order.taxAmount || 0) + (order.shippingCost || 0) - (order.discount || 0),
-    status:    order.status,
-    itemCount: order.lines.length,
-  }));
+  const recentOrders = salesOrders.slice(0, 10).map((order) => {
+    const orderTotal = (order.subtotal || 0) + (order.taxAmount || 0) + (order.shippingCost || 0) - (order.discount || 0);
+    const amountPaid  = (order as any).amountPaid  ?? 0;
+    const amountOwing = (order as any).amountOwing ?? Math.max(0, orderTotal - amountPaid);
+    return {
+      id:            order.id,
+      orderNumber:   order.orderNumber || "N/A",
+      customerName:  order.customer?.name || "Unknown",
+      date:          format(order.createdAt, "MMM dd, yyyy"),
+      total:         orderTotal,
+      status:        order.status,
+      paymentStatus: order.paymentStatus,
+      amountPaid,
+      amountOwing,
+      itemCount:     order.lines.length,
+    };
+  });
 
   // ── Wholesale vs Single breakdown ─────────────────────────────────────────
   //
@@ -449,6 +488,68 @@ export async function getSalesReport(
     topWholesaleItems,
   };
 
+  // ── Credit & Payment breakdown ───────────────────────────────────────────
+  // Fetch payment records for orders in the date range
+  const orderIds = salesOrders.map(o => o.id);
+  const payments = orderIds.length > 0 ? await db.salesOrderPayment.findMany({
+    where: { orderId: { in: orderIds } },
+    select: { amount: true, method: true },
+  }) : [];
+
+  const cashRevenue = payments
+    .filter((p: any) => p.method === "CASH")
+    .reduce((s: number, p: any) => s + p.amount, 0);
+  const momoRevenue = payments
+    .filter((p: any) => p.method === "MOMO")
+    .reduce((s: number, p: any) => s + p.amount, 0);
+  const cardRevenue = payments
+    .filter((p: any) => p.method === "CREDIT_CARD")
+    .reduce((s: number, p: any) => s + p.amount, 0);
+
+  const totalCollected   = cashRevenue + momoRevenue + cardRevenue;
+  const totalOutstanding = salesOrders.reduce((s, o) => s + ((o as any).amountOwing ?? 0), 0);
+  const totalCancelled   = 0; // not in date range query (excluded by status filter)
+
+  const paidOrders      = salesOrders.filter(o => o.paymentStatus === "PAID").length;
+  const partialOrders   = salesOrders.filter(o => o.paymentStatus === "PARTIAL").length;
+  const pendingOrders   = salesOrders.filter(o => o.paymentStatus === "PENDING").length;
+  const cancelledOrders = 0;
+
+  // Build top debtors from this period's orders
+  const now = new Date();
+  const debtorMap = new Map<string, { name: string; owing: number; count: number; overdue: boolean }>();
+  for (const order of salesOrders) {
+    if ((order as any).amountOwing > 0 && order.customerId) {
+      const key = order.customerId;
+      const cur = debtorMap.get(key) ?? { name: order.customer?.name ?? "Unknown", owing: 0, count: 0, overdue: false };
+      cur.owing += (order as any).amountOwing ?? 0;
+      cur.count += 1;
+      if ((order as any).deliveryDate && new Date((order as any).deliveryDate) < now && order.paymentStatus !== "PAID") {
+        cur.overdue = true;
+      }
+      debtorMap.set(key, cur);
+    }
+  }
+  const topDebtors = Array.from(debtorMap.values())
+    .sort((a, b) => b.owing - a.owing)
+    .slice(0, 5)
+    .map(d => ({ customerName: d.name, totalOwing: d.owing, orderCount: d.count, isOverdue: d.overdue }));
+
+  const creditPayment: CreditPaymentBreakdown = {
+    cashRevenue,
+    momoRevenue,
+    cardRevenue,
+    creditRevenue: totalOutstanding,
+    paidOrders,
+    partialOrders,
+    pendingOrders,
+    cancelledOrders,
+    totalCollected,
+    totalOutstanding,
+    totalCancelled,
+    topDebtors,
+  };
+
   return {
     summary,
     salesByCustomer,
@@ -460,6 +561,7 @@ export async function getSalesReport(
     wholesaleVsSingle,
     wholesaleDetails,
     singleDetails,
+    creditPayment,
   };
 }
 

@@ -1,4 +1,4 @@
-// actions/sales-orders.ts - FIXED
+// actions/sales-orders.ts - FIXED: Credit sales now always deduct stock
 "use server"
 
 import { db } from "@/prisma/db"
@@ -13,7 +13,7 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 export async function createSalesOrder(data: {
   orderNumber: string
   customerId: string
-  locationId: string
+  locationId?: string | null
   orderDate: Date
   deliveryDate?: Date | null
   status: string
@@ -38,9 +38,9 @@ export async function createSalesOrder(data: {
 }) {
   try {
     const user = await getAuthenticatedUser()
-    
+
+    if (!user?.id) return { success: false, error: "Authentication required — please log in again" }
     if (!data.customerId) return { success: false, error: "Customer is required" }
-    if (!data.locationId) return { success: false, error: "Location is required" }
     if (!data.lines.create || data.lines.create.length === 0)
       return { success: false, error: "At least one line item is required" }
 
@@ -49,33 +49,131 @@ export async function createSalesOrder(data: {
     })
     if (existingOrder) return { success: false, error: "Order number already exists" }
 
-    const salesOrder = await db.salesOrder.create({
-      data: {
-        orderNumber: data.orderNumber,
-        customerId: data.customerId,
-        locationId: data.locationId,
-        status: data.status as SalesOrderStatus,
-        paymentStatus: data.paymentStatus as PaymentStatus,
-        paymentMethod: data.paymentMethod,
-        shippingCost: data.shippingCost,
-        discount: data.discount,
-        notes: data.notes,
-        subtotal: data.subtotal,
-        taxAmount: data.taxAmount,
-        orgId: user.orgId,
-        createdById: user.id,
-        lines: { create: data.lines.create },
-      },
-      include: {
-        customer: true,
-        location: true,
-        createdBy: { select: { id: true, name: true, email: true } },
-        lines: { include: { item: true } },
-      },
+    // ── FIX: Stock deduction for credit sales ─────────────────────────────────
+    // Credit orders (PENDING/PARTIAL payment) must ALWAYS deduct stock immediately
+    // so inventory is accurate. Previously only deducted when locationId was set
+    // AND status != DRAFT — this left credit sales with no stock deduction at all.
+    //
+    // New rules:
+    //  • status === DRAFT → never deduct (not confirmed yet)
+    //  • status !== DRAFT (CONFIRMED, COMPLETED, etc.) → always deduct
+    //    - locationId set → deduct from that specific location
+    //    - no locationId   → deduct from best-stocked location per item
+    const shouldDeductStock = data.status !== "DRAFT"
+
+    const lineLocationMap = new Map<string, string>() // itemId → resolved locationId
+
+    if (shouldDeductStock) {
+      for (const line of data.lines.create) {
+        if (data.locationId) {
+          // Specific location: check availability
+          const inventory = await db.inventory.findUnique({
+            where: { itemId_locationId: { itemId: line.itemId, locationId: data.locationId } },
+            select: { quantity: true, reservedQuantity: true },
+          })
+          const available = Math.max(0, (inventory?.quantity ?? 0) - (inventory?.reservedQuantity ?? 0))
+          if (available < line.quantity) {
+            const item = await db.item.findUnique({ where: { id: line.itemId }, select: { name: true } })
+            return {
+              success: false,
+              error: `Insufficient stock for "${item?.name ?? line.itemId}" at this location. Available: ${available}, Requested: ${line.quantity}`,
+            }
+          }
+          lineLocationMap.set(line.itemId, data.locationId)
+        } else {
+          // No location: find best-stocked location org-wide
+          const inventories = await db.inventory.findMany({
+            where: { itemId: line.itemId, orgId: user.orgId },
+            select: { locationId: true, quantity: true, reservedQuantity: true },
+            orderBy: { quantity: "desc" },
+          })
+          const totalAvailable = inventories.reduce(
+            (s, i) => s + Math.max(0, i.quantity - (i.reservedQuantity ?? 0)), 0
+          )
+          if (totalAvailable < line.quantity) {
+            const item = await db.item.findUnique({ where: { id: line.itemId }, select: { name: true } })
+            return {
+              success: false,
+              error: `Insufficient stock for "${item?.name ?? line.itemId}". Total available: ${totalAvailable}, Requested: ${line.quantity}`,
+            }
+          }
+          const best = inventories.find(i => Math.max(0, i.quantity - (i.reservedQuantity ?? 0)) >= line.quantity)
+            ?? inventories.find(i => i.quantity - (i.reservedQuantity ?? 0) > 0)
+          if (!best) {
+            const item = await db.item.findUnique({ where: { id: line.itemId }, select: { name: true } })
+            return { success: false, error: `No stock found for "${item?.name}"` }
+          }
+          lineLocationMap.set(line.itemId, best.locationId)
+        }
+      }
+    }
+
+    // Atomic transaction: create order + deduct stock together
+    const salesOrder = await db.$transaction(async (tx) => {
+      const order = await tx.salesOrder.create({
+        data: {
+          orderNumber:   data.orderNumber,
+          customerId:    data.customerId,
+          locationId:    data.locationId ?? undefined,
+          status:        data.status as SalesOrderStatus,
+          paymentStatus: data.paymentStatus as PaymentStatus,
+          paymentMethod: data.paymentMethod,
+          shippingCost:  data.shippingCost,
+          discount:      data.discount,
+          notes:         data.notes,
+          subtotal:      data.subtotal,
+          taxAmount:     data.taxAmount,
+          orgId:         user.orgId,
+          createdById:   user.id,
+          lines: { create: data.lines.create },
+        },
+        include: {
+          customer: true,
+          location: true,
+          createdBy: { select: { id: true, name: true, email: true } },
+          lines: { include: { item: true } },
+        },
+      })
+
+      if (shouldDeductStock) {
+        for (const line of data.lines.create) {
+          const resolvedLocationId = lineLocationMap.get(line.itemId)
+          if (!resolvedLocationId) continue
+
+          await tx.inventory.update({
+            where: { itemId_locationId: { itemId: line.itemId, locationId: resolvedLocationId } },
+            data: { quantity: { decrement: line.quantity } },
+          })
+          await tx.item.update({
+            where: { id: line.itemId },
+            data: {
+              salesCount: { increment: line.quantity },
+              salesTotal: { increment: line.total },
+            },
+          })
+          await tx.inventoryTransaction.create({
+            data: {
+              itemId:          line.itemId,
+              locationId:      resolvedLocationId,
+              type:            "SALE",
+              quantity:        -line.quantity,
+              referenceNumber: data.orderNumber,
+              notes:           `Credit Sales Order ${data.orderNumber} — stock deducted on creation`,
+              orgId:           user.orgId,
+              userId:          user.id,
+            },
+          })
+        }
+      }
+
+      return order
     })
 
     revalidatePath("/dashboard/sales/orders")
     revalidatePath("/dashboard/sales/orders/create")
+    revalidatePath("/dashboard/inventory")
+    revalidatePath("/dashboard/inventory/stock")
+    revalidatePath("/dashboard")
 
     return { success: true, data: salesOrder }
   } catch (error: any) {
@@ -86,15 +184,6 @@ export async function createSalesOrder(data: {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// FIX: Return [] instead of throwing.
-//
-// When Next.js revalidates /dashboard/sales/orders (triggered by createPOSSale),
-// it re-renders that page which calls getSalesOrders. If getAuthenticatedUser
-// redirects (e.g. session not available in that render context), the old code
-// threw an Error which surfaced as a 500 on the POS page.
-// Returning [] is safe — the orders list just renders empty during revalidation.
-// ─────────────────────────────────────────────────────────────────────────────
 export async function getSalesOrders() {
   try {
     const user = await getAuthenticatedUser()
@@ -106,6 +195,19 @@ export async function getSalesOrders() {
         location: true,
         createdBy: { select: { id: true, name: true, email: true } },
         lines: { include: { item: true } },
+        payments: { orderBy: { paidAt: "desc" } },
+        salesReturns: {
+          orderBy: { createdAt: "desc" },
+          include: {
+            lines: {
+              include: {
+                item: {
+                  select: { id: true, name: true, sku: true }
+                }
+              }
+            }
+          }
+        }
       },
       orderBy: { createdAt: "desc" },
     })
@@ -113,8 +215,6 @@ export async function getSalesOrders() {
     return salesOrders
   } catch (error: any) {
     console.error("Error fetching sales orders:", error)
-    // ✅ FIXED: return empty array instead of throwing so Next.js revalidation
-    // and page renders don't crash when auth context isn't available.
     return []
   }
 }
@@ -139,15 +239,31 @@ export async function getSalesOrderById(id: string) {
               select: { id: true, name: true, sku: true, description: true, unit: true },
             },
           },
-          orderBy: { createdAt: 'asc' },
+          orderBy: { createdAt: "asc" },
         },
         organisation: {
           select: { id: true, name: true, address: true },
         },
+        payments: {
+          orderBy: { paidAt: "desc" },
+        },
+        salesReturns: {
+          include: {
+            lines: { 
+              include: { 
+                item: { select: { id: true, name: true, sku: true } } 
+              } 
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        },
       },
     })
 
-    return salesOrder ?? null
+    if (!salesOrder) return null
+
+    // Return the order with salesReturns as is - don't rename to returns
+    return salesOrder
   } catch (error) {
     console.error("Error fetching sales order:", error)
     return null
@@ -157,7 +273,7 @@ export async function getSalesOrderById(id: string) {
 export async function cancelSalesOrder(id: string) {
   try {
     const user = await getAuthenticatedUser()
-    
+
     const existingOrder = await db.salesOrder.findUnique({
       where: { id, orgId: user.orgId },
       include: { lines: true },
@@ -166,25 +282,164 @@ export async function cancelSalesOrder(id: string) {
     if (!existingOrder) return { success: false, error: "Sales order not found" }
     if (existingOrder.status === "CANCELLED") return { success: false, error: "Order is already cancelled" }
 
-    const salesOrder = await db.salesOrder.update({
-      where: { id, orgId: user.orgId },
-      data: { status: SalesOrderStatus.CANCELLED },
-      include: {
-        customer: true,
-        location: true,
-        createdBy: { select: { id: true, name: true, email: true } },
-        lines: { include: { item: true } },
-      },
+    const wasStockDeducted = existingOrder.status !== "DRAFT"
+
+    const salesOrder = await db.$transaction(async (tx) => {
+      const updated = await tx.salesOrder.update({
+        where: { id, orgId: user.orgId },
+        data: { status: SalesOrderStatus.CANCELLED },
+        include: {
+          customer: true,
+          location: true,
+          createdBy: { select: { id: true, name: true, email: true } },
+          lines: { include: { item: true } },
+        },
+      })
+
+      if (wasStockDeducted) {
+        for (const line of existingOrder.lines) {
+          // Restore stock to the location (or the location stored on order)
+          const resolvedLocationId = existingOrder.locationId
+          if (!resolvedLocationId) continue
+
+          await tx.inventory.update({
+            where: { itemId_locationId: { itemId: line.itemId, locationId: resolvedLocationId } },
+            data: { quantity: { increment: line.quantity } },
+          })
+          await tx.item.update({
+            where: { id: line.itemId },
+            data: {
+              salesCount: { decrement: line.quantity },
+              salesTotal: { decrement: line.total },
+            },
+          })
+          await tx.inventoryTransaction.create({
+            data: {
+              itemId:          line.itemId,
+              locationId:      resolvedLocationId,
+              type:            "RETURN",
+              quantity:        line.quantity,
+              referenceNumber: existingOrder.orderNumber,
+              notes:           `Cancelled Sales Order ${existingOrder.orderNumber} — stock reversed`,
+              orgId:           user.orgId,
+              userId:          user.id,
+            },
+          })
+        }
+      }
+
+      return updated
     })
 
     revalidatePath("/dashboard/sales/orders")
     revalidatePath(`/dashboard/sales/orders/${id}`)
     revalidatePath(`/dashboard/sales/orders/${id}/edit`)
+    revalidatePath("/dashboard/inventory")
+    revalidatePath("/dashboard")
 
     return { success: true, data: salesOrder }
   } catch (error) {
     console.error("Error cancelling sales order:", error)
     return { success: false, error: "Failed to cancel sales order" }
+  }
+}
+
+export async function cancelCreditOrder(id: string, reason?: string) {
+  try {
+    const user = await getAuthenticatedUser()
+
+    const order = await db.salesOrder.findUnique({
+      where: { id, orgId: user.orgId },
+      include: {
+        lines: true,
+        payments: true,
+        customer: { select: { id: true, name: true } },
+      },
+    })
+
+    if (!order) return { success: false, error: "Sales order not found" }
+    if (order.status === "CANCELLED") return { success: false, error: "Order is already cancelled" }
+    if (order.paymentStatus === "PAID") {
+      return {
+        success: false,
+        error: "This order is fully paid. Use a Sales Return instead of cancelling.",
+      }
+    }
+
+    const totalPaymentsRecorded = order.payments.reduce((s, p) => s + p.amount, 0)
+    const wasStockDeducted = order.status !== "DRAFT"
+
+    await db.$transaction(async (tx) => {
+      await tx.salesOrder.update({
+        where: { id },
+        data: {
+          status:        SalesOrderStatus.CANCELLED,
+          paymentStatus: PaymentStatus.REFUNDED,
+          amountPaid:    0,
+          amountOwing:   0,
+          notes: reason
+            ? `${order.notes ? order.notes + "\n" : ""}CANCELLED: ${reason}`
+            : order.notes,
+        },
+      })
+
+      if (wasStockDeducted) {
+        for (const line of order.lines) {
+          const resolvedLocationId = order.locationId
+          if (!resolvedLocationId) continue
+
+          await tx.inventory.update({
+            where: { itemId_locationId: { itemId: line.itemId, locationId: resolvedLocationId } },
+            data: { quantity: { increment: line.quantity } },
+          })
+          await tx.item.update({
+            where: { id: line.itemId },
+            data: {
+              salesCount: { decrement: line.quantity },
+              salesTotal: { decrement: line.total },
+            },
+          })
+          await tx.inventoryTransaction.create({
+            data: {
+              itemId:          line.itemId,
+              locationId:      resolvedLocationId,
+              type:            "RETURN",
+              quantity:        line.quantity,
+              referenceNumber: order.orderNumber,
+              notes:           `Credit order cancelled — ${order.orderNumber}${reason ? ": " + reason : ""}`,
+              orgId:           user.orgId,
+              userId:          user.id,
+            },
+          })
+        }
+      }
+
+      if (order.payments.length > 0) {
+        await tx.salesOrderPayment.updateMany({
+          where: { orderId: id },
+          data: { reference: "VOIDED — credit order cancelled" },
+        })
+      }
+    })
+
+    revalidatePath("/dashboard/sales/orders")
+    revalidatePath(`/dashboard/sales/orders/${id}`)
+    revalidatePath("/dashboard/inventory")
+    revalidatePath("/dashboard")
+
+    return {
+      success: true,
+      data: {
+        orderNumber:           order.orderNumber,
+        customerName:          order.customer?.name,
+        itemsRestocked:        wasStockDeducted ? order.lines.length : 0,
+        paymentsVoided:        order.payments.length,
+        totalPaymentsReversed: totalPaymentsRecorded,
+      },
+    }
+  } catch (error: any) {
+    console.error("cancelCreditOrder error:", error)
+    return { success: false, error: error.message || "Failed to cancel credit order" }
   }
 }
 
@@ -271,25 +526,108 @@ export async function deleteSalesOrder(id: string) {
 export async function updateOrderStatus(id: string, status: string) {
   try {
     const user = await getAuthenticatedUser()
-    
+    if (!user?.id) return { success: false, error: "Authentication required" }
+
     if (!Object.values(SalesOrderStatus).includes(status as SalesOrderStatus))
       return { success: false, error: "Invalid status" }
 
     const existingOrder = await db.salesOrder.findUnique({
       where: { id, orgId: user.orgId },
-      select: { status: true },
+      include: { lines: true },
     })
 
     if (!existingOrder) return { success: false, error: "Sales order not found" }
     if (existingOrder.status === "CANCELLED")
       return { success: false, error: "Cannot change status of a cancelled order" }
+    if (existingOrder.status === status)
+      return { success: false, error: `Order is already ${status}` }
 
+    // DRAFT → CONFIRMED: deduct stock now (was skipped at creation)
+    const isConfirming = existingOrder.status === "DRAFT" && status === "CONFIRMED"
+
+    if (isConfirming) {
+      const lineLocationMap = new Map<string, string>()
+
+      for (const line of existingOrder.lines) {
+        if (existingOrder.locationId) {
+          const inv = await db.inventory.findUnique({
+            where: { itemId_locationId: { itemId: line.itemId, locationId: existingOrder.locationId } },
+            select: { quantity: true, reservedQuantity: true },
+          })
+          const available = Math.max(0, (inv?.quantity ?? 0) - (inv?.reservedQuantity ?? 0))
+          if (available < line.quantity) {
+            const item = await db.item.findUnique({ where: { id: line.itemId }, select: { name: true } })
+            return { success: false, error: `Insufficient stock for "${item?.name}". Available: ${available}, Needed: ${line.quantity}` }
+          }
+          lineLocationMap.set(line.itemId, existingOrder.locationId)
+        } else {
+          // No specific location — search across ALL locations in this org.
+          // Must include orgId filter (was missing, causing 0 results and false "Available: 0").
+          // Use raw quantity column; reservedQuantity can be stale.
+          const inventories = await db.inventory.findMany({
+            where: {
+              itemId:   line.itemId,
+              orgId:    user.orgId,   // critical fix: scope to this org
+              quantity: { gt: 0 },    // only locations with actual stock
+            },
+            select: { locationId: true, quantity: true },
+            orderBy: { quantity: "desc" },
+          })
+          const totalAvailable = inventories.reduce((s, i) => s + i.quantity, 0)
+          if (totalAvailable < line.quantity) {
+            const item = await db.item.findUnique({ where: { id: line.itemId }, select: { name: true } })
+            return { success: false, error: `Insufficient total stock for "${item?.name}". Available: ${totalAvailable}, Needed: ${line.quantity}` }
+          }
+          // Pick the best-stocked single location that can fulfil this line
+          const best = inventories.find(i => i.quantity >= line.quantity) ?? inventories[0]
+          if (!best) {
+            const item = await db.item.findUnique({ where: { id: line.itemId }, select: { name: true } })
+            return { success: false, error: `No stock found for "${item?.name}"` }
+          }
+          lineLocationMap.set(line.itemId, best.locationId)
+        }
+      }
+
+      const salesOrder = await db.$transaction(async (tx) => {
+        for (const line of existingOrder.lines) {
+          const resolvedLocationId = lineLocationMap.get(line.itemId)
+          if (!resolvedLocationId) continue
+          await tx.inventory.update({
+            where: { itemId_locationId: { itemId: line.itemId, locationId: resolvedLocationId } },
+            data: { quantity: { decrement: line.quantity } },
+          })
+          await tx.item.update({
+            where: { id: line.itemId },
+            data: { salesCount: { increment: line.quantity }, salesTotal: { increment: line.total } },
+          })
+          await tx.inventoryTransaction.create({
+            data: {
+              itemId: line.itemId, locationId: resolvedLocationId, type: "SALE",
+              quantity: -line.quantity, referenceNumber: existingOrder.orderNumber,
+              notes: `Confirmed Sales Order ${existingOrder.orderNumber}`,
+              orgId: user.orgId, userId: user.id,
+            },
+          })
+        }
+        return tx.salesOrder.update({
+          where: { id, orgId: user.orgId },
+          data: { status: status as SalesOrderStatus },
+          include: { customer: true, location: true, createdBy: { select: { id: true, name: true, email: true } }, lines: { include: { item: true } } },
+        })
+      })
+
+      revalidatePath("/dashboard/sales/orders")
+      revalidatePath(`/dashboard/sales/orders/${id}`)
+      revalidatePath("/dashboard/inventory")
+      return { success: true, data: salesOrder }
+    }
+
+    // All other status transitions — no stock change
     const salesOrder = await db.salesOrder.update({
       where: { id, orgId: user.orgId },
       data: { status: status as SalesOrderStatus },
       include: {
-        customer: true,
-        location: true,
+        customer: true, location: true,
         createdBy: { select: { id: true, name: true, email: true } },
         lines: { include: { item: true } },
       },
@@ -335,6 +673,107 @@ export async function updatePaymentStatus(id: string, paymentStatus: string) {
   }
 }
 
+export async function recordPayment(data: {
+  orderId: string
+  amount: number
+  method: "CASH" | "MOMO" | "CREDIT_CARD"
+  reference?: string
+}) {
+  try {
+    const user = await getAuthenticatedUser()
+
+    if (!data.orderId)    return { success: false, error: "Order ID is required" }
+    if (data.amount <= 0) return { success: false, error: "Amount must be greater than zero" }
+
+    const order = await db.salesOrder.findUnique({
+      where: { id: data.orderId, orgId: user.orgId },
+      include: { payments: true },
+    })
+
+    if (!order) return { success: false, error: "Sales order not found" }
+    if (order.status === "CANCELLED") return { success: false, error: "Cannot record payment on a cancelled order" }
+
+    const orderTotal    = (order.subtotal ?? 0) + (order.taxAmount ?? 0) + (order.shippingCost ?? 0) - (order.discount ?? 0)
+    const currentPaid   = order.payments.reduce((sum: number, p: { amount: number }) => sum + p.amount, 0)
+    const remaining     = orderTotal - currentPaid
+
+    if (data.amount > remaining) {
+      return { success: false, error: `Payment of GHS ${data.amount.toFixed(2)} exceeds remaining balance of GHS ${remaining.toFixed(2)}` }
+    }
+
+    const newAmountPaid  = currentPaid + data.amount
+    const newAmountOwing = Math.max(0, orderTotal - newAmountPaid)
+
+    let newPaymentStatus: PaymentStatus
+    if (newAmountOwing <= 0) {
+      newPaymentStatus = PaymentStatus.PAID
+    } else if (newAmountPaid > 0) {
+      newPaymentStatus = PaymentStatus.PARTIAL
+    } else {
+      newPaymentStatus = PaymentStatus.PENDING
+    }
+
+    const [payment] = await db.$transaction([
+      db.salesOrderPayment.create({
+        data: {
+          orderId:      data.orderId,
+          amount:       data.amount,
+          method:       data.method,
+          reference:    data.reference ?? null,
+          paidAt:       new Date(),
+          recordedById: user.id,
+          orgId:        user.orgId,
+        },
+      }),
+      db.salesOrder.update({
+        where: { id: data.orderId, orgId: user.orgId },
+        data: {
+          amountPaid:    newAmountPaid,
+          amountOwing:   newAmountOwing,
+          paymentStatus: newPaymentStatus,
+        },
+      }),
+    ])
+
+    revalidatePath("/dashboard/sales/orders")
+    revalidatePath(`/dashboard/sales/orders/${data.orderId}`)
+    revalidatePath("/dashboard")
+
+    return { success: true, data: payment }
+  } catch (error: any) {
+    console.error("Error recording payment:", error)
+    if (error.code === "P2003") return { success: false, error: "Invalid order reference" }
+    return { success: false, error: error.message || "Failed to record payment" }
+  }
+}
+
+export async function getCreditOrders(showPaid = false) {
+  try {
+    const user = await getAuthenticatedUser()
+
+    const salesOrders = await db.salesOrder.findMany({
+      where: {
+        orgId: user.orgId,
+        ...(showPaid ? {} : { paymentStatus: { in: [PaymentStatus.PENDING, PaymentStatus.PARTIAL] } }),
+      },
+      include: {
+        customer: {
+          select: { id: true, name: true, phone: true, email: true },
+        },
+        payments: {
+          orderBy: { paidAt: "desc" },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    })
+
+    return { success: true, data: salesOrders }
+  } catch (error: any) {
+    console.error("Error fetching credit orders:", error)
+    return { success: false, error: "Failed to load credit orders", data: [] }
+  }
+}
+
 export async function sendSalesOrderEmail(orderId: string, recipientEmail: string) {
   try {
     const user = await getAuthenticatedUser()
@@ -367,7 +806,6 @@ export async function sendSalesOrderEmail(orderId: string, recipientEmail: strin
         .line-items { width: 100%; border-collapse: collapse; margin: 20px 0; }
         .line-items th, .line-items td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e7eb; }
         .totals { background: white; padding: 20px; border-radius: 8px; }
-        .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 14px; }
       </style></head><body>
         <div class="container">
           <div class="header">
@@ -406,7 +844,7 @@ export async function sendSalesOrderEmail(orderId: string, recipientEmail: strin
       </body></html>`
 
     const { data, error } = await resend.emails.send({
-      from: 'Sales Orders <princefianyo8@gmail.com>',
+      from: process.env.EMAIL_FROM ?? 'Sales Orders <onboarding@resend.dev>',
       to: [recipientEmail],
       subject: `Sales Order Confirmation - ${order.orderNumber}`,
       html: emailHtml,
@@ -417,6 +855,38 @@ export async function sendSalesOrderEmail(orderId: string, recipientEmail: strin
   } catch (error) {
     console.error('Error in sendSalesOrderEmail:', error)
     return { success: false, error: 'An error occurred while sending the email' }
+  }
+}
+
+export async function getSalesOrderItems() {
+  try {
+    const user = await getAuthenticatedUser()
+    if (!user?.orgId) return []
+
+    const items = await db.item.findMany({
+      where: { orgId: user.orgId, isActive: true },
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        name: true,
+        sku: true,
+        description: true,
+        sellingPrice: true,
+        tax: true,
+        inventories: {
+          select: {
+            locationId: true,
+            quantity: true,
+            reservedQuantity: true,
+          },
+        },
+      },
+    })
+
+    return items
+  } catch (error) {
+    console.error("getSalesOrderItems error:", error)
+    return []
   }
 }
 

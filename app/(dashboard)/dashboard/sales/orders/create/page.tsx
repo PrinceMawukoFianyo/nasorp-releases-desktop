@@ -29,7 +29,8 @@ import { toast } from "sonner"
 import { Spinner } from "@/components/ui/spinner"
 import Link from "next/link"
 import { createSalesOrder } from "@/actions/sales-orders"
-import { getItems, getLocations } from "@/actions/purchase-order"
+import { getLocations } from "@/actions/purchase-order"
+import { getSalesOrderItems } from "@/actions/sales-orders"
 import { getBriefCustomers } from "@/actions/customers"
 import { QuickCustomerDialog } from "../components/quick-customer-dialog"
 
@@ -37,7 +38,7 @@ import { QuickCustomerDialog } from "../components/quick-customer-dialog"
 const salesOrderSchema = z.object({
   orderNumber: z.string().min(1, "Order number is required"),
   customerId: z.string().min(1, "Customer is required"),
-  locationId: z.string().min(1, "Location is required"),
+  locationId: z.string().min(1, "Location is required"), // "ALL_LOCATIONS" = show all items
   orderDate: z.date(),
   deliveryDate: z.date().optional().nullable(),
   status: z.string(),
@@ -192,6 +193,7 @@ export default function CreateSalesOrderPage() {
   const [items, setItems] = useState<any[]>([])
   const [lineItems, setLineItems] = useState<LineItem[]>([])
 
+
 const form = useForm({
   resolver: zodResolver(salesOrderSchema),
   defaultValues: {
@@ -209,6 +211,19 @@ const form = useForm({
   },
 })
 
+  // Items filtered by the selected order location — must be AFTER useForm.
+  // If locationId is blank or "ALL_LOCATIONS" we show every item.
+  const selectedLocationId = form.watch("locationId")
+  const visibleItems = (() => {
+    if (!selectedLocationId || selectedLocationId === "ALL_LOCATIONS") return items
+    return items.filter((item) => {
+      if (!item.inventories || item.inventories.length === 0) return true
+      return item.inventories.some(
+        (inv: any) => inv.locationId === selectedLocationId && inv.quantity > 0
+      )
+    })
+  })()
+
   useEffect(() => {
     loadData()
   }, [])
@@ -220,7 +235,7 @@ const form = useForm({
       const [customersRes, locationsRes, itemsRes] = await Promise.all([
         getBriefCustomers(),
         getLocations(),
-        getItems(),
+        getSalesOrderItems(),
       ])
 
       const customersList = Array.isArray(customersRes) 
@@ -336,10 +351,10 @@ const form = useForm({
       const salesOrderData = {
         orderNumber: data.orderNumber,
         customerId: data.customerId,
-        locationId: data.locationId,
+        locationId: data.locationId === "ALL_LOCATIONS" ? undefined : data.locationId,
+        status:     data.status,
         orderDate: data.orderDate,
         deliveryDate: data.deliveryDate || null,
-        status: data.status,
         paymentStatus: data.paymentStatus,
         shippingCost: data.shippingCost,
         discount: data.discount,
@@ -470,12 +485,30 @@ const form = useForm({
                 <Label htmlFor="locationId">Location *</Label>
                 <Select
                   value={form.watch("locationId")}
-                  onValueChange={(value) => form.setValue("locationId", value)}
+                  onValueChange={(value) => {
+                    form.setValue("locationId", value)
+                    // Clear any line items whose item is no longer visible at the new location
+                    if (value && value !== "ALL_LOCATIONS") {
+                      setLineItems(prev => prev.map(li => ({
+                        ...li,
+                        // reset item selection if the chosen item has no stock at the new location
+                        ...(li.itemId && !items.find(i => i.id === li.itemId)?.inventories?.some(
+                          (inv: any) => inv.locationId === value && inv.quantity > 0
+                        ) && items.find(i => i.id === li.itemId)?.inventories?.length > 0
+                          ? { itemId: "", itemName: "", unitPrice: 0 }
+                          : {}),
+                      })))
+                    }
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select location" />
                   </SelectTrigger>
                   <SelectContent>
+                    {/* All Locations — shows every item regardless of location */}
+                    <SelectItem value="ALL_LOCATIONS">
+                      🌐 All Locations (show all items)
+                    </SelectItem>
                     {locations.map((location) => (
                       <SelectItem key={location.id} value={location.id}>
                         {location.name}
@@ -483,6 +516,18 @@ const form = useForm({
                     ))}
                   </SelectContent>
                 </Select>
+
+                {/* Hints */}
+                {form.watch("locationId") === "ALL_LOCATIONS" && (
+                  <p className="text-xs text-blue-600">
+                    📦 All items shown. Stock will be deducted automatically from the location with the most availability.
+                  </p>
+                )}
+                {form.watch("locationId") && form.watch("locationId") !== "ALL_LOCATIONS" && (
+                  <p className="text-xs text-muted-foreground">
+                    Items are filtered to those available at this location.
+                  </p>
+                )}
                 {form.formState.errors.locationId && (
                   <p className="text-sm text-red-600">
                     {form.formState.errors.locationId.message as string}
@@ -645,11 +690,21 @@ const form = useForm({
                             <SelectValue placeholder="Select item" />
                           </SelectTrigger>
                           <SelectContent>
-                            {items.map((i) => (
-                              <SelectItem key={i.id} value={i.id}>
-                                {i.name} - {i.sku}
-                              </SelectItem>
-                            ))}
+                            {visibleItems.length === 0 ? (
+                              <div className="px-3 py-4 text-sm text-muted-foreground text-center">
+                                No items available at this location
+                              </div>
+                            ) : (
+                              visibleItems.map((i) => (
+                                <SelectItem key={i.id} value={i.id}>
+                                  {i.name} - {i.sku}
+                                  {/* Show stock at selected location if we have data */}
+                                  {selectedLocationId && selectedLocationId !== "ALL_LOCATIONS" && i.inventories && (
+                                    ` (${i.inventories.find((inv: any) => inv.locationId === selectedLocationId)?.quantity ?? 0} in stock)`
+                                  )}
+                                </SelectItem>
+                              ))
+                            )}
                           </SelectContent>
                         </Select>
                       </div>
@@ -707,17 +762,28 @@ const form = useForm({
 
                       <div className="col-span-6 sm:col-span-2 flex items-end gap-2">
                         <div className="flex-1">
-                          <Label className="text-xs">Total</Label>
-                          <p className="text-sm font-semibold mt-2">
-                            GHS {(item.quantity * item.unitPrice * (1 + item.taxRate / 100)).toFixed(2)}
-                          </p>
+                          <Label className="text-xs">Total (editable)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={(item.quantity * item.unitPrice * (1 + item.taxRate / 100)).toFixed(2)}
+                            onChange={(e) => {
+                              // Back-calculate unit price from entered total
+                              const enteredTotal = parseFloat(e.target.value) || 0
+                              const taxMult = 1 + (item.taxRate || 0) / 100
+                              const qty = item.quantity || 1
+                              const newUnitPrice = enteredTotal / (qty * taxMult)
+                              updateLineItem(item.id, "unitPrice", Math.round(newUnitPrice * 10000) / 10000)
+                            }}
+                          />
                         </div>
                         <Button
                           type="button"
                           variant="destructive"
                           size="icon"
                           onClick={() => removeLineItem(item.id)}
-                          className="flex-shrink-0"
+                          className="flex-shrink-0 mb-0"
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>

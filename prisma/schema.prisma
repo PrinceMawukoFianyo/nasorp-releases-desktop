@@ -89,6 +89,7 @@ model User {
   roles                  Role[]                 @relation("UserRoles")
   createdReturns   SalesReturn[] @relation("ReturnCreatedBy")
   approvedReturns  SalesReturn[] @relation("ReturnApprovedBy")
+  recordedPayments SalesOrderPayment[] @relation("PaymentRecordedBy")
 }
 
 model Organisation {
@@ -460,7 +461,7 @@ model SalesOrder {
   orderNumber   String           @unique
   customerId    String?
   source        Source           @default(SALES_ORDER)
-  locationId    String
+  locationId    String?
   status        SalesOrderStatus @default(DRAFT)
   subtotal      Float            @default(0)
   taxAmount     Float            @default(0)
@@ -469,16 +470,20 @@ model SalesOrder {
   notes         String?
   paymentStatus PaymentStatus    @default(PENDING)
   paymentMethod String?
+  amountPaid    Float            @default(0)
+  amountOwing   Float            @default(0)
+  deliveryDate  DateTime?
   orgId         String
   createdById   String
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
   createdBy     User             @relation("SalesOrderCreatedBy", fields: [createdById], references: [id])
   customer      Customer?        @relation(fields: [customerId], references: [id])
-  location      Location         @relation("SalesLocation", fields: [locationId], references: [id])
+  location      Location?        @relation("SalesLocation", fields: [locationId], references: [id])
   organisation  Organisation     @relation(fields: [orgId], references: [id], onDelete: Cascade)
   lines         SalesOrderLine[]
   salesReturns  SalesReturn[]
+  payments      SalesOrderPayment[]
 
   @@index([orderNumber])
   @@index([customerId])
@@ -504,6 +509,25 @@ model SalesOrderLine {
 
   @@index([salesOrderId])
   @@index([itemId])
+}
+
+model SalesOrderPayment {
+  id           String        @id @default(cuid())
+  orderId      String
+  orgId        String
+  amount       Float
+  method       PaymentMethod
+  reference    String?
+  paidAt       DateTime      @default(now())
+  recordedById String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  order        SalesOrder    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  recordedBy   User?         @relation("PaymentRecordedBy", fields: [recordedById], references: [id])
+
+  @@index([orderId])
+  @@index([orgId])
 }
 
 model Transfer {
@@ -757,6 +781,12 @@ model SalesReturnLine {
 
  
 
+
+enum PaymentMethod {
+  CASH
+  MOMO
+  CREDIT_CARD
+}
 
 enum LocationType {
   WAREHOUSE

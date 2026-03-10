@@ -419,7 +419,7 @@ export default function POSPage() {
 
   // ── CHANGED: default to "ALL" so products load immediately on mount ────────
   const [selectedLocation, setSelectedLocation] = useState("ALL")
-  const [saleLocation,     setSaleLocation]     = useState("")
+
   // ──────────────────────────────────────────────────────────────────────────
 
   const [selectedCustomer, setSelectedCustomer] = useState("")
@@ -463,11 +463,7 @@ export default function POSPage() {
     const locId = selectedLocation === "ALL" ? undefined : selectedLocation
     loadItems(locId)
 
-    if (selectedLocation !== "ALL") {
-      setSaleLocation(selectedLocation)
-    } else {
-      setSaleLocation("") // must choose at checkout
-    }
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedLocation])
   // ──────────────────────────────────────────────────────────────────────────
@@ -542,7 +538,7 @@ export default function POSPage() {
   // ── addToCart ──────────────────────────────────────────────────────────────
 
   const addToCart = useCallback((item: any): boolean => {
-    if (!selectedLocation) { toast.error("Please select a location first"); return false }
+    // "ALL" and specific locations are both valid — never block adding to cart
 
     const inventoryTotal = Array.isArray(item.inventories)
       ? item.inventories.reduce((s: number, i: any) => s + (i.quantity ?? 0), 0)
@@ -679,12 +675,13 @@ export default function POSPage() {
   // ── Sale submission ────────────────────────────────────────────────────────
 
   const handleCompleteSale = async () => {
-    if (cart.length === 0)  { toast.error("Cart is empty"); return }
-    const effectiveLocation = selectedLocation === "ALL" ? saleLocation : selectedLocation
-    if (!effectiveLocation) {
-      toast.error("Please select which location this sale is from", { duration: 4000 })
-      return
-    }
+    if (cart.length === 0) { toast.error("Cart is empty"); return }
+
+    // "ALL" or empty = All Locations mode — pass null and let the server
+    // resolve the best location per item from actual stock levels.
+    const effectiveLocation = (!selectedLocation || selectedLocation === "ALL")
+      ? null
+      : selectedLocation
 
     for (const line of cart) {
       if (line.totalUnits > line.stock) {
@@ -700,7 +697,7 @@ export default function POSPage() {
     try {
       const result = await createPOSSale({
         customerId:   selectedCustomer || undefined,
-        locationId:   effectiveLocation,
+        locationId:   effectiveLocation ?? undefined,
         paymentMethod,
         discount,
         shippingCost: shipping,
@@ -726,7 +723,7 @@ export default function POSPage() {
         setShowPaymentModal(false)
         setShowInvoiceModal(true)
         toast.success("Sale completed!")
-        await loadItems(effectiveLocation === "ALL" ? undefined : effectiveLocation)
+        await loadItems(effectiveLocation ?? undefined)
       } else {
         toast.error(result.error || "Failed to complete sale")
       }
@@ -841,7 +838,7 @@ export default function POSPage() {
               </div>
             )}
 
-            <Button onClick={() => router.push("/dashboard/sales/orders")}
+            <Button onClick={() => router.push("/dashboard/sales/pos")}
               size="sm" variant="outline" className="h-8 gap-1">
               <Receipt className="w-3 h-3" /> View Orders
             </Button>
@@ -1302,28 +1299,7 @@ export default function POSPage() {
               </div>
             </div>
 
-            {/* Location picker — only shown when browsing All Locations */}
-            {selectedLocation === "ALL" && (
-              <div className="space-y-1.5">
-                <Label className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
-                  <MapPin className="w-4 h-4 text-rose-500" />
-                  Sale Location <span className="text-rose-500">*</span>
-                </Label>
-                <select
-                  value={saleLocation}
-                  onChange={e => setSaleLocation(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-                >
-                  <option value="">— Select which location this sale is from —</option>
-                  {locations.map(loc => (
-                    <option key={loc.id} value={loc.id}>{loc.name}</option>
-                  ))}
-                </select>
-                {!saleLocation && (
-                  <p className="text-xs text-rose-500">Required when browsing All Locations</p>
-                )}
-              </div>
-            )}
+
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <div className="flex items-start gap-2">
@@ -1332,11 +1308,7 @@ export default function POSPage() {
                   <p className="font-medium mb-1">Ready to complete sale</p>
                   <ul className="list-disc list-inside text-xs space-y-1">
                     <li>{cart.length} line{cart.length !== 1 ? "s" : ""} ({cart.reduce((s, l) => s + l.totalUnits, 0)} total units)</li>
-                    <li>Location: {
-                      selectedLocation === "ALL"
-                        ? (locations.find(l => l.id === saleLocation)?.name ?? "Not selected yet")
-                        : selectedLocationData?.name
-                    }</li>
+                    <li>Location: {selectedLocation === "ALL" ? "All Locations" : (selectedLocationData?.name ?? "—")}</li>
                     {selectedCustomerData && <li>Customer: {selectedCustomerData.name}</li>}
                     {cart.some(l => l.saleMode === "wholesale") && (
                       <li className="text-amber-700">
@@ -1352,7 +1324,7 @@ export default function POSPage() {
             <Button variant="outline" disabled={isProcessing} onClick={() => setShowPaymentModal(false)}>Cancel</Button>
             <Button
               onClick={handleCompleteSale}
-              disabled={isProcessing || (selectedLocation === "ALL" && !saleLocation)}
+              disabled={isProcessing}
               className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 disabled:opacity-50">
               {isProcessing
                 ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Processing...</>

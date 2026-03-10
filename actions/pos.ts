@@ -15,7 +15,7 @@ interface POSLineItem {
 
 interface CreatePOSSaleData {
   customerId?: string
-  locationId: string
+  locationId?: string | null  // null / "" / "ALL" = All Locations — system resolves per item
   paymentMethod: "CASH" | "CARD" | "MOBILE_MONEY" | "BANK_TRANSFER"
   lines: POSLineItem[]
   discount?: number
@@ -24,170 +24,222 @@ interface CreatePOSSaleData {
 }
 
 /**
- * Create a POS Sale (Sales Order with POS status)
+ * Create a POS Sale.
+ *
+ * Supports two modes:
+ *  1. Specific location  – locationId is a real location ID.
+ *     Stock is checked and deducted at that location only.
+ *
+ *  2. All Locations mode – locationId is null / "" / "ALL".
+ *     For every cart line the server finds the location that currently has
+ *     the most stock for that item and deducts from there automatically.
+ *     No manual location selection is needed by the cashier.
  */
 export async function createPOSSale(data: CreatePOSSaleData) {
   try {
     const user = await getAuthenticatedUser()
-    
-    // Validate required fields
-    if (!data.locationId) {
-      return { 
-        success: false, 
-        error: "Location is required" 
-      }
-    }
 
     if (!data.lines || data.lines.length === 0) {
-      return { 
-        success: false, 
-        error: "At least one line item is required" 
-      }
+      return { success: false, error: "At least one line item is required" }
     }
 
-    // Validate location exists
-    const location = await db.location.findUnique({
-      where: { id: data.locationId, orgId: user.orgId },
-      select: { id: true, name: true },
-    })
+    // ── Determine mode ────────────────────────────────────────────────────────
+    const isAllLocations =
+      !data.locationId ||
+      data.locationId.trim() === "" ||
+      data.locationId === "ALL"
 
-    if (!location) {
-      return { 
-        success: false, 
-        error: "Selected location not found" 
-      }
-    }
-
-    // Validate customer exists if provided
-    if (data.customerId) {
-      const customer = await db.customer.findUnique({
-        where: { id: data.customerId, orgId: user.orgId },
-        select: { id: true, name: true },
+    // Validate the specific location when one is provided
+    let specificLocationId: string | null = null
+    if (!isAllLocations) {
+      const loc = await db.location.findUnique({
+        where: { id: data.locationId!, orgId: user.orgId },
+        select: { id: true },
       })
-
-      if (!customer) {
-        return { 
-          success: false, 
-          error: "Selected customer not found" 
-        }
-      }
+      if (!loc) return { success: false, error: "Selected location not found" }
+      specificLocationId = loc.id
     }
 
-    // Validate items and check stock availability
+    // Validate customer
+    if (data.customerId) {
+      const cust = await db.customer.findUnique({
+        where: { id: data.customerId, orgId: user.orgId },
+        select: { id: true },
+      })
+      if (!cust) return { success: false, error: "Selected customer not found" }
+    }
+
+    // ── Per-line stock check + resolve deduction location ────────────────────
+    // lineDeductMap: itemId → { locationId, availableQty }
+    const lineDeductMap = new Map<string, { locationId: string; availableQty: number }>()
+
     for (const line of data.lines) {
       const item = await db.item.findUnique({
         where: { id: line.itemId, orgId: user.orgId },
-        select: { id: true, name: true, sku: true },
+        select: { id: true, name: true },
       })
+      if (!item) return { success: false, error: `Item "${line.itemId}" not found` }
 
-      if (!item) {
-        return { 
-          success: false, 
-          error: `Item "${line.itemId}" not found` 
+      if (isAllLocations) {
+        // Find the location with the highest qty for this item (ignoring stockStatus
+        // because that field can be stale — we trust the actual quantity column).
+        const inventories = await db.inventory.findMany({
+          where: {
+            itemId: line.itemId,
+            orgId: user.orgId,
+            quantity: { gt: 0 },   // only locations that physically have stock
+          },
+          select: { locationId: true, quantity: true },
+          orderBy: { quantity: "desc" },  // best-stocked first
+        })
+
+        const totalAvailable = inventories.reduce((s, i) => s + i.quantity, 0)
+
+        if (totalAvailable < line.quantity) {
+          return {
+            success: false,
+            error: `Insufficient stock for "${item.name}". Total available: ${totalAvailable}, needed: ${line.quantity}`,
+          }
         }
-      }
 
-      // Check stock availability
-      const inventory = await db.inventory.findFirst({
-        where: {
-          itemId: line.itemId,
-          locationId: data.locationId,
-          orgId: user.orgId,
-        },
-        select: { quantity: true },
-      })
+        // Use the single location with the most stock (simple greedy pick)
+        const best = inventories.find(i => i.quantity >= line.quantity) ?? inventories[0]
+        lineDeductMap.set(line.itemId, { locationId: best.locationId, availableQty: best.quantity })
+      } else {
+        // Specific location — check actual quantity (NOT stockStatus, which can be stale)
+        const inv = await db.inventory.findFirst({
+          where: {
+            itemId:     line.itemId,
+            locationId: specificLocationId!,
+            orgId:      user.orgId,
+          },
+          select: { quantity: true },
+        })
 
-      if (!inventory || inventory.quantity < line.quantity) {
-        return {
-          success: false,
-          error: `Insufficient stock for ${item.name}. Available: ${inventory?.quantity || 0}`
+        if (!inv || inv.quantity < line.quantity) {
+          return {
+            success: false,
+            error: `Insufficient stock for "${item.name}". Available: ${inv?.quantity ?? 0}, needed: ${line.quantity}`,
+          }
         }
+        lineDeductMap.set(line.itemId, { locationId: specificLocationId!, availableQty: inv.quantity })
       }
     }
 
-    // Calculate totals
-    let subtotal = 0
+    // ── Calculate totals ──────────────────────────────────────────────────────
+    let subtotal  = 0
     let taxAmount = 0
     const lineItems = data.lines.map(line => {
       const lineSubtotal = line.quantity * line.unitPrice
-      const lineTax = lineSubtotal * (line.taxRate / 100)
-      subtotal += lineSubtotal
+      const lineTax      = lineSubtotal * (line.taxRate / 100)
+      subtotal  += lineSubtotal
       taxAmount += lineTax
-      
       return {
-        itemId: line.itemId,
-        quantity: line.quantity,
-        unitPrice: line.unitPrice,
-        taxRate: line.taxRate,
-        taxAmount: lineTax,
-        total: lineSubtotal + lineTax,
+        itemId:        line.itemId,
+        quantity:      line.quantity,
+        unitPrice:     line.unitPrice,
+        taxRate:       line.taxRate,
+        taxAmount:     lineTax,
+        total:         lineSubtotal + lineTax,
         serialNumbers: [],
-        // Preserve wholesale tier metadata for reporting
-        notes: (line as any).notes || null,
+        notes:         (line as any).notes || null,
       }
     })
 
-    // Generate order number with POS prefix
     const orderNumber = `POS-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`
 
-    // Create sales order with POS status and completed payment
+    // Order is stored against the resolved location of the first line item
+    // (just for the foreign-key record — actual deductions are per-item below)
+    const orderLocationId =
+      specificLocationId ??
+      lineDeductMap.values().next().value?.locationId ??
+      null
+
+    // ── Create the sales order ─────────────────────────────────────────────
     const salesOrder = await db.salesOrder.create({
       data: {
         orderNumber,
-        customerId: data.customerId || null,
-        locationId: data.locationId,
-        status: "COMPLETED", // POS sales are immediately completed
-        paymentStatus: "PAID", // POS sales are immediately paid
+        customerId:    data.customerId || null,
+        locationId:    orderLocationId,
+        status:        "COMPLETED",
+        paymentStatus: "PAID",
         paymentMethod: data.paymentMethod,
         subtotal,
         taxAmount,
         shippingCost: data.shippingCost || 0,
-        discount: data.discount || 0,
-        notes: data.notes || "",
-        orgId: user.orgId,
-        createdById: user.id,
-        lines: {
-          create: lineItems
-        },
+        discount:     data.discount     || 0,
+        notes:        data.notes        || "",
+        orgId:        user.orgId,
+        createdById:  user.id,
+        lines: { create: lineItems },
       },
       include: {
         customer: true,
         location: true,
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        lines: {
-          include: {
-            item: true,
-          },
-        },
+        createdBy: { select: { id: true, name: true, email: true } },
+        lines:     { include: { item: true } },
       },
     })
 
-    // Update inventory for each line item
-    for (const line of data.lines) {
-      await db.inventory.updateMany({
-        where: {
-          itemId: line.itemId,
-          locationId: data.locationId,
-          orgId: user.orgId,
-        },
-        data: {
-          quantity: {
-            decrement: line.quantity,
+    // ── Deduct inventory + update stockStatus + write audit rows ─────────────
+    await db.$transaction(async (tx) => {
+      for (const line of data.lines) {
+        const deduct = lineDeductMap.get(line.itemId)
+        if (!deduct) continue
+
+        // 1. Decrement quantity at the resolved location
+        await tx.inventory.updateMany({
+          where: {
+            itemId:     line.itemId,
+            locationId: deduct.locationId,
+            orgId:      user.orgId,
           },
-        },
-      })
-    }
+          data: { quantity: { decrement: line.quantity } },
+        })
+
+        // 2. Recompute and sync stockStatus so the badge stays accurate
+        const newQty    = deduct.availableQty - line.quantity
+        const newStatus = newQty <= 0 ? "OUT_OF_STOCK" : newQty < 10 ? "LOW_STOCK" : "IN_STOCK"
+        await tx.inventory.updateMany({
+          where: {
+            itemId:     line.itemId,
+            locationId: deduct.locationId,
+            orgId:      user.orgId,
+          },
+          data: { stockStatus: newStatus },
+        })
+
+        // 3. Keep item-level sales counters in sync
+        const lineTotal = line.quantity * line.unitPrice * (1 + line.taxRate / 100)
+        await tx.item.update({
+          where: { id: line.itemId },
+          data: {
+            salesCount: { increment: line.quantity },
+            salesTotal: { increment: lineTotal },
+          },
+        })
+
+        // 4. Audit trail
+        await tx.inventoryTransaction.create({
+          data: {
+            itemId:          line.itemId,
+            locationId:      deduct.locationId,
+            type:            "SALE",
+            quantity:        -line.quantity,
+            referenceNumber: salesOrder.orderNumber,
+            notes:           `POS Sale ${salesOrder.orderNumber}${isAllLocations ? " (auto-location)" : ""}`,
+            orgId:           user.orgId,
+            userId:          user.id,
+          },
+        })
+      }
+    })
 
     // Revalidate relevant pages
     revalidatePath("/dashboard/pos")
+    revalidatePath("/dashboard/inventory")
+    revalidatePath("/dashboard")
     revalidatePath("/pos")
-
 
     return { 
       success: true, 
