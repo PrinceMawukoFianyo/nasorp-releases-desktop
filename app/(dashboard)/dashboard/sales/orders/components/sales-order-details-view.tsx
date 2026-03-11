@@ -1,7 +1,7 @@
 // app/(dashboard)/dashboard/sales/orders/components/sales-order-details-view.tsx
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -23,7 +23,7 @@ import { toast } from "sonner"
 import {
   Eye, Edit, RotateCcw, Ban, CreditCard, MapPin, Phone,
   Mail, User, CheckCircle, AlertCircle, Send, FileText,
-  DollarSign, ArrowUpDown, Printer,
+  DollarSign, ArrowUpDown, Printer, MoreVertical,
 } from "lucide-react"
 import {
   cancelSalesOrder,
@@ -57,7 +57,81 @@ interface ReturnLine {
 
 interface SalesOrderWithReturns extends SalesOrder {
   salesReturns?: any[]
-  returns?: any[] // For backward compatibility
+  returns?: any[]
+}
+
+// ─── Three-dot More Actions Menu ─────────────────────────────────────────────
+function MoreActionsMenu({
+  onDetails,
+  onSendInvoice,
+  onInvoice,
+  onPrint,
+  onEdit,
+  onUpdateStatus,
+  showEdit,
+  showUpdateStatus,
+}: {
+  onDetails: () => void
+  onSendInvoice: () => void
+  onInvoice: () => void
+  onPrint: () => void
+  onEdit: () => void
+  onUpdateStatus: () => void
+  showEdit: boolean
+  showUpdateStatus: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener("mousedown", handler)
+    return () => document.removeEventListener("mousedown", handler)
+  }, [])
+
+  const item = (
+    icon: React.ReactNode,
+    label: string,
+    onClick: () => void,
+    className = ""
+  ) => (
+    <button
+      key={label}
+      onClick={() => { onClick(); setOpen(false) }}
+      className={`flex items-center gap-2.5 w-full px-3 py-2 text-sm rounded-md hover:bg-accent transition-colors text-left ${className}`}
+    >
+      {icon}
+      {label}
+    </button>
+  )
+
+  return (
+    <div className="relative" ref={ref}>
+      <Button
+        size="sm"
+        variant="outline"
+        className="px-2"
+        onClick={() => setOpen(v => !v)}
+        title="More actions"
+      >
+        <MoreVertical className="w-4 h-4" />
+      </Button>
+
+      {open && (
+        <div className="absolute right-0 top-9 z-50 min-w-[190px] bg-background border border-border rounded-lg shadow-lg py-1.5">
+          {item(<Eye className="w-4 h-4 text-muted-foreground" />,      "Full Details",    onDetails)}
+          {showEdit && item(<Edit className="w-4 h-4 text-muted-foreground" />, "Edit Order", onEdit)}
+          {showUpdateStatus && item(<ArrowUpDown className="w-4 h-4 text-muted-foreground" />, "Update Status", onUpdateStatus)}
+          <div className="my-1 border-t border-border" />
+          {item(<Send className="w-4 h-4 text-muted-foreground" />,     "Send Invoice",    onSendInvoice)}
+          {item(<FileText className="w-4 h-4 text-muted-foreground" />, "View Invoice",    onInvoice)}
+          {item(<Printer className="w-4 h-4 text-muted-foreground" />,  "Print",           onPrint)}
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ─── Record Payment Dialog ────────────────────────────────────────────────────
@@ -69,18 +143,14 @@ function RecordPaymentDialog({
   salesOrder: SalesOrderWithReturns | null
   onSuccess: () => void
 }) {
-  const [amount, setAmount]           = useState("")
-  const [method, setMethod]           = useState<"CASH" | "MOMO" | "CREDIT_CARD">("CASH")
-  const [reference, setReference]     = useState("")
+  const [amount, setAmount]             = useState("")
+  const [method, setMethod]             = useState<"CASH" | "MOMO" | "CREDIT_CARD">("CASH")
+  const [reference, setReference]       = useState("")
   const [isProcessing, setIsProcessing] = useState(false)
 
-  // Safe access with fallbacks
-  const order = salesOrder as any
-  const total = (order?.subtotal || 0) + 
-                (order?.taxAmount || 0) + 
-                (order?.shippingCost || 0) - 
-                (order?.discount || 0)
-  const amountPaid = order?.amountPaid ?? 0
+  const order       = salesOrder as any
+  const total       = (order?.subtotal || 0) + (order?.taxAmount || 0) + (order?.shippingCost || 0) - (order?.discount || 0)
+  const amountPaid  = order?.amountPaid ?? 0
   const amountOwing = order?.amountOwing ?? Math.max(0, total - amountPaid)
 
   useEffect(() => {
@@ -93,16 +163,9 @@ function RecordPaymentDialog({
 
   const handleSubmit = async () => {
     if (!salesOrder) return
-    
     const amt = parseFloat(amount)
-    if (isNaN(amt) || amt <= 0) { 
-      toast.error("Enter a valid amount"); 
-      return 
-    }
-    if (amt > amountOwing + 0.001) { 
-      toast.error(`Amount exceeds balance of GHS ${amountOwing.toFixed(2)}`); 
-      return 
-    }
+    if (isNaN(amt) || amt <= 0) { toast.error("Enter a valid amount"); return }
+    if (amt > amountOwing + 0.001) { toast.error(`Amount exceeds balance of GHS ${amountOwing.toFixed(2)}`); return }
 
     setIsProcessing(true)
     try {
@@ -136,7 +199,7 @@ function RecordPaymentDialog({
             Record Payment — {order?.orderNumber || "N/A"}
           </DialogTitle>
           <DialogDescription>
-            Record a payment against this order. Balance owing: <strong>GHS {amountOwing.toFixed(2)}</strong>
+            Balance owing: <strong>GHS {amountOwing.toFixed(2)}</strong>
           </DialogDescription>
         </DialogHeader>
 
@@ -216,19 +279,17 @@ function ReturnDialog({
   useEffect(() => {
     const order = salesOrder as any
     if (order?.lines && Array.isArray(order.lines)) {
-      setLines(
-        order.lines.map((l: any) => ({
-          itemId:      l.itemId,
-          itemName:    l.item?.name ?? "Unknown",
-          itemSku:     l.item?.sku  ?? "",
-          maxQty:      l.quantity || 0,
-          selectedQty: l.quantity || 0,
-          unitPrice:   l.unitPrice || 0,
-          selected:    false,
-          condition:   "GOOD" as const,
-          restockable: true,
-        }))
-      )
+      setLines(order.lines.map((l: any) => ({
+        itemId:      l.itemId,
+        itemName:    l.item?.name ?? "Unknown",
+        itemSku:     l.item?.sku  ?? "",
+        maxQty:      l.quantity || 0,
+        selectedQty: l.quantity || 0,
+        unitPrice:   l.unitPrice || 0,
+        selected:    false,
+        condition:   "GOOD" as const,
+        restockable: true,
+      })))
       setReason("")
       setRefundMethod("CASH")
     }
@@ -239,21 +300,17 @@ function ReturnDialog({
 
   const toggle = (idx: number) =>
     setLines((p) => p.map((l, i) => i === idx ? { ...l, selected: !l.selected } : l))
-  
+
   const update = (idx: number, field: keyof ReturnLine, value: any) =>
     setLines((p) => p.map((l, i) => i === idx ? { ...l, [field]: value } : l))
 
   const handleSubmit = async () => {
     if (!salesOrder) return
-    
-    if (selectedLines.length === 0) { 
-      toast.error("Select at least one item"); 
-      return 
-    }
-    
+    if (selectedLines.length === 0) { toast.error("Select at least one item"); return }
+
     setIsProcessing(true)
     try {
-      const order = salesOrder as any
+      const order  = salesOrder as any
       const result = await quickReturnFromOrder({
         salesOrderId: salesOrder.id,
         locationId:   order.locationId ?? order.location?.id ?? "",
@@ -292,7 +349,7 @@ function ReturnDialog({
             Process Return — {(salesOrder as any)?.orderNumber || "N/A"}
           </DialogTitle>
           <DialogDescription>
-            Select items to return. Stock will be restocked and the refund deducted from the order immediately.
+            Select items to return. Stock will be restocked and the refund deducted immediately.
           </DialogDescription>
         </DialogHeader>
 
@@ -316,25 +373,17 @@ function ReturnDialog({
                       <div>
                         <Label className="text-xs">Return Qty (max {line.maxQty})</Label>
                         <Input
-                          type="number" 
-                          min={1} 
-                          max={line.maxQty} 
-                          value={line.selectedQty}
+                          type="number" min={1} max={line.maxQty} value={line.selectedQty}
                           onChange={(e) => {
                             const val = parseInt(e.target.value)
-                            if (!isNaN(val)) {
-                              update(idx, "selectedQty", Math.min(line.maxQty, Math.max(1, val)))
-                            }
+                            if (!isNaN(val)) update(idx, "selectedQty", Math.min(line.maxQty, Math.max(1, val)))
                           }}
                           className="h-8 mt-1"
                         />
                       </div>
                       <div>
                         <Label className="text-xs">Condition</Label>
-                        <Select 
-                          value={line.condition} 
-                          onValueChange={(v: "GOOD" | "DAMAGED" | "DEFECTIVE") => update(idx, "condition", v)}
-                        >
+                        <Select value={line.condition} onValueChange={(v: "GOOD" | "DAMAGED" | "DEFECTIVE") => update(idx, "condition", v)}>
                           <SelectTrigger className="h-8 mt-1"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="GOOD">Good</SelectItem>
@@ -344,10 +393,7 @@ function ReturnDialog({
                         </Select>
                       </div>
                       <div className="flex items-end pb-1 gap-2">
-                        <Checkbox 
-                          checked={line.restockable} 
-                          onCheckedChange={(v) => update(idx, "restockable", !!v)} 
-                        />
+                        <Checkbox checked={line.restockable} onCheckedChange={(v) => update(idx, "restockable", !!v)} />
                         <Label className="text-xs">Restock</Label>
                       </div>
                     </div>
@@ -366,11 +412,10 @@ function ReturnDialog({
         <div className="space-y-3 pt-1">
           <div>
             <Label>Reason for return</Label>
-            <Textarea 
-              placeholder="Wrong item, defective, customer complaint..." 
-              value={reason}
-              onChange={(e) => setReason(e.target.value)} 
-              className="mt-1 h-16 resize-none" 
+            <Textarea
+              placeholder="Wrong item, defective, customer complaint..."
+              value={reason} onChange={(e) => setReason(e.target.value)}
+              className="mt-1 h-16 resize-none"
             />
           </div>
           <div>
@@ -395,8 +440,8 @@ function ReturnDialog({
 
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isProcessing}>Cancel</Button>
-          <Button 
-            onClick={handleSubmit} 
+          <Button
+            onClick={handleSubmit}
             disabled={selectedLines.length === 0 || isProcessing}
             className="bg-orange-500 hover:bg-orange-600 text-white"
           >
@@ -420,22 +465,16 @@ function SendEmailDialog({
   salesOrder: SalesOrderWithReturns | null
   onSuccess: () => void
 }) {
-  const [email, setEmail]             = useState("")
-  const [isSending, setIsSending]     = useState(false)
+  const [email, setEmail]       = useState("")
+  const [isSending, setIsSending] = useState(false)
 
   useEffect(() => {
     const order = salesOrder as any
-    if (open && order?.customer?.email) {
-      setEmail(order.customer.email)
-    }
+    if (open && order?.customer?.email) setEmail(order.customer.email)
   }, [open, salesOrder])
 
   const handleSend = async () => {
-    if (!salesOrder || !email) { 
-      toast.error("Please enter an email address"); 
-      return 
-    }
-    
+    if (!salesOrder || !email) { toast.error("Please enter an email address"); return }
     setIsSending(true)
     try {
       const result = await sendSalesOrderEmail(salesOrder.id, email)
@@ -466,12 +505,10 @@ function SendEmailDialog({
         </DialogHeader>
         <div className="py-3">
           <Label>Email address</Label>
-          <Input 
-            type="email" 
-            placeholder="customer@example.com" 
-            value={email}
-            onChange={(e) => setEmail(e.target.value)} 
-            className="mt-1" 
+          <Input
+            type="email" placeholder="customer@example.com"
+            value={email} onChange={(e) => setEmail(e.target.value)}
+            className="mt-1"
           />
         </div>
         <DialogFooter className="gap-2">
@@ -497,23 +534,22 @@ function UpdateStatusDialog({
   salesOrder: SalesOrderWithReturns | null
   onSuccess: () => void
 }) {
-  const currentIdx    = STATUS_FLOW.indexOf(salesOrder?.status ?? "")
-  const nextStatuses  = STATUS_FLOW.slice(currentIdx + 1)
+  const currentIdx   = STATUS_FLOW.indexOf(salesOrder?.status ?? "")
+  const nextStatuses = STATUS_FLOW.slice(currentIdx + 1)
   const [newStatus, setNewStatus]   = useState("")
   const [isUpdating, setIsUpdating] = useState(false)
 
   useEffect(() => {
     if (open && nextStatuses.length > 0) setNewStatus(nextStatuses[0])
-  }, [open, salesOrder, nextStatuses])
+  }, [open, salesOrder])
 
   const handleUpdate = async () => {
     if (!salesOrder || !newStatus) return
-    
     setIsUpdating(true)
     try {
       const result = await updateOrderStatus(salesOrder.id, newStatus)
       if (result.success) {
-        toast.success(`Order status updated to ${newStatus}`)
+        toast.success(`Status updated to ${newStatus}`)
         onOpenChange(false)
         onSuccess()
       } else {
@@ -536,12 +572,12 @@ function UpdateStatusDialog({
             Update Status — {(salesOrder as any)?.orderNumber || "N/A"}
           </DialogTitle>
           <DialogDescription>
-            Current status: <strong>{salesOrder?.status || "N/A"}</strong>
+            Current: <strong>{salesOrder?.status || "N/A"}</strong>
           </DialogDescription>
         </DialogHeader>
         <div className="py-3">
           {nextStatuses.length === 0 ? (
-            <p className="text-sm text-muted-foreground">This order is already at its final status.</p>
+            <p className="text-sm text-muted-foreground">Already at final status.</p>
           ) : (
             <>
               <Label>Move to status</Label>
@@ -586,28 +622,22 @@ export default function SalesOrderDetailView({
   salesOrder, onEdit, onCancel, onPrint, onExport, onRefresh,
 }: SalesOrderDetailViewProps) {
   const router = useRouter()
-  const [showReturnDialog, setShowReturnDialog]   = useState(false)
+  const [showReturnDialog,  setShowReturnDialog]  = useState(false)
   const [showPaymentDialog, setShowPaymentDialog] = useState(false)
-  const [showEmailDialog, setShowEmailDialog]     = useState(false)
-  const [showStatusDialog, setShowStatusDialog]   = useState(false)
-  const [isCancelling, setIsCancelling]           = useState(false)
+  const [showEmailDialog,   setShowEmailDialog]   = useState(false)
+  const [showStatusDialog,  setShowStatusDialog]  = useState(false)
+  const [isCancelling,      setIsCancelling]      = useState(false)
 
-  // Early return if no salesOrder
   if (!salesOrder) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <Spinner className="h-8 w-8 mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading sales order details...</p>
-        </div>
+        <Spinner className="h-8 w-8 mx-auto" />
       </div>
     )
   }
 
-  // Cast to any for safe property access (temporary solution)
   const order = salesOrder as any
 
-  // Safely access properties with fallbacks - FIXED: Added optional chaining and fallbacks
   const subtotal     = Number(order?.subtotal)     || 0
   const taxAmount    = Number(order?.taxAmount)    || 0
   const shippingCost = Number(order?.shippingCost) || 0
@@ -615,26 +645,25 @@ export default function SalesOrderDetailView({
   const total        = subtotal + taxAmount + shippingCost - discount
   const amountPaid   = Number(order?.amountPaid)   || 0
   const amountOwing  = Number(order?.amountOwing)  || Math.max(0, total - amountPaid)
-  
-  // FIX: Handle both 'salesReturns' (from Prisma) and 'returns' (for backward compatibility)
-  const returns = order?.salesReturns || order?.returns || []
+
+  // ── FIX: Only show outstanding when genuinely unpaid ──────────────────────
+  // PAID / CANCELLED / REFUNDED orders must never show the outstanding banner.
+  const isSettled      = ["PAID", "CANCELLED", "REFUNDED"].includes(order?.paymentStatus ?? "")
+  const showOutstanding = !isSettled && amountOwing > 0.01 && order?.status !== "CANCELLED"
+
+  const returns    = order?.salesReturns || order?.returns || []
   const hasReturns = returns.length > 0
 
-  // Check if order has required properties
   const canReturn  = RETURNABLE_STATUSES.includes(order?.status || "")
   const canEdit    = EDITABLE_STATUSES.includes(order?.status || "")
   const canCancel  = CANCELLABLE_STATUSES.includes(order?.status || "")
-  const canPay     = amountOwing > 0.01 && order?.status !== "CANCELLED" && order?.status !== "RETURNED"
+  // Only offer Record Payment when there's actually something to pay
+  const canPay     = !isSettled && amountOwing > 0.01 && order?.status !== "CANCELLED" && order?.status !== "RETURNED"
   const canAdvance = STATUS_FLOW.indexOf(order?.status || "") < STATUS_FLOW.length - 1 && canCancel
 
   const handleCancel = async () => {
-    if (!order?.id || !order?.orderNumber) {
-      toast.error("Invalid order data")
-      return
-    }
-    
+    if (!order?.id || !order?.orderNumber) { toast.error("Invalid order data"); return }
     if (!confirm(`Cancel order ${order.orderNumber}? This cannot be undone.`)) return
-    
     setIsCancelling(true)
     try {
       const result = await cancelSalesOrder(order.id)
@@ -652,25 +681,8 @@ export default function SalesOrderDetailView({
     }
   }
 
-  const handleViewDetails = () => {
-    if (order?.id) {
-      router.push(`/dashboard/sales/orders/${order.id}/details`)
-    }
-  }
-
-  const handleEdit = () => {
-    if (order?.id) {
-      onEdit(salesOrder)
-    }
-  }
-
-  const handlePrint = () => {
-    if (onPrint) {
-      onPrint()
-    } else {
-      window.print()
-    }
-  }
+  const handleViewDetails = () => order?.id && router.push(`/dashboard/sales/orders/${order.id}/details`)
+  const handlePrint       = () => onPrint ? onPrint() : window.print()
 
   return (
     <>
@@ -696,23 +708,14 @@ export default function SalesOrderDetailView({
           </div>
 
           {/* ── Action buttons ── */}
-          <div className="flex flex-wrap gap-2">
-            {/* Full details */}
-            <Button size="sm" variant="outline" onClick={handleViewDetails}>
-              <Eye className="w-3.5 h-3.5 mr-1.5" />Details
-            </Button>
+          {/* PRIMARY: Record Payment · Return · Cancel — always visible when applicable */}
+          {/* SECONDARY: Details, Edit, Update Status, Send Invoice, Invoice, Print — in three-dot */}
+          <div className="flex flex-wrap items-center gap-2">
 
-            {/* Edit */}
-            {canEdit && (
-              <Button size="sm" variant="outline" onClick={handleEdit}>
-                <Edit className="w-3.5 h-3.5 mr-1.5" />Edit
-              </Button>
-            )}
-
-            {/* Record Payment */}
+            {/* Record Payment — primary, most important */}
             {canPay && (
-              <Button 
-                size="sm" 
+              <Button
+                size="sm"
                 onClick={() => setShowPaymentDialog(true)}
                 className="bg-green-600 hover:bg-green-700 text-white"
               >
@@ -723,8 +726,8 @@ export default function SalesOrderDetailView({
 
             {/* Return */}
             {canReturn && (
-              <Button 
-                size="sm" 
+              <Button
+                size="sm"
                 onClick={() => setShowReturnDialog(true)}
                 className="bg-orange-500 hover:bg-orange-600 text-white"
               >
@@ -732,34 +735,12 @@ export default function SalesOrderDetailView({
               </Button>
             )}
 
-            {/* Update status */}
-            {canAdvance && (
-              <Button size="sm" variant="outline" onClick={() => setShowStatusDialog(true)}>
-                <ArrowUpDown className="w-3.5 h-3.5 mr-1.5" />Update Status
-              </Button>
-            )}
-
-            {/* Send Invoice */}
-            <Button size="sm" variant="outline" onClick={() => setShowEmailDialog(true)}>
-              <Send className="w-3.5 h-3.5 mr-1.5" />Send Invoice
-            </Button>
-
-            {/* View Invoice */}
-            <Button size="sm" variant="outline" onClick={handleViewDetails}>
-              <FileText className="w-3.5 h-3.5 mr-1.5" />Invoice
-            </Button>
-
-            {/* Print */}
-            <Button size="sm" variant="outline" onClick={handlePrint}>
-              <Printer className="w-3.5 h-3.5 mr-1.5" />Print
-            </Button>
-
             {/* Cancel */}
             {canCancel && (
-              <Button 
-                size="sm" 
-                variant="destructive" 
-                onClick={handleCancel} 
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={handleCancel}
                 disabled={isCancelling}
               >
                 {isCancelling
@@ -768,6 +749,20 @@ export default function SalesOrderDetailView({
                 }
               </Button>
             )}
+
+            {/* Three-dot: secondary actions tucked away */}
+            <div className="ml-auto">
+              <MoreActionsMenu
+                onDetails={handleViewDetails}
+                onSendInvoice={() => setShowEmailDialog(true)}
+                onInvoice={handleViewDetails}
+                onPrint={handlePrint}
+                onEdit={() => onEdit(salesOrder)}
+                onUpdateStatus={() => setShowStatusDialog(true)}
+                showEdit={canEdit}
+                showUpdateStatus={canAdvance}
+              />
+            </div>
           </div>
 
           <Separator />
@@ -791,8 +786,9 @@ export default function SalesOrderDetailView({
             </div>
           )}
 
-          {/* ── Still owing alert ── */}
-          {amountOwing > 0.01 && order?.status !== "CANCELLED" && (
+          {/* ── Outstanding balance banner ── */}
+          {/* Hidden when paymentStatus is PAID / CANCELLED / REFUNDED */}
+          {showOutstanding && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
@@ -801,8 +797,8 @@ export default function SalesOrderDetailView({
                 </span>
               </div>
               {canPay && (
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
                   onClick={() => setShowPaymentDialog(true)}
                   className="bg-green-600 hover:bg-green-700 text-white h-7 text-xs"
                 >
@@ -909,7 +905,8 @@ export default function SalesOrderDetailView({
                 <span>{formatCurrency(amountPaid)}</span>
               </div>
             )}
-            {amountOwing > 0.01 && (
+            {/* Still Owing row — same guard as the banner */}
+            {showOutstanding && (
               <div className="flex justify-between text-red-600 font-semibold">
                 <span className="flex items-center gap-1.5">
                   <AlertCircle className="w-3.5 h-3.5" />Still Owing
@@ -936,17 +933,13 @@ export default function SalesOrderDetailView({
                           isRefund ? "bg-orange-50" : "bg-green-50"
                         }`}>
                         <div>
-                          <span className={`font-medium text-xs ${
-                            isRefund ? "text-orange-700" : "text-green-700"
-                          }`}>
+                          <span className={`font-medium text-xs ${isRefund ? "text-orange-700" : "text-green-700"}`}>
                             {isRefund ? "Refund" : "Payment"} · {p.method?.replace(/_/g, " ")}
                           </span>
                           <p className="text-xs text-muted-foreground">{formatDate(p.paidAt || p.createdAt)}</p>
                           {p.reference && <p className="text-xs text-muted-foreground">{p.reference}</p>}
                         </div>
-                        <span className={`font-semibold text-sm ${
-                          isRefund ? "text-orange-600" : "text-green-600"
-                        }`}>
+                        <span className={`font-semibold text-sm ${isRefund ? "text-orange-600" : "text-green-600"}`}>
                           {isRefund ? "-" : "+"}GHS {Math.abs(p.amount).toFixed(2)}
                         </span>
                       </div>
