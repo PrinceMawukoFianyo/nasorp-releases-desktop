@@ -535,9 +535,15 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
   };
 
   // ── Inventory Value ────────────────────────────────────────────────────────
+  // Cost value:   quantity × costPrice   — "what did this stock cost me?" (matches accounting dashboard)
   // Retail value: quantity × sellingPrice — "how much is my stock worth if sold?"
-  // Dashboard uses the same formula so both figures always match.
-  const getInventoryValue = (products: BriefItemResponse[]) =>
+  const getInventoryCostValue = (products: BriefItemResponse[]) =>
+    products.reduce((sum, p) => {
+      const qty = (p as any).totalStock ?? 0;
+      return sum + qty * p.costPrice;
+    }, 0);
+
+  const getInventoryRetailValue = (products: BriefItemResponse[]) =>
     products.reduce((sum, p) => {
       const qty = (p as any).totalStock ?? 0;
       return sum + qty * p.sellingPrice;
@@ -721,7 +727,7 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
         title={title}
         subtitle={
           displayItems.length > 0
-            ? `${displayItems.length} ${displayItems.length === 1 ? "item" : "items"} | Inventory Value: ${formatCurrency(getInventoryValue(displayItems))}`
+            ? `${displayItems.length} ${displayItems.length === 1 ? "item" : "items"} | Cost Value: ${formatCurrency(getInventoryCostValue(displayItems))} | Retail Value: ${formatCurrency(getInventoryRetailValue(displayItems))}`
             : selectedLocationId
             ? "No items in this location"
             : "No items found"

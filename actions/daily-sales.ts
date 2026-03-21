@@ -51,7 +51,7 @@ export type DaySummary = {
   salesOrders:     DailySaleOrder[];   // source = SALES_ORDER
   posOrders:       DailySaleOrder[];   // source = POS
   creditPaid:      DailySaleOrder[];   // SalesOrderPayment records
-  totalRevenue:    number;             // salesOrders + posOrders (not credit paid — already counted)
+  totalRevenue:    number;             // POS totals + upfront deposits on orders + credit payments collected
   totalPOS:        number;
   totalCredit:     number;
   totalCreditPaid: number;
@@ -175,12 +175,27 @@ export async function getDailySales(params: {
     }
 
     // ── 4. Assign orders to their day ────────────────────────────────────────
+    //
+    //  POS detection: use orderNumber.startsWith("POS-") — this is the
+    //  reliable identifier used across the whole codebase, not o.source.
+    //
+    //  Revenue rules:
+    //  • POS orders  → always fully paid at point of sale → full total is revenue
+    //  • SALES_ORDER → may be on credit (PENDING/PARTIAL with amountPaid = 0).
+    //      - A pure credit order (nothing paid upfront) adds 0 to today's revenue.
+    //      - It still appears in salesOrders so staff can see it.
+    //      - Any cash collected later appears in step 5 on the payment date.
     for (const o of orders) {
       const key = format(o.createdAt, "yyyy-MM-dd");
       const day = dayMap.get(key);
       if (!day) continue;
 
-      const total = orderTotal(o);
+      const total       = orderTotal(o);
+      const amountPaid  = Number(o.amountPaid);
+      const amountOwing = Number(o.amountOwing);
+
+      // Use orderNumber prefix as the reliable POS identifier
+      const isPOS = o.orderNumber.startsWith("POS-") || o.source === "POS";
 
       const lineItems: SaleLineItem[] = o.lines.map(li => ({
         itemName:  li.item?.name  ?? "Unknown Item",
@@ -197,12 +212,12 @@ export async function getDailySales(params: {
         customerId:    o.customer?.id    ?? "",
         customerEmail: o.customer?.email ?? "",
         customerPhone: o.customer?.phone ?? "",
-        type:          o.source === "POS" ? "POS" : "SALES_ORDER",
+        type:          isPOS ? "POS" : "SALES_ORDER",
         status:        o.status,
         paymentStatus: o.paymentStatus,
         total,
-        amountPaid:    Number(o.amountPaid),
-        amountOwing:   Number(o.amountOwing),
+        amountPaid,
+        amountOwing,
         paymentMethod: o.paymentMethod ?? null,
         createdAt:     o.createdAt.toISOString(),
         time:          format(o.createdAt, "HH:mm"),
@@ -210,20 +225,26 @@ export async function getDailySales(params: {
         notes:         o.notes ?? null,
       };
 
-      if (o.source === "POS") {
+      if (isPOS) {
+        // POS: fully paid at the till — full total is today's revenue
         day.posOrders.push(entry);
         day.totalPOS     += total;
+        day.totalRevenue += total;
       } else {
+        // SALES_ORDER: only count what was actually paid upfront today.
+        // Pure credit orders (amountPaid = 0) add nothing to revenue.
+        // Later payments are counted in step 5 on the actual payment date.
         day.salesOrders.push(entry);
-        day.totalCredit  += total;
+        day.totalCredit  += amountPaid;
+        day.totalRevenue += amountPaid;
       }
-      day.totalRevenue += total;
       day.orderCount++;
     }
 
     // ── 5. Assign credit payments to their collection day ────────────────────
-    //    NOTE: totalRevenue does NOT include creditPaid — the revenue was already
-    //    counted when the order was placed. creditPaid is cash-flow only.
+    //    Each SalesOrderPayment = real cash received from a debtor.
+    //    Revenue is recognised on the day the payment was collected (paidAt),
+    //    not the day the original credit order was created.
     for (const pmt of payments) {
       const key = format(pmt.paidAt, "yyyy-MM-dd");
       const day = dayMap.get(key);
@@ -252,7 +273,7 @@ export async function getDailySales(params: {
         total:         Number(pmt.amount),
         amountPaid:    Number(pmt.amount),
         amountOwing:   0,
-        paymentMethod: pmt.method,   // PaymentMethod enum: CASH | MOMO | CREDIT_CARD
+        paymentMethod: pmt.method,
         createdAt:     pmt.paidAt.toISOString(),
         time:          format(pmt.paidAt, "HH:mm"),
         items:         lineItems,
@@ -261,6 +282,7 @@ export async function getDailySales(params: {
 
       day.creditPaid.push(entry);
       day.totalCreditPaid += Number(pmt.amount);
+      day.totalRevenue    += Number(pmt.amount); // real cash received today
     }
 
     // ── 6. Build result ───────────────────────────────────────────────────────

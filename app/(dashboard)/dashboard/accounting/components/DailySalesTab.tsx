@@ -478,7 +478,7 @@ export default function DailySalesTab() {
       <div className="grid grid-cols-4 gap-3">
         {[
           { label:"Total Revenue",   value:selectedDay.totalRevenue,    accent:"green",  icon:TrendingUp,   sub:`${selectedDay.orderCount} orders` },
-          { label:"Sales Orders",    value:selectedDay.totalCredit,     accent:"emerald", icon:ShoppingCart, sub:`${selectedDay.salesOrders.length} orders` },
+          { label:"Sales Orders",    value:selectedDay.totalCredit,     accent:"emerald", icon:ShoppingCart, sub:`${selectedDay.salesOrders.length} orders · cash received` },
           { label:"POS / Cash",      value:selectedDay.totalPOS,        accent:"blue",   icon:Banknote,     sub:`${selectedDay.posOrders.length} transactions` },
           { label:"Credit Collected",value:selectedDay.totalCreditPaid, accent:"amber",  icon:CreditCard,   sub:`${selectedDay.creditPaid.length} payments` },
         ].map((s,i) => (
@@ -651,7 +651,7 @@ export default function DailySalesTab() {
               <CardContent className="pt-4 pb-4">
                 <div className="grid grid-cols-4 divide-x divide-border">
                   {[
-                    { label:"Revenue from Orders", value:selectedDay.totalCredit,     cls:"text-emerald-700" },
+                    { label:"Revenue from Orders", value:selectedDay.totalCredit,     cls:"text-emerald-700" }, // paid portion of sales orders only
                     { label:"Revenue from POS",    value:selectedDay.totalPOS,        cls:"text-blue-700" },
                     { label:"Credit Collected",    value:selectedDay.totalCreditPaid, cls:"text-amber-700" },
                     { label:"Total Revenue",       value:selectedDay.totalRevenue,    cls:"text-emerald-700 font-bold" },

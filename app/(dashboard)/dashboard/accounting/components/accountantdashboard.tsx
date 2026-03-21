@@ -566,7 +566,7 @@ export default function AccountantDashboard({
             <div className="grid grid-cols-3 gap-3">
               <StatCard label="Total Revenue"      value={fmt(totalRevenue)}      sub={`${grossMargin.toFixed(1)}% gross margin`}            accent="green"  icon={TrendingUp}   href="/dashboard/reports/sales"/>
               <StatCard label="Net Profit"         value={fmt(netProfit)}         sub="After expenses + payroll"                              accent="teal"   icon={DollarSign}/>
-              <StatCard label="Inventory Value"    value={fmt(inventoryValue)}    sub={`${d?.totalItems??0} active items`}                    accent="blue"   icon={Package2}     href="/dashboard/inventory/items"/>
+              <StatCard label="Inventory Value (Cost)" value={fmt(inventoryValue)}    sub={`Retail: ${fmt(d?.inventoryValueAtRetail??0)} · ${d?.totalItems??0} items`} accent="blue"   icon={Package2}     href="/dashboard/inventory/items"/>
               <StatCard label="Outstanding Credit" value={fmt(outstandingCredit)} sub={`${creditSummary?.activeDebtors??0} debtors`}          accent="orange" icon={CreditCard}   href="/dashboard/sales/orders/credit"/>
               <StatCard label="Tax Collected"      value={fmt(taxCollected)}      sub="VAT & other taxes"                                     accent="purple" icon={Receipt}/>
               <StatCard label="COGS / Purchases"   value={fmt(cogs)}              sub="Cost of goods / purchases"                             accent="red"    icon={TrendingDown} href="/dashboard/purchases/purchase-orders"/>
