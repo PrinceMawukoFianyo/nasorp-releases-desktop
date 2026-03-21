@@ -26,6 +26,11 @@ import {
   Wallet,
   ArrowLeftRight,
   TrendingDown,
+  Calculator,
+  Receipt,
+  CreditCard,
+  PiggyBank,
+  BadgeDollarSign,
 } from "lucide-react";
 
 export interface ISidebarLink {
@@ -46,7 +51,7 @@ type MenuItem = {
 };
 
 export const sidebarLinks: ISidebarLink[] = [
-  // Dashboard
+  // ── Dashboard ──────────────────────────────────────────────────────────────
   {
     title: "Dashboard",
     href: "/dashboard",
@@ -55,7 +60,63 @@ export const sidebarLinks: ISidebarLink[] = [
     permission: "dashboard.read",
   },
 
-  // Inventory Section
+  // ── Accounting ─────────────────────────────────────────────────────────────
+  {
+    title: "Accounting",
+    icon: Calculator,
+    dropdown: true,
+    href: "/dashboard/accounting",
+    permission: "accounting.read",
+    dropdownMenu: [
+      {
+        title: "Overview",
+        href: "/dashboard/accounting",
+        permission: "accounting.read",
+      },
+      {
+        title: "Daily Sales",
+        href: "/dashboard/accounting?tab=daily",
+        permission: "accounting.read",
+      },
+      {
+        title: "Expenses",
+        href: "/dashboard/accounting?tab=expenses",
+        permission: "accounting.read",
+      },
+      {
+        title: "Payroll",
+        href: "/dashboard/accounting?tab=payroll",
+        permission: "accounting.payroll",
+      },
+      {
+        title: "Credit & Payments",
+        href: "/dashboard/accounting?tab=credit",
+        permission: "accounting.read",
+      },
+      {
+        title: "Locations P&L",
+        href: "/dashboard/accounting?tab=locations",
+        permission: "accounting.read",
+      },
+      {
+        title: "Forecast",
+        href: "/dashboard/accounting?tab=forecast",
+        permission: "accounting.read",
+      },
+      {
+        title: "Paystack Settings",
+        href: "/dashboard/accounting?tab=paystack",
+        permission: "accounting.admin",
+      },
+      {
+        title: "Billing & Plan",
+        href: "/dashboard/accounting?tab=billing",
+        permission: "accounting.read",
+      },
+    ],
+  },
+
+  // ── Inventory ──────────────────────────────────────────────────────────────
   {
     title: "Inventory",
     icon: Package,
@@ -83,21 +144,23 @@ export const sidebarLinks: ISidebarLink[] = [
         href: "/dashboard/inventory/units",
         permission: "units.read",
       },
+      /*
       {
         title: "Current Stock",
         href: "/dashboard/inventory/stock",
         permission: "stock.read",
-      },
+      },*/
       {
         title: "Low Stock Items",
         href: "/dashboard/inventory/stock",
         permission: "stock.read",
       },
+      /*
       {
         title: "Serial Numbers",
         href: "/dashboard/inventory/serial-numbers",
         permission: "serial.numbers.read",
-      },
+      },*/
       {
         title: "Stock Transfers",
         href: "/dashboard/inventory/transfers",
@@ -108,16 +171,18 @@ export const sidebarLinks: ISidebarLink[] = [
         href: "/dashboard/inventory/adjustments",
         permission: "adjustments.read",
       },
+      /*
       {
         title: "Batch/Lot Numbers",
         href: "/dashboard/inventory/batch-numbers",
         permission: "batch_numbers.read",
-      },
+      },*/
       {
         title: "Barcode Management",
         href: "/dashboard/inventory/barcodes",
         permission: "barcodes.read",
       },
+      /*
       {
         title: "Warehouses",
         href: "/dashboard/inventory/warehouses",
@@ -127,11 +192,11 @@ export const sidebarLinks: ISidebarLink[] = [
         title: "Stock Takes",
         href: "/dashboard/inventory/stock-takes",
         permission: "stock_takes.read",
-      },
+      },*/
     ],
   },
 
-  // Purchases Section
+  // ── Purchases ──────────────────────────────────────────────────────────────
   {
     title: "Purchases",
     icon: ShoppingBag,
@@ -162,7 +227,7 @@ export const sidebarLinks: ISidebarLink[] = [
     ],
   },
 
-  // Sales Section
+  // ── Sales ──────────────────────────────────────────────────────────────────
   {
     title: "Sales",
     icon: TrendingUp,
@@ -198,7 +263,7 @@ export const sidebarLinks: ISidebarLink[] = [
     ],
   },
 
-  // Reports Section
+  // ── Reports ────────────────────────────────────────────────────────────────
   {
     title: "Reports",
     icon: BarChart3,
@@ -216,7 +281,8 @@ export const sidebarLinks: ISidebarLink[] = [
         href: "/dashboard/reports/sales",
         permission: "reports.read",
       },
-     /*  {
+      /*
+      {
         title: "Inventory Valuation",
         href: "/dashboard/reports/inventory-valuation",
         permission: "reports.read",
@@ -250,11 +316,12 @@ export const sidebarLinks: ISidebarLink[] = [
         title: "Customer Analysis",
         href: "/dashboard/reports/customer-analysis",
         permission: "reports.read",
-      }, */
+      },
+      */
     ],
   },
 
-  // Integrations Section
+  // ── Integrations ───────────────────────────────────────────────────────────
   {
     title: "Integrations",
     icon: Cable,
@@ -270,18 +337,17 @@ export const sidebarLinks: ISidebarLink[] = [
       {
         title: "Accounting Integration",
         href: "/dashboard/integrations/accounting",
-        permission: "integrations.read", //  FIXED: Matches permissions.ts
-
+        permission: "integrations.read",
       },
       {
         title: "API Settings",
         href: "/dashboard/integrations/api-settings",
-        permission: "api_settings.read", //  FIXED: Changed from integrations.admin
+        permission: "api_settings.read",
       },
     ],
   },
 
-  // Settings Section
+  // ── Settings ───────────────────────────────────────────────────────────────
   {
     title: "Settings",
     href: "/dashboard/settings",
@@ -294,13 +360,11 @@ export const sidebarLinks: ISidebarLink[] = [
         href: "/dashboard/settings/locations",
         permission: "locations.read",
       },
-      
       {
-        title: "Tax Rates", 
+        title: "Tax Rates",
         href: "/dashboard/settings/tax-rates",
-        permission: "tax.settings.read", 
+        permission: "tax.settings.read",
       },
-    
       {
         title: "Users & Invites",
         href: "/dashboard/settings/users",
@@ -330,7 +394,7 @@ export const sidebarLinks: ISidebarLink[] = [
   },
 ];
 
-// Helper function to filter sidebar links based on user permissions
+// ── Permission filter helper ───────────────────────────────────────────────────
 export const filterSidebarByPermissions = (
   links: ISidebarLink[],
   userPermissions: string[]
@@ -349,7 +413,6 @@ export const filterSidebarByPermissions = (
       return link;
     })
     .filter((link) => {
-      // Remove dropdown items with no visible menu items
       if (link.dropdown && link.dropdownMenu) {
         return link.dropdownMenu.length > 0;
       }

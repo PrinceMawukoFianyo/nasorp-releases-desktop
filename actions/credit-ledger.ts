@@ -1,25 +1,8 @@
 // actions/credit-ledger.ts
-// ─────────────────────────────────────────────────────────────────────────────
-// Complete credit & payment ledger for sales orders.
-//
-// Every event that touches money is automatically recorded here:
-//   • Order created on credit (PENDING / PARTIAL)
-//   • Payment received (cash / MoMo / card) — partial or full
-//   • Credit order cancelled (customer cannot pay) → stock reversed
-//   • Sales return approved → refund recorded
-//   • Payment status auto-updates (PENDING → PARTIAL → PAID → REFUNDED)
-//
-// All ledger data can be:
-//   • Queried per customer, per order, or org-wide
-//   • Exported to CSV
-//   • Printed via the invoice/receipt pages
-// ─────────────────────────────────────────────────────────────────────────────
 "use server"
 
 import { db } from "@/prisma/db"
 import { getAuthenticatedUser } from "@/config/useAuth"
-import { revalidatePath } from "next/cache"
-import { PaymentStatus, SalesOrderStatus } from "@prisma/client"
 import { format } from "date-fns"
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -27,56 +10,53 @@ import { format } from "date-fns"
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type LedgerEventType =
-  | "ORDER_CREATED"       // credit order placed
-  | "PAYMENT_RECEIVED"    // cash / MoMo / card payment recorded
-  | "ORDER_CANCELLED"     // credit order cancelled — stock reversed
-  | "RETURN_REFUND"       // sales return approved — refund issued
-  | "PAYMENT_VOIDED"      // payment reversed (linked to cancellation)
-  | "STATUS_CHANGE"       // payment status changed manually
+  | "ORDER_CREATED"
+  | "PAYMENT_RECEIVED"
+  | "ORDER_CANCELLED"
+  | "RETURN_REFUND"
+  | "PAYMENT_VOIDED"
+  | "STATUS_CHANGE"
 
 export interface LedgerEntry {
   id:            string
   eventType:     LedgerEventType
-  eventLabel:    string            // human-readable label for display
+  eventLabel:    string
   orderId:       string
   orderNumber:   string
   customerId:    string | null
   customerName:  string
   customerPhone: string | null
   locationName:  string
-  date:          string            // formatted date string
+  date:          string
   rawDate:       Date
-  // Amounts
   orderTotal:    number
   amountPaid:    number
   amountOwing:   number
   paymentMethod: string | null
   reference:     string | null
-  // Status
   paymentStatus: string
   orderStatus:   string
-  // Meta
   notes:         string | null
   recordedBy:    string | null
 }
 
 export interface CreditLedgerSummary {
-  totalCreditGiven:    number   // total value of credit orders
-  totalCollected:      number   // total payments received
-  totalOutstanding:    number   // total still owed
-  totalCancelled:      number   // value of cancelled/voided orders
-  totalRefunded:       number   // value of returns/refunds
-  activeDebtors:       number   // customers with outstanding balance
-  overdueCount:        number   // orders past delivery date still unpaid
-  paidCount:           number   // fully paid orders
-  partialCount:        number   // partially paid orders
-  pendingCount:        number   // unpaid orders
+  totalCreditGiven:    number
+  totalCollected:      number
+  totalOutstanding:    number
+  totalCancelled:      number
+  totalRefunded:       number
+  activeDebtors:       number
+  overdueCount:        number
+  paidCount:           number
+  partialCount:        number
+  pendingCount:        number
 }
 
 export interface CreditLedgerData {
   entries:    LedgerEntry[]
   summary:    CreditLedgerSummary
-  exportRows: CsvRow[]           // pre-built for CSV export
+  exportRows: CsvRow[]
 }
 
 export interface CsvRow {
@@ -98,58 +78,91 @@ export interface CsvRow {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// HELPER — order total formula
+// ─────────────────────────────────────────────────────────────────────────────
+function calcTotal(o: {
+  subtotal: number; taxAmount: number;
+  shippingCost: number | null; discount: number | null
+}): number {
+  return (
+    Number(o.subtotal      ?? 0) +
+    Number(o.taxAmount     ?? 0) +
+    Number(o.shippingCost  ?? 0) -
+    Number(o.discount      ?? 0)
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPER — compute true amountOwing for an order
+//
+// The key insight: we must NEVER use amountOwing from the DB if paymentStatus
+// is PAID, because PAID means the customer owes nothing regardless of what
+// the column says. Similarly for CANCELLED orders.
+//
+// Priority:
+//  1. If status=CANCELLED → 0 (cancelled orders owe nothing)
+//  2. If paymentStatus=PAID → 0 (fully paid)
+//  3. If amountOwing DB column > 0 → use it (maintained by recordPayment)
+//  4. Fallback: orderTotal - amountPaid (for legacy rows where column was 0)
+// ─────────────────────────────────────────────────────────────────────────────
+function computeOwing(o: {
+  subtotal: number; taxAmount: number; shippingCost: number | null; discount: number | null
+  amountPaid: number | null; amountOwing: number | null
+  paymentStatus: string; status: string
+}): number {
+  // Cancelled or fully paid → owes nothing
+  if (o.status === "CANCELLED") return 0
+  if (o.paymentStatus === "PAID") return 0
+
+  const orderTotal = calcTotal(o)
+  const paid       = Number(o.amountPaid ?? 0)
+
+  // Trust the DB column if it's positive
+  if (Number(o.amountOwing ?? 0) > 0) return Number(o.amountOwing)
+
+  // Fallback for legacy rows
+  return Math.max(0, orderTotal - paid)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // getCreditLedger
-// Returns the full ledger for all credit orders in the org, optionally
-// filtered by date range, customer, status, or a single order.
 // ─────────────────────────────────────────────────────────────────────────────
 export async function getCreditLedger(filters?: {
-  fromDate?:     Date
-  toDate?:       Date
-  customerId?:   string
-  orderId?:      string
-  paymentStatus?: string   // "PENDING" | "PARTIAL" | "PAID" | "REFUNDED" | "ALL"
+  fromDate?:         Date
+  toDate?:           Date
+  customerId?:       string
+  orderId?:          string
+  paymentStatus?:    string
   includeFullyPaid?: boolean
 }): Promise<{ success: boolean; data?: CreditLedgerData; error?: string }> {
   try {
-    const user = await getAuthenticatedUser()
-
-    const from  = filters?.fromDate
-    const to    = filters?.toDate
+    const user     = await getAuthenticatedUser()
+    const from     = filters?.fromDate
+    const to       = filters?.toDate
     const showPaid = filters?.includeFullyPaid ?? true
 
-    // Build the where clause
     const where: any = {
-      orgId: user.orgId,
-      // Only credit-related orders: exclude POS (always PAID on creation)
-      // We include orders that ever had a credit payment status
-      OR: [
-        { paymentStatus: "PENDING"  },
-        { paymentStatus: "PARTIAL"  },
-        { paymentStatus: "PAID"     },
-        { paymentStatus: "REFUNDED" },
-      ],
-    }
-
-    if (!showPaid) {
-      where.OR = [
-        { paymentStatus: "PENDING" },
-        { paymentStatus: "PARTIAL" },
-      ]
+      orgId:  user.orgId,
+      source: "SALES_ORDER",                         // never include POS
+      status: { notIn: ["CANCELLED", "DRAFT"] },     // never include cancelled
+      OR: showPaid
+        ? [
+            { paymentStatus: "PENDING"  },
+            { paymentStatus: "PARTIAL"  },
+            { paymentStatus: "PAID"     },
+          ]
+        : [
+            { paymentStatus: "PENDING" },
+            { paymentStatus: "PARTIAL" },
+          ],
     }
 
     if (filters?.paymentStatus && filters.paymentStatus !== "ALL") {
-      where.OR = undefined
+      delete where.OR
       where.paymentStatus = filters.paymentStatus
     }
-
-    if (filters?.customerId) {
-      where.customerId = filters.customerId
-    }
-
-    if (filters?.orderId) {
-      where.id = filters.orderId
-    }
-
+    if (filters?.customerId) where.customerId = filters.customerId
+    if (filters?.orderId)    where.id         = filters.orderId
     if (from || to) {
       where.createdAt = {
         ...(from && { gte: from }),
@@ -157,7 +170,6 @@ export async function getCreditLedger(filters?: {
       }
     }
 
-    // Fetch orders with all related data
     const orders = await db.salesOrder.findMany({
       where,
       include: {
@@ -166,6 +178,7 @@ export async function getCreditLedger(filters?: {
         createdBy: { select: { id: true, name: true } },
         lines:     { include: { item: { select: { id: true, name: true, sku: true } } } },
         payments: {
+          where:   { reference: { not: { contains: "VOIDED" } } },
           orderBy: { paidAt: "asc" },
           include: { recordedBy: { select: { id: true, name: true } } },
         },
@@ -173,12 +186,11 @@ export async function getCreditLedger(filters?: {
       orderBy: { createdAt: "desc" },
     })
 
-    // Also fetch cancelled orders that had payments (voided)
-    const cancelledWithPayments = await db.salesOrder.findMany({
+    const cancelledOrders = await db.salesOrder.findMany({
       where: {
         orgId:  user.orgId,
+        source: "SALES_ORDER",
         status: "CANCELLED",
-        paymentStatus: "REFUNDED",
         ...(from || to ? { createdAt: {
           ...(from && { gte: from }),
           ...(to   && { lte: to   }),
@@ -188,24 +200,18 @@ export async function getCreditLedger(filters?: {
       include: {
         customer:  { select: { id: true, name: true, phone: true } },
         location:  { select: { id: true, name: true } },
-        payments:  { include: { recordedBy: { select: { id: true, name: true } } } },
         createdBy: { select: { id: true, name: true } },
       },
     })
 
     // ── Build ledger entries ──────────────────────────────────────────────────
-
     const entries: LedgerEntry[] = []
 
     for (const order of orders) {
-      const orderTotal =
-        (order.subtotal     || 0) +
-        (order.taxAmount    || 0) +
-        (order.shippingCost || 0) -
-        (order.discount     || 0)
-
-      const amountPaid  = order.amountPaid  ?? order.payments.reduce((s: number, p: any) => s + p.amount, 0)
-      const amountOwing = order.amountOwing ?? Math.max(0, orderTotal - amountPaid)
+      const orderTotal  = calcTotal(order)
+      const paymentsSum = order.payments.reduce((s: number, p: any) => s + Number(p.amount), 0)
+      const amountPaid  = Number(order.amountPaid ?? 0) > 0 ? Number(order.amountPaid) : paymentsSum
+      const amountOwing = computeOwing({ ...order, amountPaid })
 
       const base = {
         orderId:       order.id,
@@ -222,12 +228,11 @@ export async function getCreditLedger(filters?: {
         recordedBy:    order.createdBy?.name ?? null,
       }
 
-      // 1. ORDER_CREATED entry
       entries.push({
         ...base,
         id:            `${order.id}-created`,
         eventType:     "ORDER_CREATED",
-        eventLabel:    order.status === "CANCELLED" ? "Order Cancelled" : "Credit Order Created",
+        eventLabel:    "Credit Order Created",
         date:          format(order.createdAt, "dd MMM yyyy, hh:mm a"),
         rawDate:       order.createdAt,
         paymentMethod: order.paymentMethod ?? null,
@@ -235,37 +240,25 @@ export async function getCreditLedger(filters?: {
         notes:         order.notes ?? null,
       })
 
-      // 2. PAYMENT_RECEIVED entries — one per payment
       for (const payment of (order.payments as any[])) {
-        const isVoided = payment.reference?.includes("VOIDED")
         entries.push({
           ...base,
           id:            payment.id,
-          eventType:     isVoided ? "PAYMENT_VOIDED" : "PAYMENT_RECEIVED",
-          eventLabel:    isVoided
-            ? "Payment Voided (Order Cancelled)"
-            : `Payment Received — ${payment.method.replace("_", " ")}`,
+          eventType:     "PAYMENT_RECEIVED",
+          eventLabel:    `Payment Received — ${payment.method.replace("_", " ")}`,
           date:          format(new Date(payment.paidAt), "dd MMM yyyy, hh:mm a"),
           rawDate:       new Date(payment.paidAt),
           paymentMethod: payment.method,
           reference:     payment.reference ?? null,
-          amountPaid:    payment.amount,   // this entry shows just this payment
-          amountOwing:   amountOwing,
+          amountPaid:    Number(payment.amount),
+          amountOwing,
           notes:         payment.reference ?? null,
           recordedBy:    payment.recordedBy?.name ?? base.recordedBy,
         })
       }
     }
 
-    // Add cancellation entries for voided orders (may not be in main list)
-    for (const order of cancelledWithPayments) {
-      const orderTotal =
-        (order.subtotal     || 0) +
-        (order.taxAmount    || 0) +
-        (order.shippingCost || 0) -
-        (order.discount     || 0)
-
-      // Only add if not already in entries
+    for (const order of cancelledOrders) {
       const alreadyAdded = entries.some(e => e.orderId === order.id)
       if (!alreadyAdded) {
         entries.push({
@@ -280,63 +273,42 @@ export async function getCreditLedger(filters?: {
           locationName:  order.location?.name  ?? "N/A",
           date:          format(order.updatedAt, "dd MMM yyyy, hh:mm a"),
           rawDate:       order.updatedAt,
-          orderTotal,
+          orderTotal:    calcTotal(order),
           amountPaid:    0,
-          amountOwing:   0,
+          amountOwing:   0,  // cancelled → owes nothing
           paymentMethod: null,
           reference:     null,
           paymentStatus: order.paymentStatus,
-          orderStatus:   order.status,
+          orderStatus:   "CANCELLED",
           notes:         order.notes ?? null,
           recordedBy:    order.createdBy?.name ?? null,
         })
       }
     }
 
-    // Sort all entries newest first
     entries.sort((a, b) => b.rawDate.getTime() - a.rawDate.getTime())
 
     // ── Summary ───────────────────────────────────────────────────────────────
-
     const now = new Date()
 
-    // Use original orders list (not entries) for summary calculations
-    const creditOrders = orders.filter(o => o.status !== "CANCELLED")
-
-    const totalCreditGiven = creditOrders.reduce((s, o) => {
-      return s + (o.subtotal || 0) + (o.taxAmount || 0) + (o.shippingCost || 0) - (o.discount || 0)
+    const totalCreditGiven = orders.reduce((s, o) => s + calcTotal(o), 0)
+    const totalCollected   = orders.reduce((s, o) => {
+      const paymentsSum = (o.payments as any[]).reduce((ps: number, p: any) => ps + Number(p.amount), 0)
+      return s + (Number(o.amountPaid ?? 0) > 0 ? Number(o.amountPaid) : paymentsSum)
     }, 0)
+    const totalOutstanding = orders.reduce((s, o) => s + computeOwing(o), 0)
+    const totalCancelled   = cancelledOrders.reduce((s, o) => s + calcTotal(o), 0)
+    const totalRefunded    = cancelledOrders.reduce((s, o) => s + Number(o.amountPaid ?? 0), 0)
 
-    const totalCollected = creditOrders.reduce((s, o) => {
-      return s + (o.amountPaid ?? (o.payments as any[]).reduce((ps: number, p: any) => ps + p.amount, 0))
-    }, 0)
-
-    const totalOutstanding = creditOrders.reduce((s, o) => {
-      const total = (o.subtotal || 0) + (o.taxAmount || 0) + (o.shippingCost || 0) - (o.discount || 0)
-      const paid  = o.amountPaid ?? (o.payments as any[]).reduce((ps: number, p: any) => ps + p.amount, 0)
-      return s + Math.max(0, total - paid)
-    }, 0)
-
-    const cancelledOrders = [...orders, ...cancelledWithPayments].filter(o => o.status === "CANCELLED")
-    const totalCancelled  = cancelledOrders.reduce((s, o) => {
-      return s + (o.subtotal || 0) + (o.taxAmount || 0) + (o.shippingCost || 0) - (o.discount || 0)
-    }, 0)
-
-    const totalRefunded = orders
-      .filter(o => o.paymentStatus === "REFUNDED")
-      .reduce((s, o) => {
-        return s + (o.amountPaid ?? 0)
-      }, 0)
-
-    // Unique customers with outstanding balance
+    // Active debtors = unique customers with computeOwing > 0
     const debtorSet = new Set(
-      creditOrders
-        .filter(o => (o.amountOwing ?? 0) > 0)
+      orders
+        .filter(o => computeOwing(o) > 0)
         .map(o => o.customerId)
         .filter(Boolean)
     )
 
-    const overdueCount = creditOrders.filter(o => {
+    const overdueCount = orders.filter(o => {
       if (!o.deliveryDate) return false
       if (o.paymentStatus === "PAID") return false
       return new Date(o.deliveryDate) < now
@@ -348,31 +320,29 @@ export async function getCreditLedger(filters?: {
       totalOutstanding,
       totalCancelled,
       totalRefunded,
-      activeDebtors:  debtorSet.size,
+      activeDebtors: debtorSet.size,
       overdueCount,
-      paidCount:    creditOrders.filter(o => o.paymentStatus === "PAID").length,
-      partialCount: creditOrders.filter(o => o.paymentStatus === "PARTIAL").length,
-      pendingCount: creditOrders.filter(o => o.paymentStatus === "PENDING").length,
+      paidCount:    orders.filter(o => o.paymentStatus === "PAID").length,
+      partialCount: orders.filter(o => o.paymentStatus === "PARTIAL").length,
+      pendingCount: orders.filter(o => o.paymentStatus === "PENDING").length,
     }
 
-    // ── CSV export rows ───────────────────────────────────────────────────────
-
     const exportRows: CsvRow[] = entries.map(e => ({
-      "Date":             e.date,
-      "Order #":          e.orderNumber,
-      "Customer":         e.customerName,
-      "Phone":            e.customerPhone ?? "",
-      "Location":         e.locationName,
-      "Event":            e.eventLabel,
-      "Order Total":      `GHS ${e.orderTotal.toFixed(2)}`,
-      "Amount Paid":      `GHS ${e.amountPaid.toFixed(2)}`,
-      "Amount Owing":     `GHS ${e.amountOwing.toFixed(2)}`,
-      "Payment Method":   e.paymentMethod ?? "",
-      "Reference":        e.reference ?? "",
-      "Payment Status":   e.paymentStatus,
-      "Order Status":     e.orderStatus,
-      "Notes":            e.notes ?? "",
-      "Recorded By":      e.recordedBy ?? "",
+      "Date":            e.date,
+      "Order #":         e.orderNumber,
+      "Customer":        e.customerName,
+      "Phone":           e.customerPhone ?? "",
+      "Location":        e.locationName,
+      "Event":           e.eventLabel,
+      "Order Total":     `GHS ${e.orderTotal.toFixed(2)}`,
+      "Amount Paid":     `GHS ${e.amountPaid.toFixed(2)}`,
+      "Amount Owing":    `GHS ${e.amountOwing.toFixed(2)}`,
+      "Payment Method":  e.paymentMethod ?? "",
+      "Reference":       e.reference ?? "",
+      "Payment Status":  e.paymentStatus,
+      "Order Status":    e.orderStatus,
+      "Notes":           e.notes ?? "",
+      "Recorded By":     e.recordedBy ?? "",
     }))
 
     return { success: true, data: { entries, summary, exportRows } }
@@ -384,142 +354,150 @@ export async function getCreditLedger(filters?: {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// getCustomerCreditHistory
-// All credit activity for a single customer — for a "Customer Account" view.
+// getLedgerStats
 // ─────────────────────────────────────────────────────────────────────────────
-export async function getCustomerCreditHistory(customerId: string): Promise<{
+export async function getLedgerStats(): Promise<{
   success: boolean
-  data?: {
-    customer:       { id: string; name: string; phone: string | null; email: string | null }
-    orders:         CustomerOrderSummary[]
-    totalOwing:     number
-    totalPaid:      number
-    totalOrders:    number
-    overdueOrders:  number
-  }
+  data?: CreditLedgerSummary
   error?: string
 }> {
   try {
     const user = await getAuthenticatedUser()
+    const now  = new Date()
 
-    const customer = await db.customer.findUnique({
-      where: { id: customerId, orgId: user.orgId },
-      select: { id: true, name: true, phone: true, email: true },
-    })
-    if (!customer) return { success: false, error: "Customer not found" }
-
-    const orders = await db.salesOrder.findMany({
-      where: { customerId, orgId: user.orgId },
-      include: {
-        location: { select: { name: true } },
-        lines:    { include: { item: { select: { name: true, sku: true } } } },
-        payments: {
-          orderBy: { paidAt: "asc" },
-          include: { recordedBy: { select: { name: true } } },
-        },
+    // Only PENDING and PARTIAL orders can have money owing
+    // PAID orders owe nothing — exclude them from outstanding calculation
+    // This is the key fix: we only query UNPAID orders for totalOutstanding
+    const unpaidOrders = await db.salesOrder.findMany({
+      where: {
+        orgId:         user.orgId,
+        source:        "SALES_ORDER",
+        status:        { notIn: ["CANCELLED", "DRAFT"] },
+        paymentStatus: { in: ["PENDING", "PARTIAL"] },  // ← only unpaid/partial
       },
-      orderBy: { createdAt: "desc" },
+      select: {
+        id:            true,
+        customerId:    true,
+        subtotal:      true,
+        taxAmount:     true,
+        shippingCost:  true,
+        discount:      true,
+        amountPaid:    true,
+        amountOwing:   true,
+        paymentStatus: true,
+        status:        true,   // ← required by computeOwing
+        deliveryDate:  true,
+        payments: { where: { reference: { not: { contains: "VOIDED" } } }, select: { amount: true } },
+      },
     })
 
-    const now = new Date()
-
-    const orderSummaries: CustomerOrderSummary[] = orders.map(order => {
-      const orderTotal =
-        (order.subtotal     || 0) +
-        (order.taxAmount    || 0) +
-        (order.shippingCost || 0) -
-        (order.discount     || 0)
-      const amountPaid  = order.amountPaid  ?? (order.payments as any[]).reduce((s: number, p: any) => s + p.amount, 0)
-      const amountOwing = order.amountOwing ?? Math.max(0, orderTotal - amountPaid)
-      const isOverdue   = !!order.deliveryDate &&
-                          new Date(order.deliveryDate) < now &&
-                          order.paymentStatus !== "PAID" &&
-                          order.status !== "CANCELLED"
-
-      return {
-        id:            order.id,
-        orderNumber:   order.orderNumber,
-        date:          format(order.createdAt, "dd MMM yyyy"),
-        deliveryDate:  order.deliveryDate ? format(new Date(order.deliveryDate), "dd MMM yyyy") : null,
-        location:      order.location?.name ?? "N/A",
-        orderTotal,
-        amountPaid,
-        amountOwing,
-        paymentStatus: order.paymentStatus,
-        orderStatus:   order.status,
-        isOverdue,
-        payments: (order.payments as any[]).map(p => ({
-          id:            p.id,
-          amount:        p.amount,
-          method:        p.method,
-          reference:     p.reference,
-          date:          format(new Date(p.paidAt), "dd MMM yyyy, hh:mm a"),
-          recordedBy:    p.recordedBy?.name ?? null,
-          isVoided:      p.reference?.includes("VOIDED") ?? false,
-        })),
-        items: order.lines.map((l: any) => ({
-          name:     l.item?.name ?? "Unknown",
-          sku:      l.item?.sku  ?? "",
-          quantity: l.quantity,
-          total:    l.total,
-        })),
-      }
+    // Separately count paid orders (for paidCount stat only)
+    const paidCount = await db.salesOrder.count({
+      where: {
+        orgId:         user.orgId,
+        source:        "SALES_ORDER",
+        status:        { notIn: ["CANCELLED", "DRAFT"] },
+        paymentStatus: "PAID",
+      },
     })
 
-    const totalOwing    = orderSummaries.reduce((s, o) => s + (o.orderStatus !== "CANCELLED" ? o.amountOwing : 0), 0)
-    const totalPaid     = orderSummaries.reduce((s, o) => s + o.amountPaid, 0)
-    const overdueOrders = orderSummaries.filter(o => o.isOverdue).length
+    const cancelledRefunded = await db.salesOrder.findMany({
+      where: {
+        orgId:         user.orgId,
+        source:        "SALES_ORDER",
+        status:        "CANCELLED",
+        paymentStatus: "REFUNDED",
+      },
+      select: {
+        subtotal: true, taxAmount: true,
+        shippingCost: true, discount: true,
+        amountPaid: true, amountOwing: true,
+        paymentStatus: true, status: true,
+      },
+    })
+
+    // totalOutstanding = sum of what PENDING/PARTIAL orders actually owe
+    // Use paymentsSum for legacy rows where amountPaid column was never set
+    const totalOutstanding = unpaidOrders.reduce((s, o) => {
+      const paymentsSum = (o as any).payments?.reduce((ps: number, p: { amount: number }) => ps + Number(p.amount), 0) ?? 0
+      const truePaid    = Math.max(Number(o.amountPaid ?? 0), paymentsSum)
+      const trueOwing   = o.paymentStatus === "PAID" ? 0
+        : Number(o.amountOwing ?? 0) > 0 ? Number(o.amountOwing)
+        : Math.max(0, calcTotal(o) - truePaid)
+      return s + trueOwing
+    }, 0)
+
+    // totalCollected = sum of payments actually received
+    const totalCollected = unpaidOrders.reduce((s, o) => {
+      const paymentsSum = (o as any).payments?.reduce((ps: number, p: { amount: number }) => ps + Number(p.amount), 0) ?? 0
+      return s + Math.max(Number(o.amountPaid ?? 0), paymentsSum)
+    }, 0)
+
+    // totalCreditGiven = total value of all non-cancelled credit orders
+    const allActive = await db.salesOrder.count({
+      where: {
+        orgId:  user.orgId,
+        source: "SALES_ORDER",
+        status: { notIn: ["CANCELLED", "DRAFT"] },
+      },
+    })
+
+    const totalCreditGiven = await db.salesOrder.findMany({
+      where: {
+        orgId:  user.orgId,
+        source: "SALES_ORDER",
+        status: { notIn: ["CANCELLED", "DRAFT"] },
+      },
+      select: { subtotal: true, taxAmount: true, shippingCost: true, discount: true },
+    }).then(rows => rows.reduce((s, o) => s + calcTotal(o), 0))
+
+    const totalCancelled = cancelledRefunded.reduce((s, o) => s + calcTotal(o), 0)
+    const totalRefunded  = cancelledRefunded.reduce((s, o) => s + Number(o.amountPaid ?? 0), 0)
+
+    // activeDebtors = unique customers with money actually owing right now
+    // Use paymentsSum for legacy rows where amountPaid column was never set
+    const debtorSet = new Set(
+      unpaidOrders
+        .filter(o => {
+          const paymentsSum = (o as any).payments?.reduce((ps: number, p: { amount: number }) => ps + Number(p.amount), 0) ?? 0
+          const truePaid    = Math.max(Number(o.amountPaid ?? 0), paymentsSum)
+          const trueOwing   = o.paymentStatus === "PAID" ? 0
+            : Number(o.amountOwing ?? 0) > 0 ? Number(o.amountOwing)
+            : Math.max(0, calcTotal(o) - truePaid)
+          return trueOwing > 0.01
+        })
+        .map(o => o.customerId)
+        .filter(Boolean)
+    )
+
+    const overdueCount = unpaidOrders.filter(o => {
+      if (!o.deliveryDate) return false
+      return new Date(o.deliveryDate) < now
+    }).length
 
     return {
       success: true,
       data: {
-        customer,
-        orders: orderSummaries,
-        totalOwing,
-        totalPaid,
-        totalOrders: orders.length,
-        overdueOrders,
+        totalCreditGiven,
+        totalCollected,
+        totalOutstanding,
+        totalCancelled,
+        totalRefunded,
+        activeDebtors: debtorSet.size,
+        overdueCount,
+        paidCount,
+        partialCount: unpaidOrders.filter(o => o.paymentStatus === "PARTIAL").length,
+        pendingCount: unpaidOrders.filter(o => o.paymentStatus === "PENDING").length,
       },
     }
   } catch (error: any) {
-    console.error("getCustomerCreditHistory error:", error)
+    console.error("getLedgerStats error:", error)
     return { success: false, error: error.message }
   }
 }
 
-export interface CustomerOrderSummary {
-  id:            string
-  orderNumber:   string
-  date:          string
-  deliveryDate:  string | null
-  location:      string
-  orderTotal:    number
-  amountPaid:    number
-  amountOwing:   number
-  paymentStatus: string
-  orderStatus:   string
-  isOverdue:     boolean
-  payments: {
-    id:         string
-    amount:     number
-    method:     string
-    reference:  string | null
-    date:       string
-    recordedBy: string | null
-    isVoided:   boolean
-  }[]
-  items: {
-    name:     string
-    sku:      string
-    quantity: number
-    total:    number
-  }[]
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // getDebtorsList
-// Returns a ranked list of all customers with outstanding balances,
-// grouped by urgency (overdue first).
 // ─────────────────────────────────────────────────────────────────────────────
 export async function getDebtorsList(): Promise<{
   success: boolean
@@ -532,8 +510,9 @@ export async function getDebtorsList(): Promise<{
 
     const orders = await db.salesOrder.findMany({
       where: {
-        orgId: user.orgId,
-        status: { notIn: ["CANCELLED", "RETURNED"] },
+        orgId:         user.orgId,
+        source:        "SALES_ORDER",
+        status:        { notIn: ["CANCELLED", "DRAFT", "RETURNED"] },
         paymentStatus: { in: ["PENDING", "PARTIAL"] },
       },
       include: {
@@ -543,20 +522,16 @@ export async function getDebtorsList(): Promise<{
       orderBy: { createdAt: "desc" },
     })
 
-    // Group by customer
     const customerMap = new Map<string, DebtorSummary>()
 
     for (const order of orders) {
-      const cid = order.customerId ?? "walk-in"
-      const orderTotal =
-        (order.subtotal     || 0) +
-        (order.taxAmount    || 0) +
-        (order.shippingCost || 0) -
-        (order.discount     || 0)
-      const amountPaid  = order.amountPaid  ?? 0
-      const amountOwing = order.amountOwing ?? Math.max(0, orderTotal - amountPaid)
-      const isOverdue   = !!order.deliveryDate &&
-                          new Date(order.deliveryDate) < now
+      const cid         = order.customerId ?? "walk-in"
+      const orderTotal  = calcTotal(order)
+      const amountPaid  = Number(order.amountPaid ?? 0)
+      const amountOwing = computeOwing(order)
+      const isOverdue   = !!order.deliveryDate && new Date(order.deliveryDate) < now
+
+      if (amountOwing <= 0) continue  // skip if nothing owed
 
       const cur = customerMap.get(cid) ?? {
         customerId:    cid,
@@ -567,7 +542,7 @@ export async function getDebtorsList(): Promise<{
         totalPaid:     0,
         orderCount:    0,
         overdueCount:  0,
-        oldestDueDate: null,
+        oldestDueDate: null as Date | null,
         orders:        [],
       }
 
@@ -594,7 +569,6 @@ export async function getDebtorsList(): Promise<{
       customerMap.set(cid, cur)
     }
 
-    // Sort: overdue customers first, then by amount owing desc
     const debtors = Array.from(customerMap.values()).sort((a, b) => {
       if (b.overdueCount !== a.overdueCount) return b.overdueCount - a.overdueCount
       return b.totalOwing - a.totalOwing
@@ -631,18 +605,125 @@ export interface DebtorSummary {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// getLedgerForOrder
-// Returns full payment history for a single order — used on the invoice page
-// and the order detail view.
+// getCustomerCreditHistory
 // ─────────────────────────────────────────────────────────────────────────────
-export async function getLedgerForOrder(orderId: string): Promise<{
+export async function getCustomerCreditHistory(customerId: string): Promise<{
   success: boolean
-  data?: OrderLedger
+  data?: {
+    customer:      { id: string; name: string; phone: string | null; email: string | null }
+    orders:        CustomerOrderSummary[]
+    totalOwing:    number
+    totalPaid:     number
+    totalOrders:   number
+    overdueOrders: number
+  }
   error?: string
 }> {
   try {
     const user = await getAuthenticatedUser()
 
+    const customer = await db.customer.findUnique({
+      where: { id: customerId, orgId: user.orgId },
+      select: { id: true, name: true, phone: true, email: true },
+    })
+    if (!customer) return { success: false, error: "Customer not found" }
+
+    const orders = await db.salesOrder.findMany({
+      where: { customerId, orgId: user.orgId, source: "SALES_ORDER" },
+      include: {
+        location: { select: { name: true } },
+        lines:    { include: { item: { select: { name: true, sku: true } } } },
+        payments: {
+          orderBy: { paidAt: "asc" },
+          include: { recordedBy: { select: { name: true } } },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    })
+
+    const now = new Date()
+
+    const orderSummaries: CustomerOrderSummary[] = orders.map(order => {
+      const orderTotal  = calcTotal(order)
+      const paymentsSum = (order.payments as any[]).reduce((s: number, p: any) => s + Number(p.amount), 0)
+      const amountPaid  = Number(order.amountPaid ?? 0) > 0 ? Number(order.amountPaid) : paymentsSum
+      const amountOwing = computeOwing({ ...order, amountPaid })
+      const isOverdue   = !!order.deliveryDate &&
+                          new Date(order.deliveryDate) < now &&
+                          order.paymentStatus !== "PAID" &&
+                          order.status !== "CANCELLED"
+
+      return {
+        id:            order.id,
+        orderNumber:   order.orderNumber,
+        date:          format(order.createdAt, "dd MMM yyyy"),
+        deliveryDate:  order.deliveryDate ? format(new Date(order.deliveryDate), "dd MMM yyyy") : null,
+        location:      order.location?.name ?? "N/A",
+        orderTotal,
+        amountPaid,
+        amountOwing,
+        paymentStatus: order.paymentStatus,
+        orderStatus:   order.status,
+        isOverdue,
+        payments: (order.payments as any[]).map(p => ({
+          id:          p.id,
+          amount:      Number(p.amount),
+          method:      p.method,
+          reference:   p.reference,
+          date:        format(new Date(p.paidAt), "dd MMM yyyy, hh:mm a"),
+          recordedBy:  p.recordedBy?.name ?? null,
+          isVoided:    (p.reference ?? "").includes("VOIDED"),
+        })),
+        items: order.lines.map((l: any) => ({
+          name:     l.item?.name ?? "Unknown",
+          sku:      l.item?.sku  ?? "",
+          quantity: l.quantity,
+          total:    l.total,
+        })),
+      }
+    })
+
+    const totalOwing    = orderSummaries.reduce((s, o) => s + (o.orderStatus !== "CANCELLED" ? o.amountOwing : 0), 0)
+    const totalPaid     = orderSummaries.reduce((s, o) => s + o.amountPaid, 0)
+    const overdueOrders = orderSummaries.filter(o => o.isOverdue).length
+
+    return {
+      success: true,
+      data: { customer, orders: orderSummaries, totalOwing, totalPaid, totalOrders: orders.length, overdueOrders },
+    }
+  } catch (error: any) {
+    console.error("getCustomerCreditHistory error:", error)
+    return { success: false, error: error.message }
+  }
+}
+
+export interface CustomerOrderSummary {
+  id:            string
+  orderNumber:   string
+  date:          string
+  deliveryDate:  string | null
+  location:      string
+  orderTotal:    number
+  amountPaid:    number
+  amountOwing:   number
+  paymentStatus: string
+  orderStatus:   string
+  isOverdue:     boolean
+  payments: {
+    id: string; amount: number; method: string; reference: string | null
+    date: string; recordedBy: string | null; isVoided: boolean
+  }[]
+  items: { name: string; sku: string; quantity: number; total: number }[]
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// getLedgerForOrder
+// ─────────────────────────────────────────────────────────────────────────────
+export async function getLedgerForOrder(orderId: string): Promise<{
+  success: boolean; data?: OrderLedger; error?: string
+}> {
+  try {
+    const user  = await getAuthenticatedUser()
     const order = await db.salesOrder.findUnique({
       where: { id: orderId, orgId: user.orgId },
       include: {
@@ -659,18 +740,20 @@ export async function getLedgerForOrder(orderId: string): Promise<{
 
     if (!order) return { success: false, error: "Order not found" }
 
-    const orderTotal =
-      (order.subtotal     || 0) +
-      (order.taxAmount    || 0) +
-      (order.shippingCost || 0) -
-      (order.discount     || 0)
+    const orderTotal  = calcTotal(order)
+    const paymentsSum = (order.payments as any[]).reduce((s: number, p: any) => s + Number(p.amount), 0)
+    const amountPaid  = Number(order.amountPaid ?? 0) > 0 ? Number(order.amountPaid) : paymentsSum
+    const amountOwing = computeOwing({ ...order, amountPaid })
 
-    const amountPaid  = order.amountPaid  ?? (order.payments as any[]).reduce((s: number, p: any) => s + p.amount, 0)
-    const amountOwing = order.amountOwing ?? Math.max(0, orderTotal - amountPaid)
+    const isOverdue =
+      !!order.deliveryDate &&
+      new Date(order.deliveryDate) < new Date() &&
+      order.paymentStatus !== "PAID" &&
+      order.status !== "CANCELLED"
 
     const paymentHistory = (order.payments as any[]).map(p => ({
       id:          p.id,
-      amount:      p.amount,
+      amount:      Number(p.amount),
       method:      p.method as string,
       methodLabel: p.method.replace("_", " "),
       reference:   p.reference ?? null,
@@ -679,12 +762,6 @@ export async function getLedgerForOrder(orderId: string): Promise<{
       recordedBy:  p.recordedBy?.name ?? null,
       isVoided:    (p.reference ?? "").includes("VOIDED"),
     }))
-
-    const isOverdue =
-      !!order.deliveryDate &&
-      new Date(order.deliveryDate) < new Date() &&
-      order.paymentStatus !== "PAID" &&
-      order.status !== "CANCELLED"
 
     const result: OrderLedger = {
       orderId:      order.id,
@@ -703,10 +780,10 @@ export async function getLedgerForOrder(orderId: string): Promise<{
       createdAt:     format(order.createdAt, "dd MMM yyyy, hh:mm a"),
       deliveryDate:  order.deliveryDate ? format(new Date(order.deliveryDate), "dd MMM yyyy") : null,
       orderTotal,
-      subtotal:      order.subtotal     || 0,
-      taxAmount:     order.taxAmount    || 0,
-      shippingCost:  order.shippingCost || 0,
-      discount:      order.discount     || 0,
+      subtotal:      Number(order.subtotal     || 0),
+      taxAmount:     Number(order.taxAmount    || 0),
+      shippingCost:  Number(order.shippingCost || 0),
+      discount:      Number(order.discount     || 0),
       amountPaid,
       amountOwing,
       paymentStatus: order.paymentStatus,
@@ -719,12 +796,12 @@ export async function getLedgerForOrder(orderId: string): Promise<{
         name:      l.item?.name ?? "Unknown",
         sku:       l.item?.sku  ?? "",
         quantity:  l.quantity,
-        unitPrice: l.unitPrice,
-        taxRate:   l.taxRate ?? 0,
-        total:     l.total,
+        unitPrice: Number(l.unitPrice),
+        taxRate:   Number(l.taxRate ?? 0),
+        total:     Number(l.total),
       })),
-      notes:      order.notes    ?? null,
-      createdBy:  order.createdBy?.name ?? null,
+      notes:     order.notes     ?? null,
+      createdBy: order.createdBy?.name ?? null,
     }
 
     return { success: true, data: result }
@@ -737,164 +814,42 @@ export async function getLedgerForOrder(orderId: string): Promise<{
 export interface OrderLedger {
   orderId:      string
   orderNumber:  string
-  customer: {
-    id:      string
-    name:    string
-    phone:   string | null
-    email:   string | null
-    address: string | null
-  }
-  location: {
-    name:    string
-    address: string | null
-  }
-  createdAt:     string
-  deliveryDate:  string | null
-  orderTotal:    number
-  subtotal:      number
-  taxAmount:     number
-  shippingCost:  number
-  discount:      number
-  amountPaid:    number
-  amountOwing:   number
+  customer:     { id: string; name: string; phone: string | null; email: string | null; address: string | null }
+  location:     { name: string; address: string | null }
+  createdAt:    string
+  deliveryDate: string | null
+  orderTotal:   number
+  subtotal:     number
+  taxAmount:    number
+  shippingCost: number
+  discount:     number
+  amountPaid:   number
+  amountOwing:  number
   paymentStatus: string
   orderStatus:   string
   paymentMethod: string | null
   isOverdue:     boolean
   paymentHistory: {
-    id:          string
-    amount:      number
-    method:      string
-    methodLabel: string
-    reference:   string | null
-    date:        string
-    rawDate:     Date
-    recordedBy:  string | null
-    isVoided:    boolean
+    id: string; amount: number; method: string; methodLabel: string
+    reference: string | null; date: string; rawDate: Date
+    recordedBy: string | null; isVoided: boolean
   }[]
   items: {
-    id:        string
-    name:      string
-    sku:       string
-    quantity:  number
-    unitPrice: number
-    taxRate:   number
-    total:     number
+    id: string; name: string; sku: string; quantity: number
+    unitPrice: number; taxRate: number; total: number
   }[]
   notes:     string | null
   createdBy: string | null
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// exportLedgerToCsv
-// Converts ledger entries to a CSV string ready to download from the browser.
-// Usage in your component:
-//   const { data } = await getCreditLedger(...)
-//   const csv = exportLedgerToCsv(data.exportRows)
-//   downloadCsv(csv, "credit-ledger.csv")
-// ─────────────────────────────────────────────────────────────────────────────
-export function exportLedgerToCsv(rows: CsvRow[]): string {
+export async function exportLedgerToCsv(rows: CsvRow[]): Promise<string> {
   if (rows.length === 0) return ""
-
   const headers = Object.keys(rows[0]) as (keyof CsvRow)[]
-
-  const escape = (val: string) => {
-    if (val.includes(",") || val.includes('"') || val.includes("\n")) {
-      return `"${val.replace(/"/g, '""')}"`
-    }
-    return val
-  }
-
-  const csvLines = [
+  const escape  = (val: string) =>
+    val.includes(",") || val.includes('"') || val.includes("\n")
+      ? `"${val.replace(/"/g, '""')}"` : val
+  return [
     headers.map(escape).join(","),
     ...rows.map(row => headers.map(h => escape(String(row[h] ?? ""))).join(",")),
-  ]
-
-  return csvLines.join("\n")
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// getLedgerStats
-// Lightweight stats for dashboard cards — no full data load.
-// ─────────────────────────────────────────────────────────────────────────────
-export async function getLedgerStats(): Promise<{
-  success: boolean
-  data?: CreditLedgerSummary
-  error?: string
-}> {
-  try {
-    const user = await getAuthenticatedUser()
-    const now  = new Date()
-
-    const [creditOrders, cancelledRefunded] = await Promise.all([
-      db.salesOrder.findMany({
-        where: {
-          orgId: user.orgId,
-          status: { notIn: ["CANCELLED"] },
-          paymentStatus: { in: ["PENDING", "PARTIAL", "PAID"] },
-        },
-        select: {
-          id:            true,
-          customerId:    true,
-          subtotal:      true,
-          taxAmount:     true,
-          shippingCost:  true,
-          discount:      true,
-          amountPaid:    true,
-          amountOwing:   true,
-          paymentStatus: true,
-          deliveryDate:  true,
-        },
-      }),
-      db.salesOrder.findMany({
-        where: {
-          orgId:         user.orgId,
-          status:        "CANCELLED",
-          paymentStatus: "REFUNDED",
-        },
-        select: {
-          subtotal: true, taxAmount: true, shippingCost: true, discount: true, amountPaid: true,
-        },
-      }),
-    ])
-
-    const totalCreditGiven = creditOrders.reduce((s, o) => {
-      return s + (o.subtotal || 0) + (o.taxAmount || 0) + (o.shippingCost || 0) - (o.discount || 0)
-    }, 0)
-    const totalCollected   = creditOrders.reduce((s, o) => s + (o.amountPaid ?? 0), 0)
-    const totalOutstanding = creditOrders.reduce((s, o) => s + (o.amountOwing ?? 0), 0)
-    const totalCancelled   = cancelledRefunded.reduce((s, o) => {
-      return s + (o.subtotal || 0) + (o.taxAmount || 0) + (o.shippingCost || 0) - (o.discount || 0)
-    }, 0)
-    const totalRefunded    = cancelledRefunded.reduce((s, o) => s + (o.amountPaid ?? 0), 0)
-
-    const debtorSet = new Set(
-      creditOrders.filter(o => (o.amountOwing ?? 0) > 0).map(o => o.customerId).filter(Boolean)
-    )
-
-    const overdueCount = creditOrders.filter(o => {
-      if (!o.deliveryDate) return false
-      if (o.paymentStatus === "PAID") return false
-      return new Date(o.deliveryDate) < now
-    }).length
-
-    return {
-      success: true,
-      data: {
-        totalCreditGiven,
-        totalCollected,
-        totalOutstanding,
-        totalCancelled,
-        totalRefunded,
-        activeDebtors:  debtorSet.size,
-        overdueCount,
-        paidCount:    creditOrders.filter(o => o.paymentStatus === "PAID").length,
-        partialCount: creditOrders.filter(o => o.paymentStatus === "PARTIAL").length,
-        pendingCount: creditOrders.filter(o => o.paymentStatus === "PENDING").length,
-      },
-    }
-  } catch (error: any) {
-    console.error("getLedgerStats error:", error)
-    return { success: false, error: error.message }
-  }
+  ].join("\n")
 }

@@ -150,8 +150,17 @@ function RecordPaymentDialog({
 
   const order       = salesOrder as any
   const total       = (order?.subtotal || 0) + (order?.taxAmount || 0) + (order?.shippingCost || 0) - (order?.discount || 0)
-  const amountPaid  = order?.amountPaid ?? 0
-  const amountOwing = order?.amountOwing ?? Math.max(0, total - amountPaid)
+  const amountPaid  = Number(order?.amountPaid ?? 0)
+  // FIX: ?? only catches null/undefined — but amountOwing can be 0 (number) for legacy
+  // orders where the column was never set. Use explicit check:
+  //   • If paymentStatus=PAID → 0 (nothing owed)
+  //   • If amountOwing DB > 0 → use DB value (maintained by recordPayment)
+  //   • Otherwise → compute from total - amountPaid (legacy rows)
+  const amountOwing = order?.paymentStatus === "PAID"
+    ? 0
+    : Number(order?.amountOwing ?? 0) > 0
+      ? Number(order.amountOwing)
+      : Math.max(0, total - amountPaid)
 
   useEffect(() => {
     if (open) {
@@ -644,7 +653,13 @@ export default function SalesOrderDetailView({
   const discount     = Number(order?.discount)     || 0
   const total        = subtotal + taxAmount + shippingCost - discount
   const amountPaid   = Number(order?.amountPaid)   || 0
-  const amountOwing  = Number(order?.amountOwing)  || Math.max(0, total - amountPaid)
+  // FIX: same as payment dialog — use explicit check not || 
+  // (|| would also catch a legitimate 0 after full payment, but that's intentional here)
+  const amountOwing  = order?.paymentStatus === "PAID" || order?.paymentStatus === "COMPLETED"
+    ? 0
+    : Number(order?.amountOwing ?? 0) > 0
+      ? Number(order.amountOwing)
+      : Math.max(0, total - amountPaid)
 
   // ── FIX: Only show outstanding when genuinely unpaid ──────────────────────
   // PAID / CANCELLED / REFUNDED orders must never show the outstanding banner.

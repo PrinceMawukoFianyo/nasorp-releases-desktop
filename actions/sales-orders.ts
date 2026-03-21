@@ -693,19 +693,41 @@ export async function recordPayment(data: {
     if (!order) return { success: false, error: "Sales order not found" }
     if (order.status === "CANCELLED") return { success: false, error: "Cannot record payment on a cancelled order" }
 
-    const orderTotal    = (order.subtotal ?? 0) + (order.taxAmount ?? 0) + (order.shippingCost ?? 0) - (order.discount ?? 0)
-    const currentPaid   = order.payments.reduce((sum: number, p: { amount: number }) => sum + p.amount, 0)
-    const remaining     = orderTotal - currentPaid
+    const orderTotal = (
+      Number(order.subtotal     ?? 0) +
+      Number(order.taxAmount    ?? 0) +
+      Number(order.shippingCost ?? 0) -
+      Number(order.discount     ?? 0)
+    )
 
-    if (data.amount > remaining) {
-      return { success: false, error: `Payment of GHS ${data.amount.toFixed(2)} exceeds remaining balance of GHS ${remaining.toFixed(2)}` }
+    // FIX 1: Use amountPaid DB column as authoritative source.
+    // Summing order.payments was unreliable because voided payments
+    // are still in the table, inflating currentPaid → remaining → 0.
+    // amountPaid column is always kept in sync by this very function.
+    // Use max(amountPaid, paymentsSum) to handle any sync drift.
+    const paymentsSum = order.payments
+      .filter((p: any) => !(p.reference ?? "").includes("VOIDED"))
+      .reduce((sum: number, p: { amount: number }) => sum + Number(p.amount), 0)
+    const currentPaid = Math.max(Number(order.amountPaid ?? 0), paymentsSum)
+    const remaining   = Math.max(0, orderTotal - currentPaid)
+
+    if (remaining < 0.01) {
+      return { success: false, error: "This order is already fully paid" }
     }
 
-    const newAmountPaid  = currentPaid + data.amount
-    const newAmountOwing = Math.max(0, orderTotal - newAmountPaid)
+    if (data.amount > remaining + 0.01) {
+      return { success: false, error: `Amount of GHS ${data.amount.toFixed(2)} exceeds remaining balance of GHS ${remaining.toFixed(2)}` }
+    }
+
+    // FIX 2: Round to 2 decimal places to eliminate float drift.
+    // Without rounding: 370.00 - 370.00 = 0.0000000001 → newAmountOwing > 0
+    // → newPaymentStatus = PARTIAL instead of PAID.
+    const newAmountPaid  = Math.round((currentPaid + data.amount) * 100) / 100
+    const newAmountOwing = Math.round(Math.max(0, orderTotal - newAmountPaid) * 100) / 100
 
     let newPaymentStatus: PaymentStatus
-    if (newAmountOwing <= 0) {
+    // Use 0.01 tolerance — less than 1 pesewa remaining = fully paid
+    if (newAmountOwing < 0.01) {
       newPaymentStatus = PaymentStatus.PAID
     } else if (newAmountPaid > 0) {
       newPaymentStatus = PaymentStatus.PARTIAL
@@ -747,14 +769,27 @@ export async function recordPayment(data: {
   }
 }
 
+ 
 export async function getCreditOrders(showPaid = false) {
   try {
     const user = await getAuthenticatedUser()
-
+ 
     const salesOrders = await db.salesOrder.findMany({
       where: {
         orgId: user.orgId,
-        ...(showPaid ? {} : { paymentStatus: { in: [PaymentStatus.PENDING, PaymentStatus.PARTIAL] } }),
+        // ← FIX 1: POS orders are always immediately PAID and are never credit.
+        // Without this filter, POS orders leaked into the credit tracker
+        // when showPaid=true was passed.
+        source: "SALES_ORDER",
+ 
+        // ← FIX 2: exclude drafts — they are not confirmed credit orders
+        status: { notIn: ["DRAFT"] },
+ 
+        // Payment status filter — unchanged logic
+        ...(showPaid
+          ? {}  // all statuses when showPaid=true
+          : { paymentStatus: { in: [PaymentStatus.PENDING, PaymentStatus.PARTIAL] } }
+        ),
       },
       include: {
         customer: {
@@ -766,7 +801,7 @@ export async function getCreditOrders(showPaid = false) {
       },
       orderBy: { createdAt: "desc" },
     })
-
+ 
     return { success: true, data: salesOrders }
   } catch (error: any) {
     console.error("Error fetching credit orders:", error)
@@ -1022,5 +1057,69 @@ export async function sendSOToCustomer(orderNumber: string): Promise<{ success: 
   } catch (error) {
     console.error("Error sending SO to customer:", error)
     return { success: false, error: error instanceof Error ? error.message : "Failed to send email" }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// repairPaymentStatuses
+// One-time repair action to fix orders stuck as PARTIAL when they should be PAID.
+// Caused by floating-point drift before the rounding fix above was applied.
+// Call once from a button or API route to clean up existing stale data.
+// Safe to call multiple times — it only updates orders where owing < 0.01.
+// ─────────────────────────────────────────────────────────────────────────────
+export async function repairPaymentStatuses() {
+  try {
+    const user = await getAuthenticatedUser()
+
+    const partialOrders = await db.salesOrder.findMany({
+      where: {
+        orgId:         user.orgId,
+        source:        "SALES_ORDER",
+        status:        { notIn: ["CANCELLED", "DRAFT"] },
+        paymentStatus: "PARTIAL",
+      },
+      include: {
+        payments: {
+          where: { reference: { not: { contains: "VOIDED" } } },
+        },
+      },
+    })
+
+    let fixed = 0
+    for (const order of partialOrders) {
+      const orderTotal  = Math.round((
+        Number(order.subtotal     ?? 0) +
+        Number(order.taxAmount    ?? 0) +
+        Number(order.shippingCost ?? 0) -
+        Number(order.discount     ?? 0)
+      ) * 100) / 100
+
+      const paymentsSum = Math.round(
+        order.payments.reduce((s, p) => s + Number(p.amount), 0) * 100
+      ) / 100
+
+      const amountPaid  = Math.max(Number(order.amountPaid ?? 0), paymentsSum)
+      const amountOwing = Math.round(Math.max(0, orderTotal - amountPaid) * 100) / 100
+
+      if (amountOwing < 0.01) {
+        await db.salesOrder.update({
+          where: { id: order.id },
+          data: {
+            paymentStatus: PaymentStatus.PAID,
+            amountPaid:    orderTotal,
+            amountOwing:   0,
+          },
+        })
+        fixed++
+      }
+    }
+
+    revalidatePath("/dashboard/sales/orders")
+    revalidatePath("/dashboard/accounting")
+
+    return { success: true, fixed, message: `Fixed ${fixed} order(s) stuck as PARTIAL` }
+  } catch (error: any) {
+    console.error("repairPaymentStatuses error:", error)
+    return { success: false, error: error.message }
   }
 }

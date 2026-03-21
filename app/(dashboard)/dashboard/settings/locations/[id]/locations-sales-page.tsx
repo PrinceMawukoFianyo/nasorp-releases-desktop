@@ -4,8 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { AllLocationsSalesData, getAllLocationsSalesSummary, LocationSalesSummary } from '@/actions/location-sales';
-import DateRangePicker from '@/components/ui/date-range-picker'; // ← your existing picker
-
+import DateRangePicker from '@/components/ui/date-range-picker';
 
 const GHS = (v: number) =>
   `GH₵ ${v.toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -13,10 +12,8 @@ const GHS = (v: number) =>
 const pct = (part: number, total: number) =>
   total > 0 ? ((part / total) * 100).toFixed(1) : '0.0';
 
-/** Human-readable label for the active date range */
 function rangeSummary(range: string): string {
   if (!range) return '';
-  // preset
   const presets: Record<string, string> = {
     today: 'Today',
     '7d':  'Last 7 days',
@@ -25,13 +22,11 @@ function rangeSummary(range: string): string {
     '12m': 'Last 12 months',
   };
   if (presets[range]) return presets[range];
-  // single day  e.g. "2025-02-27"
   if (/^\d{4}-\d{2}-\d{2}$/.test(range)) {
     return new Date(range).toLocaleDateString('en-GB', {
       day: 'numeric', month: 'short', year: 'numeric',
     });
   }
-  // date range  e.g. "2025-02-01_2025-02-27"
   if (range.includes('_')) {
     const [from, to] = range.split('_');
     const fmt = (s: string) =>
@@ -80,7 +75,6 @@ export default function LocationsSalesSummaryPage() {
 
   const handleRangeChange = (range: string) => {
     setDateRange(range);
-    // Don't use syncToUrl on the picker — manage URL here so we control scroll behaviour
     router.replace(`?range=${range}`, { scroll: false });
   };
 
@@ -121,7 +115,6 @@ export default function LocationsSalesSummaryPage() {
     xlsx.writeFile(wb, `locations-sales-${dateRange}-${Date.now()}.xlsx`);
   };
 
-  // ── Loading ───────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -133,7 +126,6 @@ export default function LocationsSalesSummaryPage() {
     );
   }
 
-  // ── Error ─────────────────────────────────────────────────────────────────
   if (error || !data) {
     return (
       <div className="p-6 max-w-lg mx-auto mt-16 text-center">
@@ -164,10 +156,9 @@ export default function LocationsSalesSummaryPage() {
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
 
-      {/* ── Header ── */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
-          {/* Breadcrumb */}
           <nav className="text-xs text-gray-400 mb-1 flex items-center gap-1">
             <Link href="/dashboard" className="hover:text-gray-600 transition-colors">Dashboard</Link>
             <span>/</span>
@@ -176,7 +167,6 @@ export default function LocationsSalesSummaryPage() {
             <span className="text-gray-600 font-medium">Sales Report</span>
           </nav>
           <h1 className="text-xl font-bold text-gray-900">Sales by Location</h1>
-          {/* Dynamic period label under title */}
           <p className="text-sm text-gray-500 mt-0.5">
             {rangeSummary(dateRange)}
             {' · '}
@@ -184,20 +174,8 @@ export default function LocationsSalesSummaryPage() {
           </p>
         </div>
 
-        {/* ── Controls ── */}
         <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
-          {/*
-            Your existing DateRangePicker already supports:
-              • Quick presets  (Today, Last 7/30/90 days, Last 12 months)
-              • Single-day pick from the calendar  → emits 'YYYY-MM-DD'
-              • Custom range pick                  → emits 'YYYY-MM-DD_YYYY-MM-DD'
-            All three formats are handled by getAllLocationsSalesSummary in location-sales.ts.
-            syncToUrl is false — this page manages the URL itself via handleRangeChange.
-          */}
-          <DateRangePicker
-            value={dateRange}
-            onChange={handleRangeChange}
-          />
+          <DateRangePicker value={dateRange} onChange={handleRangeChange} />
 
           <Link
             href="/dashboard/settings/locations"
@@ -222,7 +200,7 @@ export default function LocationsSalesSummaryPage() {
         </div>
       </div>
 
-      {/* ── Grand Total Banner ── */}
+      {/* Grand Total Banner */}
       <div className="bg-gradient-to-r from-rose-600 to-rose-800 rounded-2xl p-5 text-white">
         <p className="text-rose-200 text-sm font-medium mb-1">
           Grand Total — All Locations &nbsp;·&nbsp; {rangeSummary(dateRange)}
@@ -257,7 +235,7 @@ export default function LocationsSalesSummaryPage() {
         </div>
       </div>
 
-      {/* ── Per-Location Cards ── */}
+      {/* Per-Location Cards */}
       <div>
         <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
           Breakdown by Location
@@ -280,7 +258,7 @@ export default function LocationsSalesSummaryPage() {
         </div>
       </div>
 
-      {/* ── Summary Comparison Table ── */}
+      {/* Summary Comparison Table */}
       {locations.length > 1 && (
         <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
           <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
@@ -378,7 +356,6 @@ function LocationCard({
             )}
           </div>
 
-          {/* Revenue progress bar */}
           <div className="mt-3 mb-2">
             <div className="flex justify-between text-xs text-gray-400 mb-1">
               <span>Revenue share: {share}%</span>
@@ -392,7 +369,6 @@ function LocationCard({
             </div>
           </div>
 
-          {/* Financial breakdown */}
           <div className="flex flex-wrap gap-3 mt-3 text-xs">
             <div className="flex items-center gap-1">
               <span className="text-gray-400">Subtotal</span>
@@ -416,7 +392,6 @@ function LocationCard({
           </div>
         </div>
 
-        {/* Order counts + stock */}
         <div className="flex sm:flex-col gap-4 sm:gap-2 sm:text-right shrink-0">
           <div>
             <p className="text-lg font-bold text-gray-800">{loc.totalOrders}</p>
@@ -445,4 +420,3 @@ function LocationCard({
     </div>
   );
 }
-

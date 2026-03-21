@@ -24,6 +24,37 @@ export const permissions: ModulePermissions[] = [
       delete: "dashboard.delete",
     },
   },
+   {
+    display: "Accounting",
+    name: "accounting",
+    permissions: {
+      create: "accounting.create",
+      read: "accounting.read",     // This is what the sidebar needs!
+      update: "accounting.update",
+      delete: "accounting.delete",
+    },
+  },
+  // ── Accounting sub-modules ──────────────────────────────────────
+  {
+    display: "Accounting - Payroll",
+    name: "accounting.payroll",
+    permissions: {
+      create: "accounting.payroll.create",
+      read: "accounting.payroll",        
+      update: "accounting.payroll.update",
+      delete: "accounting.payroll.delete",
+    },
+  },
+  {
+    display: "Accounting - Admin",
+    name: "accounting.admin",
+    permissions: {
+      create: "accounting.admin.create",
+      read: "accounting.admin",          
+      update: "accounting.admin.update",
+      delete: "accounting.admin.delete",
+    },
+  },
   {
     display: "Inventory",
     name: "inventory",
@@ -174,7 +205,6 @@ export const permissions: ModulePermissions[] = [
       delete: "sales.delete",
     },
   },
-  
   {
     display: "Sales Orders",
     name: "sales.orders",
@@ -407,12 +437,23 @@ export const permissions: ModulePermissions[] = [
   },
 ];
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ADMIN — full access to everything including all accounting sub-modules
+// ─────────────────────────────────────────────────────────────────────────────
 export const adminPermissions = [
   // Dashboard
   "dashboard.create",
   "dashboard.read",
   "dashboard.update",
   "dashboard.delete",
+
+  // Accounting 
+ "accounting.create",
+  "accounting.read",        
+  "accounting.update",
+  "accounting.delete",
+  "accounting.payroll",     
+  "accounting.admin",             
 
   // Inventory
   "inventory.create",
@@ -533,8 +574,6 @@ export const adminPermissions = [
   "reports.read",
   "reports.update",
   "reports.delete",
-
-  // Report subcategories
   "reports.inventory.read",
   "reports.purchases.read",
   "reports.sales.read",
@@ -552,12 +591,11 @@ export const adminPermissions = [
   "integrations.ecommerce.access",
   "integrations.api.access",
 
-   // API Settings
+  // API Settings
   "api_settings.create",
   "api_settings.read",
   "api_settings.update",
   "api_settings.delete",
-
 
   // Settings
   "settings.create",
@@ -608,9 +646,17 @@ export const adminPermissions = [
   "password.change",
 ];
 
+// ─────────────────────────────────────────────────────────────────────────────
+// MANAGER — accounting read + payroll, no admin (Paystack settings)
+// ─────────────────────────────────────────────────────────────────────────────
 export const managerPermissions = [
   // Dashboard
   "dashboard.read",
+
+  // Accounting
+  "accounting.read",        
+  "accounting.update",
+  "accounting.payroll",         
 
   // Inventory
   "inventory.read",
@@ -666,11 +712,8 @@ export const managerPermissions = [
   // Suppliers
   "suppliers.read",
   "suppliers.update",
-
-  // Suppliers
   "suppliers.items.read",
   "suppliers.items.update",
-
 
   // Sales
   "sales.create",
@@ -696,7 +739,7 @@ export const managerPermissions = [
   "customers.read",
   "customers.update",
 
-  // Reports - MUST HAVE PARENT PERMISSION
+  // Reports
   "reports.read",
   "reports.inventory.read",
   "reports.purchases.read",
@@ -704,15 +747,15 @@ export const managerPermissions = [
   "reports.products.read",
   "reports.customers.read",
 
-  // Integrations - ADD PARENT PERMISSION
+  // Integrations
   "integrations.access",
   "integrations.pos.access",
   "integrations.accounting.access",
   "integrations.api.access",
   "api.keys.read",
-  
+  "api_settings.read",
 
-  // Settings - ADD PARENT PERMISSION
+  // Settings
   "settings.access",
   "locations.read",
   "tax.settings.read",
@@ -729,11 +772,18 @@ export const managerPermissions = [
   "password.change",
 ];
 
+// ─────────────────────────────────────────────────────────────────────────────
+// USER — accounting read only (overview, daily sales, credit view)
+// No payroll, no paystack admin
+// ─────────────────────────────────────────────────────────────────────────────
 export const userPermissions = [
   // Dashboard
   "dashboard.read",
 
-  // Inventory - ADD PARENT PERMISSION TO SEE SECTION
+  // Accounting
+  "accounting.read",             // overview, daily, expenses, credit, forecast, billing tabs
+
+  // Inventory
   "inventory.read",
 
   // Items
@@ -742,7 +792,7 @@ export const userPermissions = [
   // Stock
   "stock.read",
 
-  // Sales - ALREADY HAS PARENT
+  // Sales
   "sales.create",
   "sales.read",
 
@@ -762,18 +812,18 @@ export const userPermissions = [
   // Customers
   "customers.read",
 
-  // Reports - MUST HAVE PARENT PERMISSION
+  // Reports
   "reports.read",
   "reports.sales.read",
   "reports.products.read",
 
-  // Purchases - ADD PARENT PERMISSION
+  // Purchases
   "purchases.read",
 
   // Suppliers
   "suppliers.read",
 
-  // Settings - ADD FOR PROFILE ACCESS
+  // Settings
   "settings.access",
 
   // Profile
@@ -785,17 +835,16 @@ export const userPermissions = [
   "password.change",
 ];
 
-// Helper function to get all permission strings
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
 export function getAllPermissions(): string[] {
   return permissions.flatMap((module) => Object.values(module.permissions));
 }
 
-// Helper function to check if a permission exists
 export function isValidPermission(permission: string): boolean {
   return getAllPermissions().includes(permission);
 }
 
-// Helper to get module permissions by name
 export function getModulePermissions(
   moduleName: string
 ): Permission | undefined {
@@ -803,7 +852,6 @@ export function getModulePermissions(
   return module?.permissions;
 }
 
-// Type for the permissions object
 export type PermissionsType = {
   [K in (typeof permissions)[number]["name"]]: Permission;
 };

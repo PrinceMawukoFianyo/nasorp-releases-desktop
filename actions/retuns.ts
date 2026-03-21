@@ -287,7 +287,7 @@ export async function receiveSalesReturn(
       include: { lines: { include: { item: true } } },
     })
     if (!ret) return { success: false, error: "Return not found" }
-    if (ret.status !== "APPROVED")
+    if (!["APPROVED", "RECEIVED"].includes(ret.status))
       return { success: false, error: "Return must be approved before receiving" }
 
     // Fetch linked order to compute refund impact

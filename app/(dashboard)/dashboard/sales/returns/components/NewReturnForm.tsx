@@ -424,6 +424,25 @@ export default function NewReturnForm({ salesOrders, locations, customers }: Pro
                     />
                   </div>
 
+                  {/* Item ID — only shown for manual lines where itemId is not pre-filled */}
+                  {!form.watch(`lines.${idx}.itemId`) && (
+                    <div className="col-span-2 sm:col-span-1">
+                      <FormField
+                        control={form.control}
+                        name={`lines.${idx}.itemId`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs">Item ID *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Paste item ID…" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  )}
+
                   {/* Quantity */}
                   <FormField
                     control={form.control}

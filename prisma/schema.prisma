@@ -87,9 +87,9 @@ model User {
   Location               Location?              @relation(fields: [locationId], references: [id])
   organisation           Organisation           @relation(fields: [orgId], references: [id], onDelete: Cascade)
   roles                  Role[]                 @relation("UserRoles")
-  createdReturns   SalesReturn[] @relation("ReturnCreatedBy")
-  approvedReturns  SalesReturn[] @relation("ReturnApprovedBy")
-  recordedPayments SalesOrderPayment[] @relation("PaymentRecordedBy")
+  createdReturns         SalesReturn[]          @relation("ReturnCreatedBy")
+  approvedReturns        SalesReturn[]          @relation("ReturnApprovedBy")
+  recordedPayments       SalesOrderPayment[]    @relation("PaymentRecordedBy")
 }
 
 model Organisation {
@@ -125,8 +125,10 @@ model Organisation {
   transfers             Transfer[]
   units                 Unit[]
   users                 User[]
-  packagingUnits  PackagingUnit[]
-  salesReturns  SalesReturn[]
+  packagingUnits        PackagingUnit[]
+  salesReturns          SalesReturn[]
+  Expense               Expense[]
+  PayrollEntry          PayrollEntry[]
 
   @@map("organisations")
 }
@@ -152,7 +154,7 @@ model Location {
   outgoingTransfers     Transfer[]             @relation("FromLocation")
   incomingTransfers     Transfer[]             @relation("ToLocation")
   users                 User[]
-  salesReturns  SalesReturn[]
+  salesReturns          SalesReturn[]
 }
 
 model Category {
@@ -263,9 +265,8 @@ model Item {
   serialNumbers         SerialNumber[]
   transferLines         TransferLine[]
   suppliers             Supplier[]             @relation("SupplierItems")
-  pricingTiers    ItemPricingTier[] 
-  salesReturnLines  SalesReturnLine[]
-  
+  pricingTiers          ItemPricingTier[]
+  salesReturnLines      SalesReturnLine[]
 }
 
 model Supplier {
@@ -436,51 +437,51 @@ model GoodsReceiptLine {
 }
 
 model Customer {
-  id           String       @id @default(cuid())
+  id           String        @id @default(cuid())
   name         String
   email        String?
   phone        String?
   address      String?
   taxId        String?
   notes        String?
-  isActive     Boolean      @default(true)
+  isActive     Boolean       @default(true)
   orgId        String
   imageUrl     String?
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  organisation Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  organisation Organisation  @relation(fields: [orgId], references: [id], onDelete: Cascade)
   salesOrders  SalesOrder[]
-  salesReturns  SalesReturn[]
+  salesReturns SalesReturn[]
 
   @@index([email])
   @@index([phone])
 }
 
 model SalesOrder {
-  id            String           @id @default(cuid())
-  orderNumber   String           @unique
+  id            String              @id @default(cuid())
+  orderNumber   String              @unique
   customerId    String?
-  source        Source           @default(SALES_ORDER)
+  source        Source              @default(SALES_ORDER)
   locationId    String?
-  status        SalesOrderStatus @default(DRAFT)
-  subtotal      Float            @default(0)
-  taxAmount     Float            @default(0)
+  status        SalesOrderStatus    @default(DRAFT)
+  subtotal      Float               @default(0)
+  taxAmount     Float               @default(0)
   shippingCost  Float?
-  discount      Float?           @default(0)
+  discount      Float?              @default(0)
   notes         String?
-  paymentStatus PaymentStatus    @default(PENDING)
+  paymentStatus PaymentStatus       @default(PENDING)
   paymentMethod String?
-  amountPaid    Float            @default(0)
-  amountOwing   Float            @default(0)
+  amountPaid    Float               @default(0)
+  amountOwing   Float               @default(0)
   deliveryDate  DateTime?
   orgId         String
   createdById   String
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
-  createdBy     User             @relation("SalesOrderCreatedBy", fields: [createdById], references: [id])
-  customer      Customer?        @relation(fields: [customerId], references: [id])
-  location      Location?        @relation("SalesLocation", fields: [locationId], references: [id])
-  organisation  Organisation     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  createdBy     User                @relation("SalesOrderCreatedBy", fields: [createdById], references: [id])
+  customer      Customer?           @relation(fields: [customerId], references: [id])
+  location      Location?           @relation("SalesLocation", fields: [locationId], references: [id])
+  organisation  Organisation        @relation(fields: [orgId], references: [id], onDelete: Cascade)
   lines         SalesOrderLine[]
   salesReturns  SalesReturn[]
   payments      SalesOrderPayment[]
@@ -495,7 +496,7 @@ model SalesOrderLine {
   salesOrderId  String
   itemId        String
   quantity      Int
-  notes           String?
+  notes         String?
   unitPrice     Float
   taxRate       Float      @default(0)
   taxAmount     Float      @default(0)
@@ -505,7 +506,7 @@ model SalesOrderLine {
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
   item          Item       @relation(fields: [itemId], references: [id])
-  salesOrders   SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)    
+  salesOrders   SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
 
   @@index([salesOrderId])
   @@index([itemId])
@@ -523,8 +524,8 @@ model SalesOrderPayment {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
-  order        SalesOrder    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  recordedBy   User?         @relation("PaymentRecordedBy", fields: [recordedById], references: [id])
+  order      SalesOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  recordedBy User?      @relation("PaymentRecordedBy", fields: [recordedById], references: [id])
 
   @@index([orderId])
   @@index([orgId])
@@ -700,7 +701,7 @@ model InventoryTransaction {
 
 model PackagingUnit {
   id           String            @id @default(cuid())
-  name         String            // "Box", "Half Sack", "Crate", "Dozen"
+  name         String // "Box", "Half Sack", "Crate", "Dozen"
   description  String?
   orgId        String
   createdAt    DateTime          @default(now())
@@ -712,13 +713,12 @@ model PackagingUnit {
   @@index([orgId])
 }
 
-
 model ItemPricingTier {
   id              String        @id @default(cuid())
   itemId          String
   packagingUnitId String
-  unitsPerPack    Int           // e.g. 6 → "1 box contains 6 items"
-  wholesalePrice  Float         // e.g. 48.00 → "1 box = GHS 48.00"
+  unitsPerPack    Int // e.g. 6 → "1 box contains 6 items"
+  wholesalePrice  Float // e.g. 48.00 → "1 box = GHS 48.00"
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   item            Item          @relation(fields: [itemId], references: [id], onDelete: Cascade)
@@ -729,29 +729,29 @@ model ItemPricingTier {
 }
 
 model SalesReturn {
-  id           String          @id @default(cuid())
-  rmaNumber    String          @unique
+  id           String            @id @default(cuid())
+  rmaNumber    String            @unique
   salesOrderId String?
   customerId   String?
   locationId   String
-  status       ReturnStatus    @default(PENDING)
+  status       ReturnStatus      @default(PENDING)
   reason       String?
   notes        String?
-  refundAmount Float           @default(0)
+  refundAmount Float             @default(0)
   refundMethod String?
   orgId        String
   createdById  String
   approvedById String?
   receivedAt   DateTime?
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
   lines        SalesReturnLine[]
-  salesOrder   SalesOrder?     @relation(fields: [salesOrderId], references: [id])
-  customer     Customer?       @relation(fields: [customerId], references: [id])
-  location     Location        @relation(fields: [locationId], references: [id])
-  organisation Organisation    @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  createdBy    User            @relation("ReturnCreatedBy", fields: [createdById], references: [id])
-  approvedBy   User?           @relation("ReturnApprovedBy", fields: [approvedById], references: [id])
+  salesOrder   SalesOrder?       @relation(fields: [salesOrderId], references: [id])
+  customer     Customer?         @relation(fields: [customerId], references: [id])
+  location     Location          @relation(fields: [locationId], references: [id])
+  organisation Organisation      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  createdBy    User              @relation("ReturnCreatedBy", fields: [createdById], references: [id])
+  approvedBy   User?             @relation("ReturnApprovedBy", fields: [approvedById], references: [id])
 
   @@index([rmaNumber])
   @@index([salesOrderId])
@@ -766,7 +766,7 @@ model SalesReturnLine {
   itemId        String
   quantity      Int
   unitPrice     Float       @default(0)
-  condition     String?     // GOOD | DAMAGED | DEFECTIVE
+  condition     String? // GOOD | DAMAGED | DEFECTIVE
   restockable   Boolean     @default(true)
   notes         String?
   serialNumbers String[]
@@ -779,8 +779,35 @@ model SalesReturnLine {
   @@index([itemId])
 }
 
- 
+model Expense {
+  id          String       @id @default(cuid())
+  orgId       String
+  description String
+  category    String // "Operations" | "Logistics" | ... | "Payroll"
+  amount      Float
+  date        DateTime     @default(now())
+  recordedBy  String? // user name / id
+  isPayroll   Boolean      @default(false)
+  notes       String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  org         Organisation @relation(fields: [orgId], references: [id])
+}
 
+model PayrollEntry {
+  id           String       @id @default(cuid())
+  orgId        String
+  employeeName String
+  role         String?
+  amount       Float
+  period       String // "March 2024"
+  date         DateTime     @default(now())
+  status       String       @default("PENDING") // "PAID" | "PENDING"
+  notes        String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  org          Organisation @relation(fields: [orgId], references: [id])
+}
 
 enum PaymentMethod {
   CASH
@@ -915,4 +942,3 @@ enum ReturnStatus {
   DECLINED
   CANCELLED
 }
-

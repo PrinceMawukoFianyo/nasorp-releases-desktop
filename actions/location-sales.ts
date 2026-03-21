@@ -1,215 +1,222 @@
-'use server';
+// actions/location-sales.ts
+// ─────────────────────────────────────────────────────────────────────────────
+// Inventory value (accounting standard):
+//   stockValue         = quantity × costPrice      ← TRUE inventory asset value
+//   stockValueAtRetail = quantity × sellingPrice   ← potential revenue if sold
+//
+// The accounting dashboard shows BOTH so users see:
+//   - What stock COST to acquire  (balance sheet figure — what accountants want)
+//   - What it COULD EARN if sold  (retail/potential value — what sales team wants)
+//
+// Admin page shows sellingPrice only (potential revenue) — that's fine for ops.
+// Accounting Locations P&L shows costPrice (true asset) + retail for context.
+// ─────────────────────────────────────────────────────────────────────────────
 
-import { getAuthenticatedUser } from "@/config/useAuth";
-import { db } from "@/prisma/db";
+"use server"
 
-function getDateRange(range: string) {
-  const now = new Date();
+import { db }   from "@/prisma/db"
+import { getAuthenticatedUser } from "@/config/useAuth"
 
-  // Custom range: "2024-01-01_2024-01-31"
-  if (range && range.includes('_')) {
-    const parts = range.split('_');
-    if (
-      parts.length === 2 &&
-      parts[0].match(/^\d{4}-\d{2}-\d{2}$/) &&
-      parts[1].match(/^\d{4}-\d{2}-\d{2}$/)
-    ) {
-      const startDate = new Date(parts[0]);
-      startDate.setHours(0, 0, 0, 0);
-      const endDate = new Date(parts[1]);
-      endDate.setHours(23, 59, 59, 999);
-      return { startDate, endDate };
-    }
-  }
+// ── Types ─────────────────────────────────────────────────────────────────────
 
-  // Single day: "2024-01-15"
-  if (range && /^\d{4}-\d{2}-\d{2}$/.test(range)) {
-    const startDate = new Date(range);
-    startDate.setHours(0, 0, 0, 0);
-    const endDate = new Date(range);
-    endDate.setHours(23, 59, 59, 999);
-    return { startDate, endDate };
-  }
-
-  // Preset ranges
-  const startDate = new Date();
-  switch (range) {
-    case 'today':
-      startDate.setHours(0, 0, 0, 0);
-      break;
-    case '7d':
-      startDate.setDate(now.getDate() - 7);
-      break;
-    case '30d':
-      startDate.setDate(now.getDate() - 30);
-      break;
-    case '90d':
-      startDate.setDate(now.getDate() - 90);
-      break;
-    case '12m':
-      startDate.setFullYear(now.getFullYear() - 1);
-      break;
-    default:
-      startDate.setDate(now.getDate() - 30);
-  }
-
-  return { startDate, endDate: now };
+export type LocationSummary = {
+  locationId:          string
+  locationName:        string
+  type:                string
+  address?:            string | null   // location address (optional)
+  totalRevenue:        number
+  netRevenue:          number
+  returnsValue:        number
+  totalOrders:         number
+  completedOrders:     number
+  activeOrders:        number          // non-cancelled, non-completed
+  cancelledOrders:     number
+  // Both stock valuations so the UI can show either or both
+  stockValue:          number          // quantity × costPrice (accounting value)
+  stockValueAtRetail:  number          // quantity × sellingPrice (potential revenue)
+  itemCount:           number
+  subtotal:            number
+  taxCollected:        number
+  discounts:           number
+  shippingCollected:   number          // shipping fees collected
 }
 
-export type LocationSalesSummary = {
-  locationId: string;
-  locationName: string;
-  type: string;           // LocationType enum: WAREHOUSE | SHOP | VIRTUAL
-  address: string | null;
-  // Sales figures (from non-cancelled orders)
-  totalRevenue: number;
-  subtotal: number;
-  taxCollected: number;
-  discounts: number;
-  shippingCollected: number;
-  // Returns (from CANCELLED + RETURNED orders)
-  returnsValue: number;
-  // Net after returns
-  netRevenue: number;
-  // Order counts
-  totalOrders: number;
-  completedOrders: number;
-  activeOrders: number;
-  cancelledOrders: number;
-  // Inventory snapshot for this location
-  stockValue: number;
-  itemCount: number;
-};
+export type LocationSalesResult = {
+  locations:  LocationSummary[]
+  grandTotal: Omit<LocationSummary, "locationId" | "locationName" | "type" | "address">
+}
 
-export type AllLocationsSalesData = {
-  locations: LocationSalesSummary[];
-  grandTotal: Omit<LocationSalesSummary, 'locationId' | 'locationName' | 'type' | 'address'>;
-  dateRange: string;
-};
+// Aliases used by the locations-sales-page.tsx UI component
+export type LocationSalesSummary  = LocationSummary
+export type AllLocationsSalesData = LocationSalesResult
 
-export async function getAllLocationsSalesSummary(dateRange: string): Promise<AllLocationsSalesData> {
-  const user = await getAuthenticatedUser();
-  const orgId = user.orgId;
-  const { startDate, endDate } = getDateRange(dateRange);
+// ─────────────────────────────────────────────────────────────────────────────
+// getAllLocationsSalesSummary
+// ─────────────────────────────────────────────────────────────────────────────
+export async function getAllLocationsSalesSummary(
+  _dateRange = "30d"
+): Promise<LocationSalesResult | null> {
+  try {
+    const user  = await getAuthenticatedUser()
+    const orgId = user?.orgId
+    if (!orgId) return null
 
-  // Fetch all active locations with their inventories and direct sales orders
-  const locations = await db.location.findMany({
-    where: { orgId, isActive: true },
-    include: {
-      inventories: {
-        include: {
-          item: {
-            select: { costPrice: true },
+    // ── 1. All locations ─────────────────────────────────────────────────────
+    const locations = await db.location.findMany({
+      where:   { orgId },
+      orderBy: { name: "asc" },
+      select:  { id: true, name: true, type: true, address: true },
+    })
+
+    // ── 2. Inventory snapshot — compute BOTH cost and retail values ───────────
+    const inventories = await db.inventory.findMany({
+      where: { orgId },
+      include: {
+        item: {
+          select: {
+            costPrice:    true,
+            sellingPrice: true,
+            isActive:     true,
           },
         },
       },
-      // SalesOrder has locationId -> Location via "SalesLocation" relation
-      salesOrders: {
-        where: {
-          createdAt: { gte: startDate, lte: endDate },
-        },
-        select: {
-          id: true,
-          status: true,
-          subtotal: true,
-          taxAmount: true,
-          shippingCost: true,
-          discount: true,
-        },
+    })
+
+    type StockEntry = { cost: number; retail: number; itemCount: number }
+    const stockByLocation = new Map<string, StockEntry>()
+
+    for (const inv of inventories) {
+      if (!inv.item.isActive) continue
+      if (inv.quantity <= 0)  continue
+
+      const costValue   = inv.quantity * Number(inv.item.costPrice    ?? 0)
+      const retailValue = inv.quantity * Number(inv.item.sellingPrice ?? 0)
+      const cur = stockByLocation.get(inv.locationId) ?? { cost: 0, retail: 0, itemCount: 0 }
+      cur.cost      += costValue
+      cur.retail    += retailValue
+      cur.itemCount += 1
+      stockByLocation.set(inv.locationId, cur)
+    }
+
+    // ── 3. Revenue & order stats ──────────────────────────────────────────────
+    const orders = await db.salesOrder.findMany({
+      where: {
+        orgId,
+        status: { notIn: ["DRAFT", "CANCELLED"] },
       },
-    },
-    orderBy: { name: 'asc' },
-  });
+      select: {
+        locationId:   true,
+        status:       true,
+        subtotal:     true,
+        taxAmount:    true,
+        discount:     true,
+        shippingCost: true,
+      },
+    })
 
-  const locationSummaries: LocationSalesSummary[] = locations.map((location) => {
-    // ── Inventory snapshot ────────────────────────────────────────────
-    const stockValue = location.inventories.reduce(
-      (sum, inv) => sum + inv.quantity * (inv.item.costPrice || 0),
-      0
-    );
-    const itemCount = location.inventories.length;
+    const returns = await db.salesReturn.findMany({
+      where: { orgId, status: { in: ["COMPLETED", "APPROVED"] } },
+      select: { locationId: true, refundAmount: true },
+    })
 
-    // ── Order buckets ─────────────────────────────────────────────────
-    const allOrders = location.salesOrders;
+    type LocStats = {
+      totalRevenue: number; subtotal: number; taxCollected: number
+      discounts: number; shippingCollected: number
+      totalOrders: number; completedOrders: number
+      activeOrders: number; cancelledOrders: number
+    }
+    const statsByLocation = new Map<string, LocStats>()
 
-    const returnedOrders = allOrders.filter(
-      (o) => o.status === 'CANCELLED' || o.status === 'RETURNED'
-    );
-    const activeOrders = allOrders.filter((o) =>
-      ['DRAFT', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED'].includes(o.status)
-    );
-    const completedOrders = allOrders.filter((o) => o.status === 'COMPLETED');
-    const billedOrders = allOrders.filter(
-      (o) => o.status !== 'CANCELLED' && o.status !== 'RETURNED'
-    );
-
-    // ── Financials from billable orders ───────────────────────────────
-    let subtotal = 0;
-    let taxCollected = 0;
-    let discounts = 0;
-    let shippingCollected = 0;
-
-    for (const order of billedOrders) {
-      subtotal          += order.subtotal      || 0;
-      taxCollected      += order.taxAmount     || 0;
-      discounts         += order.discount      || 0;
-      shippingCollected += order.shippingCost  || 0;
+    for (const o of orders) {
+      const lid = o.locationId ?? "__none__"
+      const cur = statsByLocation.get(lid) ?? {
+        totalRevenue: 0, subtotal: 0, taxCollected: 0,
+        discounts: 0, shippingCollected: 0,
+        totalOrders: 0, completedOrders: 0, activeOrders: 0, cancelledOrders: 0,
+      }
+      const revenue = (
+        Number(o.subtotal)          +
+        Number(o.taxAmount)         +
+        Number(o.shippingCost ?? 0) -
+        Number(o.discount     ?? 0)
+      )
+      cur.totalRevenue      += revenue
+      cur.subtotal          += Number(o.subtotal)
+      cur.taxCollected      += Number(o.taxAmount)
+      cur.discounts         += Number(o.discount      ?? 0)
+      cur.shippingCollected += Number(o.shippingCost  ?? 0)
+      cur.totalOrders       += 1
+      if (o.status === "COMPLETED") cur.completedOrders += 1
+      else cur.activeOrders += 1   // confirmed/processing but not yet completed
+      statsByLocation.set(lid, cur)
     }
 
-    // ── Returns value from cancelled/returned orders ──────────────────
-    const returnsValue = returnedOrders.reduce(
-      (sum, o) => sum + (o.subtotal || 0) + (o.taxAmount || 0),
-      0
-    );
-
-    const totalRevenue = subtotal + taxCollected + shippingCollected - discounts;
-    const netRevenue   = totalRevenue - returnsValue;
-
-    return {
-      locationId:        location.id,
-      locationName:      location.name,
-      type:              location.type as string,
-      address:           location.address,
-      totalRevenue,
-      subtotal,
-      taxCollected,
-      discounts,
-      shippingCollected,
-      returnsValue,
-      netRevenue,
-      totalOrders:     allOrders.length,
-      completedOrders: completedOrders.length,
-      activeOrders:    activeOrders.length,
-      cancelledOrders: returnedOrders.length,
-      stockValue,
-      itemCount,
-    };
-  });
-
-  // ── Grand totals across all locations ─────────────────────────────
-  const grandTotal = locationSummaries.reduce(
-    (acc, loc) => ({
-      totalRevenue:      acc.totalRevenue      + loc.totalRevenue,
-      subtotal:          acc.subtotal          + loc.subtotal,
-      taxCollected:      acc.taxCollected      + loc.taxCollected,
-      discounts:         acc.discounts         + loc.discounts,
-      shippingCollected: acc.shippingCollected + loc.shippingCollected,
-      returnsValue:      acc.returnsValue      + loc.returnsValue,
-      netRevenue:        acc.netRevenue        + loc.netRevenue,
-      totalOrders:       acc.totalOrders       + loc.totalOrders,
-      completedOrders:   acc.completedOrders   + loc.completedOrders,
-      activeOrders:      acc.activeOrders      + loc.activeOrders,
-      cancelledOrders:   acc.cancelledOrders   + loc.cancelledOrders,
-      stockValue:        acc.stockValue        + loc.stockValue,
-      itemCount:         acc.itemCount         + loc.itemCount,
-    }),
-    {
-      totalRevenue: 0, subtotal: 0, taxCollected: 0, discounts: 0,
-      shippingCollected: 0, returnsValue: 0, netRevenue: 0,
-      totalOrders: 0, completedOrders: 0, activeOrders: 0,
-      cancelledOrders: 0, stockValue: 0, itemCount: 0,
+    const returnsByLocation = new Map<string, number>()
+    for (const r of returns) {
+      returnsByLocation.set(r.locationId, (returnsByLocation.get(r.locationId) ?? 0) + Number(r.refundAmount))
     }
-  );
 
-  return { locations: locationSummaries, grandTotal, dateRange };
+    // ── 4. Build summaries ────────────────────────────────────────────────────
+    const summaries: LocationSummary[] = locations.map(loc => {
+      const stats = statsByLocation.get(loc.id) ?? {
+        totalRevenue: 0, subtotal: 0, taxCollected: 0,
+        discounts: 0, shippingCollected: 0,
+        totalOrders: 0, completedOrders: 0, activeOrders: 0, cancelledOrders: 0,
+      }
+      const stock   = stockByLocation.get(loc.id)  ?? { cost: 0, retail: 0, itemCount: 0 }
+      const refunds = returnsByLocation.get(loc.id) ?? 0
+
+      return {
+        locationId:          loc.id,
+        locationName:        loc.name,
+        type:                loc.type,
+        address:             (loc as any).address ?? null,
+        totalRevenue:        stats.totalRevenue,
+        returnsValue:        refunds,
+        netRevenue:          stats.totalRevenue - refunds,
+        totalOrders:         stats.totalOrders,
+        completedOrders:     stats.completedOrders,
+        activeOrders:        stats.activeOrders,
+        cancelledOrders:     stats.cancelledOrders,
+        stockValue:          stock.cost,           // costPrice × qty (accounting)
+        stockValueAtRetail:  stock.retail,          // sellingPrice × qty (potential)
+        itemCount:           stock.itemCount,
+        subtotal:            stats.subtotal,
+        taxCollected:        stats.taxCollected,
+        discounts:           stats.discounts,
+        shippingCollected:   stats.shippingCollected,
+      }
+    })
+
+    // ── 5. Grand totals ───────────────────────────────────────────────────────
+    const grandTotal = summaries.reduce(
+      (acc, s) => ({
+        totalRevenue:        acc.totalRevenue        + s.totalRevenue,
+        returnsValue:        acc.returnsValue        + s.returnsValue,
+        netRevenue:          acc.netRevenue          + s.netRevenue,
+        totalOrders:         acc.totalOrders         + s.totalOrders,
+        completedOrders:     acc.completedOrders     + s.completedOrders,
+        activeOrders:        acc.activeOrders        + s.activeOrders,
+        cancelledOrders:     acc.cancelledOrders     + s.cancelledOrders,
+        stockValue:          acc.stockValue          + s.stockValue,
+        stockValueAtRetail:  acc.stockValueAtRetail  + s.stockValueAtRetail,
+        itemCount:           acc.itemCount           + s.itemCount,
+        subtotal:            acc.subtotal            + s.subtotal,
+        taxCollected:        acc.taxCollected        + s.taxCollected,
+        discounts:           acc.discounts           + s.discounts,
+        shippingCollected:   acc.shippingCollected   + s.shippingCollected,
+      }),
+      {
+        totalRevenue: 0, returnsValue: 0, netRevenue: 0,
+        totalOrders: 0, completedOrders: 0, activeOrders: 0, cancelledOrders: 0,
+        stockValue: 0, stockValueAtRetail: 0, itemCount: 0,
+        subtotal: 0, taxCollected: 0, discounts: 0, shippingCollected: 0,
+      }
+    )
+
+    return { locations: summaries, grandTotal }
+  } catch (err: any) {
+    console.error("[getAllLocationsSalesSummary]", err)
+    return null
+  }
 }

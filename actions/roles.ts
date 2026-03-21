@@ -1,81 +1,52 @@
 "use server";
+// actions/roles.ts
+// ─────────────────────────────────────────────────────────────────────────────
+// All role + permission management server actions in one file.
+// Includes: CRUD for roles, user-role assignment, invite helpers,
+// and the one-time accounting permission patch — no separate files needed.
+// ─────────────────────────────────────────────────────────────────────────────
 
 import { revalidatePath } from "next/cache";
 import { RoleFormData } from "@/types/types";
-import { getAllPermissions, isValidPermission } from "@/config/permissions";
+import { getAllPermissions } from "@/config/permissions";
 import { db } from "@/prisma/db";
 import { createRoleName } from "@/lib/createRoleName";
 import { UpdateUserRoleResponse } from "@/types/types";
+import { getAuthenticatedUser } from "@/config/useAuth";
 
-export async function updateUserRole(
-  userId: string,
-  roleId: string
-): Promise<UpdateUserRoleResponse> {
+// ─────────────────────────────────────────────────────────────────────────────
+// ROLE CRUD
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function getOrgRoles(orgId: string) {
   try {
-    // Check if user exists
-    const existingUser = await db.user.findUnique({
-      where: { id: userId },
-      include: { roles: true },
-    });
-
-    if (!existingUser) {
-      return {
-        error: "User not found",
-        status: 404,
-        data: null,
-      };
-    }
-
-    // Check if role exists
-    const role = await db.role.findUnique({
-      where: { id: roleId },
-    });
-
-    if (!role) {
-      return {
-        error: "Role not found",
-        status: 404,
-        data: null,
-      };
-    }
-
-    // ✅ FIXED: Verify that the role belongs to the same organization as the user
-    if (role.orgId !== existingUser.orgId) {
-      return {
-        error: "Role does not belong to the user's organization",
-        status: 403,
-        data: null,
-      };
-    }
-
-    // Update user's roles
-    const updatedUser = await db.user.update({
-      where: { id: userId },
-      data: {
-        roles: {
-          set: [], // First clear existing roles
-          connect: { id: roleId }, // Then connect new role
-        },
-      },
+    const roles = await db.role.findMany({
+      where: { orgId },
+      orderBy: { createdAt: "desc" },
       include: {
-        roles: true,
+        _count: { select: { users: true } },
       },
     });
-
-    // Revalidate relevant paths
-    revalidatePath("/dashboard/users");
-    revalidatePath(`/dashboard/users/${userId}`);
-
-    return {
-      error: null,
-      status: 200,
-      data: updatedUser,
-    };
+    return { success: true, data: roles };
   } catch (error) {
-    console.error("Error updating user role:", error);
+    console.error("getOrgRoles error:", error);
+    return { success: false, error: "Failed to fetch roles", data: [] };
+  }
+}
+
+export async function getRoleById(id: string) {
+  try {
+    const role = await db.role.findUnique({
+      where: { id },
+      include: { _count: { select: { users: true } } },
+    });
+    if (!role) throw new Error("Role not found");
+    return { success: true, data: role };
+  } catch (error) {
+    console.error("getRoleById error:", error);
     return {
-      error: "Failed to update user role",
-      status: 500,
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to fetch role",
       data: null,
     };
   }
@@ -83,45 +54,33 @@ export async function updateUserRole(
 
 export async function createRole(data: RoleFormData) {
   try {
-    // Validate permissions
     const validPermissions = getAllPermissions();
-    const invalidPermissions = data.permissions.filter(
-      (permission) => !validPermissions.includes(permission)
-    );
-
-    if (invalidPermissions.length > 0) {
-      throw new Error(
-        `Invalid permissions detected: ${invalidPermissions.join(", ")}`
-      );
+    const invalid = data.permissions.filter((p) => !validPermissions.includes(p));
+    if (invalid.length > 0) {
+      throw new Error(`Invalid permissions: ${invalid.join(", ")}`);
     }
 
-    // ✅ FIXED: Check if role with same name exists IN THIS ORGANIZATION
-    const existingRole = await db.role.findFirst({
-      where: {
-        displayName: data.displayName,
-        orgId: data.orgId,  // Search within the organization
-      },
+    const existing = await db.role.findFirst({
+      where: { displayName: data.displayName, orgId: data.orgId },
     });
-
-    if (existingRole) {
-      throw new Error("A role with this name already exists in your organization");
+    if (existing) {
+      throw new Error("A role with this name already exists in your organisation");
     }
 
-    // Create role with permissions
     const role = await db.role.create({
       data: {
-        displayName: data.displayName,
-        roleName: createRoleName(data.displayName),
-        description: data.description,
-        permissions: data.permissions,
-        orgId: data.orgId,
+        displayName:  data.displayName,
+        roleName:     createRoleName(data.displayName),
+        description:  data.description,
+        permissions:  data.permissions,
+        orgId:        data.orgId,
       },
     });
 
-    revalidatePath("/dashboard/users/roles");
+    revalidatePath("/dashboard/settings/roles");
     return { success: true, data: role };
   } catch (error) {
-    console.error("Error creating role:", error);
+    console.error("createRole error:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to create role",
@@ -131,63 +90,47 @@ export async function createRole(data: RoleFormData) {
 
 export async function updateRole(id: string, data: Partial<RoleFormData>) {
   try {
-    // ✅ FIXED: Get the existing role first to verify orgId
-    const existingRole = await db.role.findUnique({
-      where: { id },
-    });
+    const existing = await db.role.findUnique({ where: { id } });
+    if (!existing) throw new Error("Role not found");
 
-    if (!existingRole) {
-      throw new Error("Role not found");
-    }
-
-    // Validate permissions if they're being updated
     if (data.permissions) {
       const validPermissions = getAllPermissions();
-      const invalidPermissions = data.permissions.filter(
-        (permission) => !validPermissions.includes(permission)
-      );
-
-      if (invalidPermissions.length > 0) {
-        throw new Error(
-          `Invalid permissions detected: ${invalidPermissions.join(", ")}`
-        );
+      const invalid = data.permissions.filter((p) => !validPermissions.includes(p));
+      if (invalid.length > 0) {
+        throw new Error(`Invalid permissions: ${invalid.join(", ")}`);
       }
     }
 
-    // ✅ FIXED: Check if new name conflicts with existing role IN THE SAME ORGANIZATION
     if (data.displayName) {
-      const conflictingRole = await db.role.findFirst({
+      const conflict = await db.role.findFirst({
         where: {
           displayName: data.displayName,
-          orgId: existingRole.orgId,  // Search within the organization
-          NOT: {
-            id: id,
-          },
+          orgId: existing.orgId,
+          NOT: { id },
         },
       });
-
-      if (conflictingRole) {
-        throw new Error("A role with this name already exists in your organization");
+      if (conflict) {
+        throw new Error("A role with this name already exists in your organisation");
       }
     }
 
-    // Update role
     const role = await db.role.update({
       where: { id },
       data: {
         ...(data.displayName && {
           displayName: data.displayName,
-          roleName: createRoleName(data.displayName),
+          roleName:    createRoleName(data.displayName),
         }),
-        ...(data.description && { description: data.description }),
-        ...(data.permissions && { permissions: data.permissions }),
+        ...(data.description  && { description:  data.description  }),
+        ...(data.permissions  && { permissions:  data.permissions  }),
       },
     });
 
-    revalidatePath("/dashboard/users/roles");
+    revalidatePath("/dashboard/settings/roles");
+    revalidatePath(`/dashboard/settings/roles/update/${id}`);
     return { success: true, data: role };
   } catch (error) {
-    console.error("Error updating role:", error);
+    console.error("updateRole error:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to update role",
@@ -197,46 +140,24 @@ export async function updateRole(id: string, data: Partial<RoleFormData>) {
 
 export async function deleteRole(id: string) {
   try {
-    // ✅ FIXED: Get the role first to ensure we're checking users in the same organization
-    const role = await db.role.findUnique({
-      where: { id },
-    });
+    const role = await db.role.findUnique({ where: { id } });
+    if (!role) throw new Error("Role not found");
 
-    if (!role) {
-      throw new Error("Role not found");
-    }
-
-    // Check if role is assigned to any users IN THE SAME ORGANIZATION
     const usersWithRole = await db.user.findMany({
-      where: {
-        orgId: role.orgId,  // Check within the organization
-        roles: {
-          some: {
-            id: id,
-          },
-        },
-      },
-      select: {
-        id: true,
-        name: true,
-      },
+      where: { orgId: role.orgId, roles: { some: { id } } },
+      select: { id: true, name: true },
     });
-
     if (usersWithRole.length > 0) {
       throw new Error(
-        `Cannot delete role as it is assigned to ${usersWithRole.length} user(s)`
+        `Cannot delete role — it is assigned to ${usersWithRole.length} user(s)`
       );
     }
 
-    // Delete role
-    await db.role.delete({
-      where: { id },
-    });
-    
-    revalidatePath("/dashboard/users/roles");
+    await db.role.delete({ where: { id } });
+    revalidatePath("/dashboard/settings/roles");
     return { success: true };
   } catch (error) {
-    console.error("Error deleting role:", error);
+    console.error("deleteRole error:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to delete role",
@@ -244,126 +165,209 @@ export async function deleteRole(id: string) {
   }
 }
 
-export async function getOrgRoles(orgId: string) {
-  try {
-    const roles = await db.role.findMany({
-      orderBy: {
-        createdAt: "desc",
-      },
-      where: {
-        orgId,
-      },
-      include: {
-        _count: {
-          select: {
-            users: true,  // Include count of users with this role
-          },
-        },
-      },
-    });
-    return { success: true, data: roles };
-  } catch (error) {
-    console.error("Error fetching roles:", error);
-    return {
-      success: false,
-      error: "Failed to fetch roles",
-      data: [],
-    };
-  }
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// USER ↔ ROLE ASSIGNMENT
+// ─────────────────────────────────────────────────────────────────────────────
 
-export async function getRoleById(id: string) {
+export async function updateUserRole(
+  userId: string,
+  roleId: string
+): Promise<UpdateUserRoleResponse> {
   try {
-    const role = await db.role.findUnique({
-      where: { id },
-      include: {
-        _count: {
-          select: {
-            users: true,
-          },
-        },
-      },
+    const existingUser = await db.user.findUnique({
+      where: { id: userId },
+      include: { roles: true },
     });
+    if (!existingUser) return { error: "User not found", status: 404, data: null };
 
-    if (!role) {
-      throw new Error("Role not found");
+    const role = await db.role.findUnique({ where: { id: roleId } });
+    if (!role) return { error: "Role not found", status: 404, data: null };
+
+    if (role.orgId !== existingUser.orgId) {
+      return {
+        error: "Role does not belong to the user's organisation",
+        status: 403,
+        data: null,
+      };
     }
 
-    return { success: true, data: role };
+    const updatedUser = await db.user.update({
+      where: { id: userId },
+      data: { roles: { set: [], connect: { id: roleId } } },
+      include: { roles: true },
+    });
+
+    revalidatePath("/dashboard/settings/users");
+    revalidatePath(`/dashboard/settings/users/${userId}`);
+    return { error: null, status: 200, data: updatedUser };
   } catch (error) {
-    console.error("Error fetching role:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to fetch role",
-    };
+    console.error("updateUserRole error:", error);
+    return { error: "Failed to update user role", status: 500, data: null };
   }
 }
 
-// ✅ FIXED: Helper function to get users by role within an organization
 export async function getUsersByRole(roleId: string, orgId?: string) {
   try {
-    const role = await db.role.findUnique({
-      where: { id: roleId },
-    });
-
-    if (!role) {
-      throw new Error("Role not found");
-    }
+    const role = await db.role.findUnique({ where: { id: roleId } });
+    if (!role) throw new Error("Role not found");
 
     const users = await db.user.findMany({
       where: {
-        orgId: orgId || role.orgId,  // Use provided orgId or role's orgId
-        roles: {
-          some: {
-            id: roleId,
-          },
-        },
+        orgId: orgId || role.orgId,
+        roles: { some: { id: roleId } },
       },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        image: true,
-        createdAt: true,
-      },
-      orderBy: {
-        name: "asc",
-      },
+      select: { id: true, name: true, email: true, image: true, createdAt: true },
+      orderBy: { name: "asc" },
     });
 
     return { success: true, data: users };
   } catch (error) {
-    console.error("Error fetching users by role:", error);
-    return {
-      success: false,
-      error: "Failed to fetch users",
-      data: [],
-    };
+    console.error("getUsersByRole error:", error);
+    return { success: false, error: "Failed to fetch users", data: [] };
   }
 }
 
-// ✅ NEW: Helper function to check if a role name is unique within an organization
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+
 export async function isRoleNameUnique(
   displayName: string,
   orgId: string,
   excludeRoleId?: string
 ): Promise<boolean> {
   try {
-    const existingRole = await db.role.findFirst({
+    const found = await db.role.findFirst({
       where: {
         displayName,
         orgId,
-        ...(excludeRoleId && {
-          NOT: {
-            id: excludeRoleId,
-          },
-        }),
+        ...(excludeRoleId && { NOT: { id: excludeRoleId } }),
       },
     });
-
-    return !existingRole;
-  } catch (error) {
-    console.error("Error checking role name uniqueness:", error);
+    return !found;
+  } catch {
     return false;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INVITES  (merged from actions/invites.ts — no separate file needed)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function getInviteByEmail(email: string, orgId: string) {
+  try {
+    return await db.invite.findFirst({ where: { email, orgId } });
+  } catch (error) {
+    console.error("getInviteByEmail error:", error);
+    return null;
+  }
+}
+
+export async function validateInvite(inviteId: string) {
+  try {
+    const invite = await db.invite.findUnique({ where: { id: inviteId } });
+    if (!invite)        return { valid: false, error: "Invitation not found" };
+    if (invite.status)  return { valid: false, error: "Invitation already used" };
+
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    if (invite.createdAt < sevenDaysAgo) {
+      return { valid: false, error: "Invitation expired" };
+    }
+    return { valid: true, invite };
+  } catch (error) {
+    console.error("validateInvite error:", error);
+    return { valid: false, error: "Failed to validate invitation" };
+  }
+}
+
+export async function updateInviteStatus(inviteId: string, status: boolean) {
+  try {
+    const updated = await db.invite.update({
+      where: { id: inviteId },
+      data: { status, updatedAt: new Date() },
+    });
+    return { success: true, data: updated };
+  } catch (error) {
+    console.error("updateInviteStatus error:", error);
+    return { success: false, error: "Failed to update invitation" };
+  }
+}
+
+export async function resendInvite(inviteId: string) {
+  try {
+    const invite = await db.invite.findUnique({ where: { id: inviteId } });
+    if (!invite) return { success: false, error: "Invitation not found" };
+    // TODO: trigger your email send here
+    return { success: true, message: "Invitation resent successfully" };
+  } catch (error) {
+    console.error("resendInvite error:", error);
+    return { success: false, error: "Failed to resend invitation" };
+  }
+}
+
+export async function deleteInvite(inviteId: string) {
+  try {
+    await db.invite.delete({ where: { id: inviteId } });
+    return { success: true, message: "Invitation deleted successfully" };
+  } catch (error) {
+    console.error("deleteInvite error:", error);
+    return { success: false, error: "Failed to delete invitation" };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ONE-TIME PATCH: add accounting permissions to all existing DB roles
+// Call from the roles page via a server action button — no separate file needed.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function patchAccountingPermissions() {
+  try {
+    const user = await getAuthenticatedUser();
+
+    const roles = await db.role.findMany({
+      where: { orgId: user.orgId },
+      select: { id: true, roleName: true, displayName: true, permissions: true },
+    });
+
+    if (!roles.length) {
+      return { success: false, error: "No roles found for this organisation" };
+    }
+
+    const results: { role: string; added: string[]; skipped: string[] }[] = [];
+
+    for (const role of roles) {
+      const existing = role.permissions as string[];
+
+      const isAdmin   = role.roleName === "admin"   || role.displayName.toLowerCase().includes("admin");
+      const isManager = role.roleName === "manager" || role.displayName.toLowerCase().includes("manager");
+
+      const desired: string[] = isAdmin
+        ? ["accounting.create", "accounting.read", "accounting.update", "accounting.delete", "accounting.payroll", "accounting.admin"]
+        : isManager
+        ? ["accounting.read", "accounting.update", "accounting.payroll"]
+        : ["accounting.read"];
+
+      const missing = desired.filter((p) => !existing.includes(p));
+      const skipped = desired.filter((p) =>  existing.includes(p));
+
+      if (missing.length > 0) {
+        await db.role.update({
+          where: { id: role.id },
+          data:  { permissions: [...existing, ...missing] },
+        });
+      }
+
+      results.push({ role: role.displayName, added: missing, skipped });
+    }
+
+    revalidatePath("/dashboard/settings/roles");
+    return { success: true, results };
+  } catch (error) {
+    console.error("patchAccountingPermissions error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
   }
 }

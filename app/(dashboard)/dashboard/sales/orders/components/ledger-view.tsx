@@ -72,14 +72,18 @@ export default function LedgerView({ entries, summary, exportRows }: LedgerViewP
     return matchSearch && matchEvent && matchStatus
   }), [entries, search, eventFilter, statusFilter])
 
-  const handleExport = () => {
-    const csv = exportLedgerToCsv(exportRows)
-    const a = Object.assign(document.createElement("a"), {
-      href: URL.createObjectURL(new Blob([csv], { type: "text/csv" })),
-      download: `credit-ledger-${new Date().toISOString().slice(0, 10)}.csv`,
-    })
-    a.click(); URL.revokeObjectURL(a.href)
-    toast.success("Ledger exported")
+  const handleExport = async () => {
+    try {
+      const csv = await exportLedgerToCsv(exportRows)
+      const a = Object.assign(document.createElement("a"), {
+        href: URL.createObjectURL(new Blob([csv], { type: "text/csv" })),
+        download: `credit-ledger-${new Date().toISOString().slice(0, 10)}.csv`,
+      })
+      a.click(); URL.revokeObjectURL(a.href)
+      toast.success("Ledger exported")
+    } catch {
+      toast.error("Failed to export ledger")
+    }
   }
 
   return (

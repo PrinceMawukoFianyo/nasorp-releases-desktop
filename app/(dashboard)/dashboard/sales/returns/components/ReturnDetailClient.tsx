@@ -117,9 +117,10 @@ export default function ReturnDetailClient({ returnData }: { returnData: SalesRe
 
   async function handleAction() {
     if (!dialog) return
-    let res: any
 
     startTransition(async () => {
+      let res: any
+
       if (dialog === "approve")  res = await approveSalesReturn(returnData.id)
       else if (dialog === "decline") res = await declineSalesReturn(returnData.id)
       else if (dialog === "cancel")  res = await cancelSalesReturn(returnData.id)

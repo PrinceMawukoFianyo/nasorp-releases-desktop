@@ -1,27 +1,31 @@
-import DataTable from "@/components/DataTableComponents/DataTable";
+// app/dashboard/settings/roles/page.tsx
+import DataTable   from "@/components/DataTableComponents/DataTable";
 import TableHeader from "@/components/dashboard/Tables/TableHeader";
-import React from "react";
 import { columns } from "./columns";
-import { getOrgRoles } from "@/actions/roles";
+import { getOrgRoles, patchAccountingPermissions } from "@/actions/roles";
 import { getAuthenticatedUser } from "@/config/useAuth";
+import PatchPermissionsButton from "./PatchPermissionsButton";
 
-export default async function page() {
-  const user = await getAuthenticatedUser();
-  const orgId = user.orgId;
-  
-  const res = await getOrgRoles(orgId);
-  const roles = res.data || [];
-  
+
+export default async function RolesPage() {
+  const user  = await getAuthenticatedUser();
+  const res   = await getOrgRoles(user.orgId);
+  const roles = res.data ?? [];
+
   return (
-    <div className="p-8">
+    <div className="p-8 space-y-6">
       <TableHeader
-        title="Roles"
+        title="Roles & Permissions"
         model="role"
         linkTitle="Add Role"
         href="/dashboard/settings/roles/new"
         data={roles}
         showImport={false}
       />
+
+      {/* ── One-time patch banner ── */}
+      <PatchPermissionsButton />
+
       <DataTable columns={columns} data={roles} />
     </div>
   );
