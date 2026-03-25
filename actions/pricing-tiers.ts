@@ -1,23 +1,25 @@
+// actions/pricing-tiers.ts
 "use server"
 
 import { db } from "@/prisma/db"
 import { revalidatePath } from "next/cache"
+import { getAuthenticatedUser } from "@/config/useAuth"
 
 export type PricingTierInput = {
   packagingUnitId:   string
-  packagingUnitName: string  // for display only, not stored separately
-  unitsPerPack:      number  // e.g. 6 for a box of 6
-  wholesalePrice:    number  // e.g. 48.00 per box
+  packagingUnitName: string
+  unitsPerPack:      number
+  wholesalePrice:    number
 }
 
 export type PricingTierRecord = {
   id:                string
   itemId:            string
   packagingUnitId:   string
-  packagingUnitName: string  // joined from PackagingUnit.name
+  packagingUnitName: string
   unitsPerPack:      number
-  wholesalePrice:    number  // price per full pack
-  pricePerUnit:      number  // computed: wholesalePrice / unitsPerPack
+  wholesalePrice:    number
+  pricePerUnit:      number
 }
 
 // ── Save tiers after creating a new item ─────────────────────────────────────
@@ -32,7 +34,6 @@ export async function createPricingTiersForItem(
       data: tiers.map((t) => ({
         itemId,
         packagingUnitId: t.packagingUnitId,
-        // Allow 1 for sub-tiers (e.g. Quarter of a 4-unit pack = 1 unit)
         unitsPerPack:    Math.max(1, Math.round(t.unitsPerPack)),
         wholesalePrice:  t.wholesalePrice,
       })),
@@ -44,6 +45,50 @@ export async function createPricingTiersForItem(
   } catch (error) {
     console.error("❌ createPricingTiersForItem:", error)
     return { success: false, error: error instanceof Error ? error.message : "Failed to save tiers" }
+  }
+}
+
+// ── UPSERT: Delete existing and create new (for edit page) ───────────────────
+export async function upsertItemPricingTiers(
+  itemId: string,
+  tiers: PricingTierInput[]
+) {
+  try {
+    const user = await getAuthenticatedUser()
+    if (!user?.orgId) return { success: false, error: "Not authenticated" }
+
+    const item = await db.item.findUnique({
+      where: { id: itemId, orgId: user.orgId },
+      select: { id: true },
+    })
+    if (!item) return { success: false, error: "Item not found" }
+
+    // Delete all existing tiers for this item
+    await db.itemPricingTier.deleteMany({
+      where: { itemId },
+    })
+
+    // Create new tiers
+    if (tiers.length > 0) {
+      await db.itemPricingTier.createMany({
+        data: tiers.map((t) => ({
+          itemId,
+          packagingUnitId: t.packagingUnitId,
+          unitsPerPack:    Math.max(1, Math.round(t.unitsPerPack)),
+          wholesalePrice:  t.wholesalePrice,
+        })),
+        skipDuplicates: true,
+      })
+    }
+
+    revalidatePath(`/dashboard/inventory/items/${itemId}`)
+    revalidatePath("/dashboard/pos")
+    revalidatePath("/pos")
+
+    return { success: true }
+  } catch (error: any) {
+    console.error("❌ upsertItemPricingTiers:", error)
+    return { success: false, error: error?.message ?? "Unknown error" }
   }
 }
 
@@ -67,6 +112,17 @@ export async function getPricingTiersForItem(itemId: string): Promise<PricingTie
   } catch (error) {
     console.error("❌ getPricingTiersForItem:", error)
     return []
+  }
+}
+
+// ── Alias for edit page ──────────────────────────────────────────────────────
+export async function getItemPricingTiers(itemId: string) {
+  try {
+    const tiers = await getPricingTiersForItem(itemId)
+    return { success: true, tiers }
+  } catch (error: any) {
+    console.error("❌ getItemPricingTiers:", error)
+    return { success: false, tiers: [], error: error?.message }
   }
 }
 

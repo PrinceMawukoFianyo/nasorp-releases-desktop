@@ -323,14 +323,14 @@ export async function getPOSItems(locationId?: string) {
           // totalStock = same as availableStock when a location is selected
           totalStock: locationStock,
           pricingTiers: item.pricingTiers.map((t: any) => ({
-            id:                t.id,
-            itemId:            t.itemId,
-            packagingUnitId:   t.packagingUnitId,
-            packagingUnitName: t.packagingUnit.name,
-            unitsPerPack:      t.unitsPerPack,
-            wholesalePrice:    t.wholesalePrice,
-            pricePerUnit:      t.wholesalePrice / t.unitsPerPack,
-          })),
+          id:                t.id,
+          itemId:            t.itemId,
+          packagingUnitId:   t.packagingUnitId,
+          packagingUnitName: t.packagingUnit.name,
+          unitsPerPack:      t.unitsPerPack,
+          wholesalePrice:    t.wholesalePrice,
+          pricePerUnit:      t.wholesalePrice / t.unitsPerPack,
+        })),
         }
       })
 

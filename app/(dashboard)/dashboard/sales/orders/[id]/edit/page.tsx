@@ -1,5 +1,4 @@
 // app/(dashboard)/dashboard/sales/orders/[id]/edit/page.tsx
-// FIX: Pre-loads existing order data so the form is not empty on edit
 "use client"
 
 import { useState, useEffect } from "react"
@@ -21,19 +20,9 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { getSalesOrderById, updateSalesOrder, getSalesOrderItems } from "@/actions/sales-orders"
 import { getOrgLocations } from "@/actions/locations"
+import { getOrgCustomer } from "@/actions/customers"
 
-// Re-use the same customer list approach used on create
-async function getCustomers() {
-  // This must match however your create page fetches customers
-  const { db } = await import("@/prisma/db")
-  const { getAuthenticatedUser } = await import("@/config/useAuth")
-  const user = await getAuthenticatedUser()
-  return db.customer.findMany({
-    where: { orgId: user.orgId, isActive: true },
-    select: { id: true, name: true, email: true, phone: true },
-    orderBy: { name: "asc" },
-  })
-}
+
 
 interface LineItem {
   itemId: string
@@ -78,10 +67,11 @@ export default function EditSalesOrderPage() {
     const load = async () => {
       try {
         setIsLoading(true)
-        const [existingOrder, locs, itms] = await Promise.all([
+        const [existingOrder, locs, itms, custs] = await Promise.all([
           getSalesOrderById(orderId),
           getOrgLocations(),
           getSalesOrderItems(),
+          getOrgCustomer(),
         ])
 
         if (!existingOrder) {
@@ -100,6 +90,7 @@ export default function EditSalesOrderPage() {
         setOrder(existingOrder)
         setLocations(locs)
         setItems(itms)
+        setCustomers(custs)
 
         // ── Pre-populate form fields from the existing order ──────────────
         setCustomerId(existingOrder.customerId ?? "")
@@ -142,7 +133,7 @@ export default function EditSalesOrderPage() {
       }
     }
     load()
-  }, [orderId])
+  }, [orderId, router])
 
   // ── Computed totals ──────────────────────────────────────────────────────
   const subtotal  = lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0)
@@ -202,6 +193,7 @@ export default function EditSalesOrderPage() {
         discount,
         notes,
         lines: {
+          deleteMany: {},
           create: lines.map((l) => ({
             itemId:        l.itemId,
             quantity:      l.quantity,
@@ -281,20 +273,15 @@ export default function EditSalesOrderPage() {
                   ))}
                 </SelectContent>
               </Select>
-              {customers.length === 0 && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Customer: {order?.customer?.name ?? "—"}
-                </p>
-              )}
             </div>
 
-            {/* Location */}
+            {/* Location - FIXED: Use "_all" instead of empty string */}
             <div>
               <Label>Location</Label>
               <Select value={locationId} onValueChange={setLocationId}>
                 <SelectTrigger className="mt-1"><SelectValue placeholder="Select location" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Locations</SelectItem>
+                  <SelectItem value="_all">All Locations</SelectItem>
                   {locations.map((l: any) => (
                     <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
                   ))}
@@ -379,55 +366,70 @@ export default function EditSalesOrderPage() {
             {lines.length === 0 && (
               <p className="text-sm text-muted-foreground text-center py-4">No items. Click "Add Item" to begin.</p>
             )}
-            {lines.map((line, idx) => (
-              <div key={idx} className="grid grid-cols-12 gap-2 items-end border rounded-lg p-3">
-                {/* Item select */}
-                <div className="col-span-5">
-                  <Label className="text-xs">Item</Label>
-                  <Select value={line.itemId} onValueChange={(v) => updateLine(idx, "itemId", v)}>
-                    <SelectTrigger className="mt-1 h-9">
-                      <SelectValue placeholder="Select item">
-                        {line.itemName || "Select item"}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {items.map((i) => (
-                        <SelectItem key={i.id} value={i.id}>{i.name} — GHS {(i.sellingPrice ?? 0).toFixed(2)}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+            {lines.map((line, idx) => {
+              // Handle empty itemId for new lines
+              const displayValue = line.itemId || "_empty"
+              
+              return (
+                <div key={idx} className="grid grid-cols-12 gap-2 items-end border rounded-lg p-3">
+                  {/* Item select */}
+                  <div className="col-span-5">
+                    <Label className="text-xs">Item</Label>
+                    <Select 
+                      value={displayValue} 
+                      onValueChange={(v) => {
+                        if (v === "_empty") {
+                          updateLine(idx, "itemId", "")
+                        } else {
+                          updateLine(idx, "itemId", v)
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="mt-1 h-9">
+                        <SelectValue placeholder="Select item">
+                          {line.itemName || "Select item"}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="_empty">Select an item...</SelectItem>
+                        {items.map((i) => (
+                          <SelectItem key={i.id} value={i.id}>{i.name} — GHS {(i.sellingPrice ?? 0).toFixed(2)}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                {/* Quantity */}
-                <div className="col-span-2">
-                  <Label className="text-xs">Qty</Label>
-                  <Input type="number" min={1} value={line.quantity}
-                    onChange={(e) => updateLine(idx, "quantity", Math.max(1, parseInt(e.target.value) || 1))}
-                    className="mt-1 h-9" />
-                </div>
+                  {/* Quantity */}
+                  <div className="col-span-2">
+                    <Label className="text-xs">Qty</Label>
+                    <Input type="number" min={1} value={line.quantity}
+                      onChange={(e) => updateLine(idx, "quantity", Math.max(1, parseInt(e.target.value) || 1))}
+                      className="mt-1 h-9" />
+                  </div>
 
-                {/* Unit price */}
-                <div className="col-span-2">
-                  <Label className="text-xs">Unit Price</Label>
-                  <Input type="number" min={0} step="0.01" value={line.unitPrice}
-                    onChange={(e) => updateLine(idx, "unitPrice", parseFloat(e.target.value) || 0)}
-                    className="mt-1 h-9" />
-                </div>
+                  {/* Unit price */}
+                  <div className="col-span-2">
+                    <Label className="text-xs">Unit Price</Label>
+                    <Input type="number" min={0} step="0.01" value={line.unitPrice}
+                      onChange={(e) => updateLine(idx, "unitPrice", parseFloat(e.target.value) || 0)}
+                      className="mt-1 h-9" />
+                  </div>
 
-                {/* Line total (read-only) */}
-                <div className="col-span-2">
-                  <Label className="text-xs">Total</Label>
-                  <Input value={`GHS ${line.total.toFixed(2)}`} disabled className="mt-1 h-9 bg-muted text-right" />
-                </div>
+                  {/* Line total (read-only) */}
+                  <div className="col-span-2">
+                    <Label className="text-xs">Total</Label>
+                    <Input value={`GHS ${line.total.toFixed(2)}`} disabled className="mt-1 h-9 bg-muted text-right" />
+                  </div>
 
-                {/* Remove */}
-                <div className="col-span-1 flex justify-end">
-                  <Button variant="ghost" size="icon" onClick={() => removeLine(idx)} className="h-9 w-9 text-destructive hover:text-destructive">
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                  {/* Remove */}
+                  <div className="col-span-1 flex justify-end">
+                    <Button variant="ghost" size="icon" onClick={() => removeLine(idx)} className="h-9 w-9 text-destructive hover:text-destructive">
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
 
             {/* Order totals */}
             {lines.length > 0 && (

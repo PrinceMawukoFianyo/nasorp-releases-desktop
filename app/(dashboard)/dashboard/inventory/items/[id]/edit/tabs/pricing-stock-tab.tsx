@@ -10,11 +10,17 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import FormSelectInput from "@/components/FormInputs/FormSelectInput"
-import { MapPin, ArrowRightLeft, CheckCircle2, Package } from "lucide-react"
+import { MapPin, ArrowRightLeft, CheckCircle2, Package, Tag, Plus, Trash2, ChevronDown, ChevronRight, Settings, Eye, EyeOff } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Switch } from "@/components/ui/switch"
+import { getOrgPackagingUnits, PackagingUnitRecord } from "@/actions/packaging-units"
+import { upsertItemPricingTiers, getItemPricingTiers, PricingTierInput } from "@/actions/pricing-tiers"
+import { Separator } from "@/components/ui/separator"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
 interface PricingStockTabProps {
   item: ProductData
@@ -35,6 +41,39 @@ interface InventoryLocation {
   reservedQuantity: number
   available: number
   stockStatus: string
+}
+
+// Match the same structure as in item-listing.tsx
+interface FractionConfig {
+  enabled: boolean
+  name: string
+  units: number
+  price: number
+  isAuto: boolean
+}
+
+interface WholesaleTierDraft {
+  id?: string
+  packagingUnitId: string
+  packagingUnitName: string
+  unitsPerPack: number
+  wholesalePrice: number
+  // Fraction settings
+  enableHalf: boolean
+  enableQuarter: boolean
+  halfConfig?: FractionConfig
+  quarterConfig?: FractionConfig
+}
+
+// Fraction tier for display with settings
+interface FractionTier {
+  name: string
+  units: number
+  price: number
+  isAuto: boolean
+  isEnabled: boolean
+  canSplitFurther: boolean
+  type: 'half' | 'quarter'
 }
 
 export default function PricingStockTab({
@@ -71,6 +110,13 @@ export default function PricingStockTab({
     unitOptions.find((unit) => unit.value === item.unitId) || null
   )
 
+  // ── Wholesale pricing ──
+  const [packagingUnits, setPackagingUnits] = useState<PackagingUnitRecord[]>([])
+  const [wholesaleTiers, setWholesaleTiers] = useState<WholesaleTierDraft[]>([])
+  const [tiersLoading, setTiersLoading] = useState(true)
+  const [isSavingTiers, setIsSavingTiers] = useState(false)
+  const [expandedTiers, setExpandedTiers] = useState<Set<number>>(new Set())
+
   // Load real inventory locations on mount
   useEffect(() => {
     async function load() {
@@ -78,7 +124,6 @@ export default function PricingStockTab({
       const data = await getItemInventoryLocations(item.id)
       setInventoryLocations(data)
 
-      // Pre-fill transfer "from" with the first inventory location if any
       if (data.length > 0) {
         const first = data[0]
         const match = locationOptions.find((l) => l.value === first.locationId)
@@ -88,6 +133,349 @@ export default function PricingStockTab({
     }
     load()
   }, [item.id, locationOptions])
+
+  // Load packaging units and existing tiers
+  useEffect(() => {
+    async function loadTiersAndUnits() {
+      setTiersLoading(true)
+      try {
+        const units = await getOrgPackagingUnits()
+        setPackagingUnits(units)
+
+        const result = await getItemPricingTiers(item.id)
+        if (result.success && result.tiers.length > 0) {
+          const loadedTiers: WholesaleTierDraft[] = []
+          
+          // Group tiers by main pack (ones without "½" or "¼")
+          const mainTiers = result.tiers.filter((t: any) => {
+            const name = t.packagingUnitName || ""
+            return !name.includes("½") && !name.includes("¼") && !name.includes("Half") && !name.includes("Quarter")
+          })
+          
+          for (const main of mainTiers) {
+            loadedTiers.push({
+              id: main.id,
+              packagingUnitId: main.packagingUnitId,
+              packagingUnitName: main.packagingUnitName,
+              unitsPerPack: main.unitsPerPack,
+              wholesalePrice: main.wholesalePrice,
+              enableHalf: true,
+              enableQuarter: true,
+            })
+          }
+          
+          setWholesaleTiers(loadedTiers)
+        } else {
+          setWholesaleTiers([])
+        }
+      } catch (error) {
+        console.error("Failed to load tiers:", error)
+        toast.error("Failed to load wholesale pricing")
+      } finally {
+        setTiersLoading(false)
+      }
+    }
+    loadTiersAndUnits()
+  }, [item.id])
+
+  // Generate fractions for a tier with enable/disable support
+  const generateFractions = (tier: WholesaleTierDraft): FractionTier[] => {
+    const fractions: FractionTier[] = []
+    const qty = tier.unitsPerPack
+    
+    // Half fraction
+    if (tier.enableHalf === true && qty >= 2) {
+      const halfUnits = Math.floor(qty / 2)
+      const canSplitFurther = halfUnits > 1
+      fractions.push({
+        name: tier.halfConfig?.name || `½ Half ${tier.packagingUnitName}`,
+        units: tier.halfConfig?.units || halfUnits,
+        price: tier.halfConfig?.price || (tier.wholesalePrice / 2),
+        isAuto: tier.halfConfig?.isAuto !== false,
+        isEnabled: true,
+        canSplitFurther,
+        type: 'half',
+      })
+    }
+    
+    // Quarter fraction
+    if (tier.enableQuarter === true && qty >= 4) {
+      const quarterUnits = Math.floor(qty / 4)
+      const canSplitFurther = quarterUnits > 1
+      fractions.push({
+        name: tier.quarterConfig?.name || `¼ Quarter ${tier.packagingUnitName}`,
+        units: tier.quarterConfig?.units || quarterUnits,
+        price: tier.quarterConfig?.price || (tier.wholesalePrice / 4),
+        isAuto: tier.quarterConfig?.isAuto !== false,
+        isEnabled: true,
+        canSplitFurther,
+        type: 'quarter',
+      })
+    }
+    
+    return fractions
+  }
+
+  const toggleTierExpanded = (index: number) => {
+    const newSet = new Set(expandedTiers)
+    if (newSet.has(index)) {
+      newSet.delete(index)
+    } else {
+      newSet.add(index)
+    }
+    setExpandedTiers(newSet)
+  }
+
+  const addTier = () => {
+    setWholesaleTiers([
+      ...wholesaleTiers,
+      {
+        packagingUnitId: "",
+        packagingUnitName: "",
+        unitsPerPack: 1,
+        wholesalePrice: 0,
+        enableHalf: true,
+        enableQuarter: true,
+      },
+    ])
+    setExpandedTiers(new Set([...expandedTiers, wholesaleTiers.length]))
+  }
+
+  const updateTier = (index: number, field: keyof WholesaleTierDraft, value: any) => {
+    const updated = [...wholesaleTiers]
+    updated[index] = { ...updated[index], [field]: value }
+    
+    if (field === "packagingUnitId") {
+      const unit = packagingUnits.find(u => u.id === value)
+      if (unit) {
+        updated[index].packagingUnitName = unit.name
+      }
+    }
+    
+    setWholesaleTiers(updated)
+  }
+
+  const updateFractionConfig = (tierIndex: number, fractionType: 'half' | 'quarter', config: Partial<FractionConfig>) => {
+    const updated = [...wholesaleTiers]
+    const tier = updated[tierIndex]
+    const configKey = fractionType === 'half' ? 'halfConfig' : 'quarterConfig'
+    const currentConfig = tier[configKey] || {
+      enabled: true,
+      name: fractionType === 'half' ? `½ Half ${tier.packagingUnitName}` : `¼ Quarter ${tier.packagingUnitName}`,
+      units: fractionType === 'half' ? Math.floor(tier.unitsPerPack / 2) : Math.floor(tier.unitsPerPack / 4),
+      price: fractionType === 'half' ? tier.wholesalePrice / 2 : tier.wholesalePrice / 4,
+      isAuto: true,
+    }
+    
+    updated[tierIndex] = {
+      ...tier,
+      [configKey]: { ...currentConfig, ...config }
+    }
+    
+    setWholesaleTiers(updated)
+  }
+
+  const toggleFractionEnable = (tierIndex: number, fractionType: 'half' | 'quarter') => {
+    const updated = [...wholesaleTiers]
+    const tier = updated[tierIndex]
+    
+    if (fractionType === 'half') {
+      updated[tierIndex] = { ...tier, enableHalf: !tier.enableHalf }
+    } else {
+      updated[tierIndex] = { ...tier, enableQuarter: !tier.enableQuarter }
+    }
+    
+    setWholesaleTiers(updated)
+  }
+
+  const toggleFractionAuto = (tierIndex: number, fractionType: 'half' | 'quarter') => {
+    const updated = [...wholesaleTiers]
+    const tier = updated[tierIndex]
+    const configKey = fractionType === 'half' ? 'halfConfig' : 'quarterConfig'
+    const currentConfig = tier[configKey] || {
+      enabled: true,
+      name: fractionType === 'half' ? `½ Half ${tier.packagingUnitName}` : `¼ Quarter ${tier.packagingUnitName}`,
+      units: fractionType === 'half' ? Math.floor(tier.unitsPerPack / 2) : Math.floor(tier.unitsPerPack / 4),
+      price: fractionType === 'half' ? tier.wholesalePrice / 2 : tier.wholesalePrice / 4,
+      isAuto: true,
+    }
+    
+    updated[tierIndex] = {
+      ...tier,
+      [configKey]: { ...currentConfig, isAuto: !currentConfig.isAuto }
+    }
+    
+    setWholesaleTiers(updated)
+  }
+
+  const removeTier = (index: number) => {
+    setWholesaleTiers(wholesaleTiers.filter((_, i) => i !== index))
+    const newExpanded = new Set(expandedTiers)
+    newExpanded.delete(index)
+    setExpandedTiers(newExpanded)
+  }
+
+  const handleSaveTiers = async () => {
+    const invalid = wholesaleTiers.find(t => !t.packagingUnitId || t.unitsPerPack < 1 || t.wholesalePrice < 0)
+    if (invalid) {
+      toast.error("Please fill all pack fields correctly")
+      return
+    }
+
+    // Flatten all tiers and their fractions for saving
+    const allTiers: PricingTierInput[] = []
+    
+    for (const tier of wholesaleTiers) {
+      // Add the main tier
+      allTiers.push({
+        packagingUnitId: tier.packagingUnitId,
+        packagingUnitName: tier.packagingUnitName,
+        unitsPerPack: tier.unitsPerPack,
+        wholesalePrice: tier.wholesalePrice,
+      })
+      
+      // Add half fraction if enabled
+      if (tier.enableHalf === true && tier.unitsPerPack >= 2) {
+        const halfUnits = tier.halfConfig?.units || Math.floor(tier.unitsPerPack / 2)
+        const halfPrice = tier.halfConfig?.price || (tier.wholesalePrice / 2)
+        allTiers.push({
+          packagingUnitId: tier.packagingUnitId,
+          packagingUnitName: tier.halfConfig?.name || `½ Half ${tier.packagingUnitName}`,
+          unitsPerPack: halfUnits,
+          wholesalePrice: halfPrice,
+        })
+      }
+      
+      // Add quarter fraction if enabled
+      if (tier.enableQuarter === true && tier.unitsPerPack >= 4) {
+        const quarterUnits = tier.quarterConfig?.units || Math.floor(tier.unitsPerPack / 4)
+        const quarterPrice = tier.quarterConfig?.price || (tier.wholesalePrice / 4)
+        allTiers.push({
+          packagingUnitId: tier.packagingUnitId,
+          packagingUnitName: tier.quarterConfig?.name || `¼ Quarter ${tier.packagingUnitName}`,
+          unitsPerPack: quarterUnits,
+          wholesalePrice: quarterPrice,
+        })
+      }
+    }
+
+    setIsSavingTiers(true)
+    try {
+      const result = await upsertItemPricingTiers(item.id, allTiers)
+      if (result.success) {
+        toast.success("Wholesale pricing saved!")
+      } else {
+        toast.error(result.error || "Failed to save wholesale pricing")
+      }
+    } catch (error) {
+      toast.error("An error occurred while saving")
+    } finally {
+      setIsSavingTiers(false)
+    }
+  }
+
+  const getPricePerUnit = (tier: WholesaleTierDraft) => {
+    if (tier.unitsPerPack <= 0) return 0
+    return tier.wholesalePrice / tier.unitsPerPack
+  }
+
+  const getSaving = (tier: WholesaleTierDraft) => {
+    if (item.sellingPrice <= 0 || tier.wholesalePrice <= 0) return 0
+    const pricePerUnit = getPricePerUnit(tier)
+    if (pricePerUnit >= item.sellingPrice) return 0
+    return Math.round(((item.sellingPrice - pricePerUnit) / item.sellingPrice) * 100)
+  }
+
+  const renderFractionSettings = (tier: WholesaleTierDraft, tierIndex: number, fractionType: 'half' | 'quarter') => {
+    const fraction = generateFractions(tier).find(f => f.type === fractionType)
+    if (!fraction) return null
+    
+    const configKey = fractionType === 'half' ? 'halfConfig' : 'quarterConfig'
+    const config = tier[configKey] || {
+      name: fraction.name,
+      units: fraction.units,
+      price: fraction.price,
+      isAuto: true,
+      enabled: true,
+    }
+    const fractionName = fractionType === 'half' ? 'Half (½)' : 'Quarter (¼)'
+    
+    return (
+      <Popover>
+        <PopoverTrigger asChild>
+          <button className="p-0.5 rounded hover:bg-muted">
+            <Settings className="h-3 w-3 text-muted-foreground" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-72 p-3">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-semibold">{fractionName} Settings</h4>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-muted-foreground">Enable</span>
+                <Switch
+                  checked={fractionType === 'half' ? tier.enableHalf : tier.enableQuarter}
+                  onCheckedChange={() => toggleFractionEnable(tierIndex, fractionType)}
+                  className="scale-75"
+                />
+              </div>
+            </div>
+            
+            {(fractionType === 'half' ? tier.enableHalf : tier.enableQuarter) && (
+              <>
+                <Separator />
+                <div className="flex items-center justify-between">
+                  <span className="text-xs">Auto-calculate</span>
+                  <Switch
+                    checked={config.isAuto}
+                    onCheckedChange={() => toggleFractionAuto(tierIndex, fractionType)}
+                    className="scale-75"
+                  />
+                </div>
+                
+                {!config.isAuto && (
+                  <div className="space-y-2 mt-2">
+                    <div>
+                      <Label className="text-[10px]">Custom Name</Label>
+                      <Input
+                        value={config.name}
+                        onChange={(e) => updateFractionConfig(tierIndex, fractionType, { name: e.target.value })}
+                        className="h-7 text-xs"
+                        placeholder="Custom name"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-[10px]">Units</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          value={config.units}
+                          onChange={(e) => updateFractionConfig(tierIndex, fractionType, { units: parseInt(e.target.value) || 1 })}
+                          className="h-7 text-xs"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-[10px]">Price (₵)</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={config.price}
+                          onChange={(e) => updateFractionConfig(tierIndex, fractionType, { price: parseFloat(e.target.value) || 0 })}
+                          className="h-7 text-xs"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </PopoverContent>
+      </Popover>
+    )
+  }
 
   // ── Generic field update handler ──
   const handleUpdate = async (data: Record<string, any>) => {
@@ -132,7 +520,6 @@ export default function PricingStockTab({
       })
       if (result.success) {
         toast.success(`Item linked to ${selectedLocation.label}`)
-        // Refresh inventory locations list
         const updated = await getItemInventoryLocations(item.id)
         setInventoryLocations(updated)
         setSelectedLocation(null)
@@ -169,7 +556,6 @@ export default function PricingStockTab({
         setTransferTo(null)
         setTransferNote("")
         setTransferQuantity(1)
-        // Refresh inventory locations
         const updated = await getItemInventoryLocations(item.id)
         setInventoryLocations(updated)
         toast.success(
@@ -243,10 +629,7 @@ export default function PricingStockTab({
               </TabsTrigger>
             </TabsList>
 
-            {/* ── SET LOCATION TAB ── */}
             <TabsContent value="set" className="space-y-3 mt-0">
-
-              {/* Current inventory locations */}
               {loadingLocations ? (
                 <p className="text-xs text-muted-foreground py-2">Loading locations...</p>
               ) : inventoryLocations.length > 0 ? (
@@ -283,8 +666,6 @@ export default function PricingStockTab({
                   </span>
                 </div>
               )}
-
-              {/* Add to a new location */}
               <div className="pt-1 space-y-3 border-t">
                 <p className="text-xs font-medium text-muted-foreground pt-2">
                   Link to a location:
@@ -311,9 +692,7 @@ export default function PricingStockTab({
               </div>
             </TabsContent>
 
-            {/* ── TRANSFER TAB ── */}
             <TabsContent value="transfer" className="space-y-3 mt-0">
-
               {transferSuccess && (
                 <div className="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-md">
                   <CheckCircle2 className="h-3.5 w-3.5 text-green-600 shrink-0" />
@@ -322,8 +701,6 @@ export default function PricingStockTab({
                   </span>
                 </div>
               )}
-
-              {/* From → To indicator */}
               <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
                 <div className="flex flex-col items-center gap-1 p-2 bg-muted rounded-md text-center min-h-12 justify-center">
                   <span className="text-[10px] text-muted-foreground uppercase tracking-wide">From</span>
@@ -339,7 +716,6 @@ export default function PricingStockTab({
                   </span>
                 </div>
               </div>
-
               <FormSelectInput
                 label="From Location"
                 options={locationOptions}
@@ -348,7 +724,6 @@ export default function PricingStockTab({
                 toolTipText="Manage Locations"
                 href="/dashboard/inventory/locations"
               />
-
               <FormSelectInput
                 label="To Location"
                 options={locationOptions.filter((l) => l.value !== transferFrom?.value)}
@@ -357,7 +732,6 @@ export default function PricingStockTab({
                 toolTipText="Manage Locations"
                 href="/dashboard/inventory/locations"
               />
-
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Quantity</Label>
@@ -380,7 +754,6 @@ export default function PricingStockTab({
                   />
                 </div>
               </div>
-
               <Button
                 type="button"
                 onClick={handleTransfer}
@@ -414,6 +787,224 @@ export default function PricingStockTab({
           onSubmit={handleUpdate}
         />
       </div>
+
+      {/* ══ WHOLESALE & PACK PRICING ══ */}
+      <Card className="border-2 border-primary/10">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Tag className="h-4 w-4 text-primary" />
+              <CardTitle className="text-base">Wholesale & Pack Pricing</CardTitle>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={addTier}
+              className="h-7 gap-1 text-xs"
+            >
+              <Plus className="h-3 w-3" /> Add Pack Type
+            </Button>
+          </div>
+          <CardDescription>
+            Set pricing for boxes, sacks, packs, etc. Fractions (½, ¼) are auto-calculated.
+            Click <Settings className="h-3 w-3 inline" /> to enable/disable or customize fractions.
+            Fractions stop when reaching single unit (1 unit).
+            All tiers will appear in POS for cashiers to select.
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent className="space-y-4">
+          {tiersLoading ? (
+            <p className="text-xs text-muted-foreground py-2">Loading tiers…</p>
+          ) : wholesaleTiers.length === 0 ? (
+            <div className="flex items-center gap-2 px-3 py-6 bg-muted/50 rounded-md border border-dashed text-center justify-center">
+              <Tag className="h-4 w-4 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">
+                No pricing tiers yet. Click "Add Pack Type" to create Box, Sack, or other pack types.
+              </span>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {wholesaleTiers.map((tier, idx) => {
+                const fractions = generateFractions(tier)
+                const pricePerUnit = getPricePerUnit(tier)
+                const saving = getSaving(tier)
+                const hasFractions = fractions.length > 0
+                const isExpanded = expandedTiers.has(idx)
+
+                return (
+                  <div key={idx} className="border rounded-lg overflow-hidden">
+                    {/* Main Tier Row */}
+                    <div className="p-3 bg-card">
+                      <div className="grid grid-cols-12 gap-2 items-center">
+                        {/* Pack Name */}
+                        <div className="col-span-4">
+                          {tier.packagingUnitId ? (
+                            <span className="font-medium text-sm">{tier.packagingUnitName}</span>
+                          ) : (
+                            <select
+                              value={tier.packagingUnitId}
+                              onChange={(e) => updateTier(idx, "packagingUnitId", e.target.value)}
+                              className="w-full px-2 py-1.5 text-sm border rounded-md"
+                            >
+                              <option value="">Select pack type...</option>
+                              {packagingUnits.map(unit => (
+                                <option key={unit.id} value={unit.id}>{unit.name}</option>
+                              ))}
+                            </select>
+                          )}
+                        </div>
+
+                        {/* Units Per Pack */}
+                        <div className="col-span-2">
+                          <Input
+                            type="number"
+                            min={1}
+                            value={tier.unitsPerPack}
+                            onChange={(e) => updateTier(idx, "unitsPerPack", parseInt(e.target.value) || 1)}
+                            className="h-8 text-sm text-center"
+                          />
+                        </div>
+
+                        {/* Wholesale Price */}
+                        <div className="col-span-3">
+                          <div className="relative">
+                            <span className="absolute left-2 top-1.5 text-xs text-muted-foreground">₵</span>
+                            <Input
+                              type="number"
+                              min={0}
+                              step="0.01"
+                              value={tier.wholesalePrice}
+                              onChange={(e) => updateTier(idx, "wholesalePrice", parseFloat(e.target.value) || 0)}
+                              className="pl-6 h-8 text-sm"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Price Info */}
+                        <div className="col-span-2 text-xs">
+                          <p className="font-medium">₵{pricePerUnit.toFixed(2)}/unit</p>
+                          {saving > 0 && (
+                            <p className="text-green-600">Save {saving}%</p>
+                          )}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="col-span-1 text-right flex items-center justify-end gap-1">
+                          {hasFractions && (
+                            <button
+                              type="button"
+                              onClick={() => toggleTierExpanded(idx)}
+                              className="p-1 rounded hover:bg-muted"
+                            >
+                              {isExpanded ? (
+                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => removeTier(idx)}
+                            className="p-1 rounded hover:bg-red-100 text-red-500"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Fractions Section - Collapsible */}
+                    {hasFractions && isExpanded && (
+                      <div className="border-t bg-muted/20 p-3 pl-8 space-y-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs font-medium text-muted-foreground">Fractions & Sub-tiers:</p>
+                          <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                            <span className="flex items-center gap-1"><Settings className="h-2.5 w-2.5" /> Click to configure</span>
+                          </div>
+                        </div>
+                        
+                        {fractions.map((fraction, fIdx) => {
+                          const pricePerUnitFraction = fraction.units > 0 ? fraction.price / fraction.units : 0
+                          const isSingleUnit = fraction.units === 1
+                          
+                          return (
+                            <div key={fIdx} className="grid grid-cols-12 gap-2 items-center">
+                              <div className="col-span-4 flex items-center gap-2">
+                                <span className="text-sm">{fraction.name}</span>
+                                {renderFractionSettings(tier, idx, fraction.type)}
+                              </div>
+                              <div className="col-span-2 text-center">
+                                <Badge variant="outline" className="text-[10px]">
+                                  {fraction.units} {isSingleUnit ? 'unit' : 'units'}
+                                </Badge>
+                                {isSingleUnit && (
+                                  <Badge variant="secondary" className="ml-1 text-[9px] bg-blue-100 text-blue-700">
+                                    single
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="col-span-3">
+                                ₵{fraction.price.toFixed(2)}
+                              </div>
+                              <div className="col-span-2 text-xs">
+                                ₵{pricePerUnitFraction.toFixed(2)}/unit
+                              </div>
+                              <div className="col-span-1">
+                                {fraction.isAuto ? (
+                                  <Badge variant="secondary" className="text-[9px]">auto</Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-[9px]">manual</Badge>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+
+                        {/* Warning for uneven splits */}
+                        {tier.unitsPerPack >= 2 && (tier.unitsPerPack % 2 !== 0) && tier.enableHalf && (
+                          <p className="text-[10px] text-amber-600 mt-1">
+                            ⚠️ {tier.unitsPerPack} units cannot be split evenly into halves
+                          </p>
+                        )}
+                        {tier.unitsPerPack >= 4 && (tier.unitsPerPack % 4 !== 0) && tier.enableQuarter && (
+                          <p className="text-[10px] text-amber-600">
+                            ⚠️ {tier.unitsPerPack} units cannot be split evenly into quarters
+                          </p>
+                        )}
+                        
+                        {/* Info when fractions are disabled */}
+                        {!tier.enableHalf && !tier.enableQuarter && (
+                          <p className="text-[10px] text-blue-600 mt-1">
+                            ℹ️ Fractions are disabled for this pack. Enable them via the settings icon.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          <Button
+            type="button"
+            onClick={handleSaveTiers}
+            disabled={isSavingTiers || tiersLoading}
+            className="w-full"
+            size="sm"
+          >
+            {isSavingTiers ? "Saving…" : "Save Wholesale & Pack Pricing"}
+          </Button>
+
+          <p className="text-[10px] text-muted-foreground text-center">
+            All pack types and their fractions will appear in POS for cashiers to select.
+            Click <Settings className="h-3 w-3 inline" /> on any fraction to enable/disable or customize.
+          </p>
+        </CardContent>
+      </Card>
 
       {/* ══ TAX & UNIT ══ */}
       <Card>
