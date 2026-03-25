@@ -44,18 +44,19 @@ export type DailySaleOrder = {
 };
 
 export type DaySummary = {
-  date:            string;   // "2026-03-19"
-  label:           string;   // "Today" | "Tomorrow" | "Wed 20 Mar"
-  isToday:         boolean;
-  isFuture:        boolean;
-  salesOrders:     DailySaleOrder[];   // source = SALES_ORDER
-  posOrders:       DailySaleOrder[];   // source = POS
-  creditPaid:      DailySaleOrder[];   // SalesOrderPayment records
-  totalRevenue:    number;             // POS totals + upfront deposits on orders + credit payments collected
-  totalPOS:        number;
-  totalCredit:     number;
-  totalCreditPaid: number;
-  orderCount:      number;
+  date:                 string;   // "2026-03-19"
+  label:                string;   // "Today" | "Tomorrow" | "Wed 20 Mar"
+  isToday:              boolean;
+  isFuture:             boolean;
+  salesOrders:          DailySaleOrder[];   // source = SALES_ORDER
+  posOrders:            DailySaleOrder[];   // source = POS
+  creditPaid:           DailySaleOrder[];   // SalesOrderPayment records
+  totalRevenue:         number;             // POS + upfront deposits + credit payments collected
+  totalPOS:             number;
+  totalCreditInvoiced:  number;             // full billed value of all sales orders (the invoice total)
+  totalCredit:          number;             // cash actually received upfront from sales orders
+  totalCreditPaid:      number;             // credit payments collected on this day
+  orderCount:           number;
 };
 
 export type DailySalesResult = {
@@ -66,8 +67,13 @@ export type DailySalesResult = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function orderTotal(o: { subtotal: number; taxAmount: number; discount: number | null }): number {
-  return Number(o.subtotal) + Number(o.taxAmount) - Number(o.discount ?? 0);
+function orderTotal(o: { subtotal: number; taxAmount: number; shippingCost: number | null; discount: number | null }): number {
+  return (
+    Number(o.subtotal)            +
+    Number(o.taxAmount)           +
+    Number(o.shippingCost ?? 0)   -
+    Number(o.discount     ?? 0)
+  );
 }
 
 function dayLabel(date: Date, today: Date): string {
@@ -90,11 +96,12 @@ function emptyDay(date: Date, today: Date): DaySummary {
     salesOrders:     [],
     posOrders:       [],
     creditPaid:      [],
-    totalRevenue:    0,
-    totalPOS:        0,
-    totalCredit:     0,
-    totalCreditPaid: 0,
-    orderCount:      0,
+    totalRevenue:        0,
+    totalPOS:            0,
+    totalCreditInvoiced: 0,
+    totalCredit:         0,
+    totalCreditPaid:     0,
+    orderCount:          0,
   };
 }
 
@@ -226,17 +233,21 @@ export async function getDailySales(params: {
       };
 
       if (isPOS) {
-        // POS: fully paid at the till — full total is today's revenue
+        // POS: always fully paid at the till — full total is today's revenue
         day.posOrders.push(entry);
         day.totalPOS     += total;
         day.totalRevenue += total;
       } else {
-        // SALES_ORDER: only count what was actually paid upfront today.
-        // Pure credit orders (amountPaid = 0) add nothing to revenue.
-        // Later payments are counted in step 5 on the actual payment date.
+        // SALES_ORDER:
+        //  • totalCreditInvoiced = full billed value regardless of payment (what was issued on invoice)
+        //  • totalCredit         = cash actually received upfront today (amountPaid)
+        //  • totalRevenue        = only the cash actually collected today
+        //    Pure credit orders (amountPaid=0) add nothing to revenue — they appear in
+        //    creditPaid when the customer pays later (step 5).
         day.salesOrders.push(entry);
-        day.totalCredit  += amountPaid;
-        day.totalRevenue += amountPaid;
+        day.totalCreditInvoiced += total;       // ← full invoice value
+        day.totalCredit         += amountPaid;  // ← cash received upfront (may be 0)
+        day.totalRevenue        += amountPaid;  // ← only real cash hits revenue
       }
       day.orderCount++;
     }

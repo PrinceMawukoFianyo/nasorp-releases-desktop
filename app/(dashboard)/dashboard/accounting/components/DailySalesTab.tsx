@@ -1,7 +1,9 @@
+// app/(dashboard)/dashboard/accounting/components/DailySalesTab.tsx
+// Fix the missing totalCreditInvoiced property
+
 "use client";
 /**
  * DailySalesTab.tsx
- * ─────────────────────────────────────────────────────────────────────
  * Drop into:  app/dashboard/accounting/components/DailySalesTab.tsx
  *
  * Features:
@@ -174,7 +176,7 @@ function OrderRow({ order, accent="default" }: { order: DailySaleOrder; accent?:
                     <th className="py-1.5 px-2 text-center font-semibold text-muted-foreground">Qty</th>
                     <th className="py-1.5 px-2 text-right font-semibold text-muted-foreground">Unit Price</th>
                     <th className="py-1.5 px-2 text-right font-semibold text-muted-foreground">Line Total</th>
-                  </tr>
+                   </tr>
                 </thead>
                 <tbody>
                   {order.items.map((item, i) => (
@@ -374,19 +376,19 @@ export default function DailySalesTab() {
   // ── Fetch a date range ────────────────────────────────────────────
   const fetchRange = useCallback((from: Date, to: Date) => {
     startTransition(async () => {
-    setError(null);
-    const res = await getDailySales({ fromDate: from, toDate: to });
-    
-    // Type guard to check if it's a success response
-    if ('success' in res && res.success === true) {
+      setError(null);
+      const res = await getDailySales({ fromDate: from, toDate: to });
+      
+      // Type guard to check if it's a success response
+      if ('success' in res && res.success === true) {
         setData(res.data.days);
         setLoaded(true);
-    } else {
+      } else {
         // Now TypeScript knows this is the error type
         const errorRes = res as { success: false; error: string };
         setError(errorRes.error);
         toast.error(errorRes.error);
-    }
+      }
     });
   }, []);
 
@@ -395,10 +397,11 @@ export default function DailySalesTab() {
     fetchRange(addDays(start, -1), addDays(start, WINDOW_SIZE + 1));
   }, [fetchRange]);
 
-  // Load on mount - FIXED: replaced useState with useEffect
+  // Load on mount
   useEffect(() => {
     loadWindow(windowStart);
-  }, []); // Empty dependency array means this runs once on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // When window scrolls, fetch new range
   const shiftWindow = (dir: 1|-1) => {
@@ -407,7 +410,7 @@ export default function DailySalesTab() {
     loadWindow(next);
   };
 
-  // Visible days
+  // Visible days - FIXED: Added totalCreditInvoiced to the fallback object
   const visibleDays: DaySummary[] = Array.from({ length: WINDOW_SIZE }, (_, i) => {
     const d = addDays(windowStart, i);
     const key = format(d, "yyyy-MM-dd");
@@ -416,17 +419,34 @@ export default function DailySalesTab() {
       label:           i===2 && isSameDay(d,today) ? "Today" : format(d,"EEE d MMM"),
       isToday:         isSameDay(d,today),
       isFuture:        d > today,
-      salesOrders: [], posOrders: [], creditPaid: [],
-      totalRevenue:0, totalPOS:0, totalCredit:0, totalCreditPaid:0, orderCount:0,
+      salesOrders:     [],
+      posOrders:       [],
+      creditPaid:      [],
+      totalRevenue:    0,
+      totalPOS:        0,
+      totalCreditInvoiced: 0,  // ← FIXED: Added missing property
+      totalCredit:     0,
+      totalCreditPaid: 0,
+      orderCount:      0,
     };
   });
 
-  // Selected day data
+  // Selected day data - FIXED: Added totalCreditInvoiced to the fallback object
   const selectedKey = format(selectedDate, "yyyy-MM-dd");
   const selectedDay = data.find(d => d.date === selectedKey) ?? {
-    date: selectedKey, label:"", isToday:false, isFuture:false,
-    salesOrders:[], posOrders:[], creditPaid:[],
-    totalRevenue:0, totalPOS:0, totalCredit:0, totalCreditPaid:0, orderCount:0,
+    date:            selectedKey,
+    label:           "",
+    isToday:         false,
+    isFuture:        false,
+    salesOrders:     [],
+    posOrders:       [],
+    creditPaid:      [],
+    totalRevenue:    0,
+    totalPOS:        0,
+    totalCreditInvoiced: 0,  // ← FIXED: Added missing property
+    totalCredit:     0,
+    totalCreditPaid: 0,
+    orderCount:      0,
   };
 
   // Jump to picked date
@@ -477,10 +497,10 @@ export default function DailySalesTab() {
       {/* ── TOP: KPI strip for selected day ──────────────────────── */}
       <div className="grid grid-cols-4 gap-3">
         {[
-          { label:"Total Revenue",   value:selectedDay.totalRevenue,    accent:"green",  icon:TrendingUp,   sub:`${selectedDay.orderCount} orders` },
-          { label:"Sales Orders",    value:selectedDay.totalCredit,     accent:"emerald", icon:ShoppingCart, sub:`${selectedDay.salesOrders.length} orders · cash received` },
-          { label:"POS / Cash",      value:selectedDay.totalPOS,        accent:"blue",   icon:Banknote,     sub:`${selectedDay.posOrders.length} transactions` },
-          { label:"Credit Collected",value:selectedDay.totalCreditPaid, accent:"amber",  icon:CreditCard,   sub:`${selectedDay.creditPaid.length} payments` },
+          { label:"Total Revenue",   value:selectedDay.totalRevenue,         accent:"green",   icon:TrendingUp,   sub:`${selectedDay.orderCount} orders` },
+          { label:"Sales Orders",    value:selectedDay.totalCreditInvoiced,  accent:"emerald", icon:ShoppingCart, sub:`${selectedDay.salesOrders.length} orders · ${fmt(selectedDay.totalCredit)} received` },
+          { label:"POS / Cash",      value:selectedDay.totalPOS,             accent:"blue",    icon:Banknote,     sub:`${selectedDay.posOrders.length} transactions` },
+          { label:"Credit Collected",value:selectedDay.totalCreditPaid,      accent:"amber",   icon:CreditCard,   sub:`${selectedDay.creditPaid.length} payments` },
         ].map((s,i) => (
           <Card key={i} className={`border ${
             s.accent==="green" ?"bg-emerald-50  border-emerald-200  dark:bg-emerald-950/20  dark:border-emerald-800":
@@ -617,7 +637,7 @@ export default function DailySalesTab() {
             title="Sales Orders"
             icon={ShoppingCart}
             orders={selectedDay.salesOrders}
-            total={selectedDay.totalCredit}
+            total={selectedDay.totalCreditInvoiced}
             accent="green"
             emptyMsg="No sales orders for this day"
             onExport={() => exportSection(selectedDay.salesOrders, "sales-orders")}
@@ -651,7 +671,7 @@ export default function DailySalesTab() {
               <CardContent className="pt-4 pb-4">
                 <div className="grid grid-cols-4 divide-x divide-border">
                   {[
-                    { label:"Revenue from Orders", value:selectedDay.totalCredit,     cls:"text-emerald-700" }, // paid portion of sales orders only
+                    { label:"Orders Invoiced",  value:selectedDay.totalCreditInvoiced, cls:"text-emerald-700" },
                     { label:"Revenue from POS",    value:selectedDay.totalPOS,        cls:"text-blue-700" },
                     { label:"Credit Collected",    value:selectedDay.totalCreditPaid, cls:"text-amber-700" },
                     { label:"Total Revenue",       value:selectedDay.totalRevenue,    cls:"text-emerald-700 font-bold" },
