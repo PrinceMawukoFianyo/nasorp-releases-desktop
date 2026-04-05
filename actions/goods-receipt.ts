@@ -47,8 +47,9 @@ async function generateUniqueReceiptNumber(orgId: string): Promise<string> {
 }
 
 // ============================================================================
-// CREATE GOODS RECEIPT - FIXED STATUS LOGIC
+// CREATE GOODS RECEIPT
 // ============================================================================
+
 export async function createGoodsReceipt(data: CreateGoodsReceiptRequest) {
   try {
     const user = await getAuthenticatedUser()
@@ -119,7 +120,7 @@ export async function createGoodsReceipt(data: CreateGoodsReceiptRequest) {
       const total = data.items.reduce((sum, item) => {
         const poLine = lineItemMap.get(item.purchaseOrderLineId)
         if (!poLine) return sum
-        return sum + (item.receivedQuantity * poLine.unitPrice)
+        return sum + (item.receivedQuantity * Number(poLine.unitPrice))
       }, 0)
 
       // Create the goods receipt
@@ -219,17 +220,14 @@ export async function createGoodsReceipt(data: CreateGoodsReceiptRequest) {
         })
       }
 
-      // GET UPDATED PURCHASE ORDER LINES AFTER RECEIPT
+      // Get updated PO lines to calculate new status
       const updatedPOLines = await tx.purchaseOrderLine.findMany({
         where: { purchaseOrderId: data.purchaseOrderId }
       })
 
-      // CALCULATE NEW STATUS BASED ON RECEIPT PROGRESS
-      let newStatus: PurchaseOrderStatus
-      
       const totalOrderedQuantity = updatedPOLines.reduce((sum, line) => sum + line.quantity, 0)
       const totalReceivedQuantity = updatedPOLines.reduce((sum, line) => sum + (line.receivedQuantity || 0), 0)
-      
+
       console.log('PO Status Calculation:', {
         poId: data.purchaseOrderId,
         currentStatus: purchaseOrder.status,
@@ -243,40 +241,50 @@ export async function createGoodsReceipt(data: CreateGoodsReceiptRequest) {
         }))
       })
 
-      // STATUS LOGIC:
-      if (totalReceivedQuantity === 0) {
-        // Nothing received yet
-        newStatus = PurchaseOrderStatus.SUBMITTED
-      } else if (totalReceivedQuantity >= totalOrderedQuantity) {
-        // Fully received (equal or more - thouUS more shouldn't happen due to validation)
+      // Determine new PO status
+      let newStatus: PurchaseOrderStatus
+      if (totalReceivedQuantity >= totalOrderedQuantity && totalReceivedQuantity > 0) {
         newStatus = PurchaseOrderStatus.RECEIVED
       } else if (totalReceivedQuantity > 0) {
-        // Partially received
         newStatus = PurchaseOrderStatus.PARTIALLY_RECEIVED
       } else {
-        // Default fallback
         newStatus = PurchaseOrderStatus.SUBMITTED
       }
 
-      // UPDATE PURCHASE ORDER STATUS
+      // ── Create / update supplier payable ──────────────────────────────────
+      // When goods are received, a liability is created: we owe the supplier.
+      // We use the PO total as the payable amount. Subsequent calls to
+      // recordSupplierPayment() will reduce amountOwing.
+      const poTotal =
+        Number(purchaseOrder.subtotal     ?? 0) +
+        Number(purchaseOrder.taxAmount    ?? 0) +
+        Number(purchaseOrder.shippingCost ?? 0) -
+        Number(purchaseOrder.discount     ?? 0)
+      const paidSoFar    = Number((purchaseOrder as any).amountPaid ?? 0)
+      const amountOwing  = Math.max(0, poTotal - paidSoFar)
+      const paymentStatus = amountOwing <= 0.01 ? "PAID" : paidSoFar > 0 ? "PARTIAL" : "UNPAID"
+
+      // Update PO status and payable fields together
       await tx.purchaseOrder.update({
         where: { id: data.purchaseOrderId },
-        data: { 
-          status: newStatus,
-          updatedAt: new Date()
-        },
+        data: {
+          status:        newStatus,
+          amountOwing:   amountOwing,
+          paymentStatus: paymentStatus,
+          updatedAt:     new Date(),
+        } as any,
       })
 
-      console.log('PO Status Updated:', {
+      console.log('PO Status & Payable Updated:', {
         poId: data.purchaseOrderId,
         oldStatus: purchaseOrder.status,
         newStatus,
         totalOrdered: totalOrderedQuantity,
         totalReceived: totalReceivedQuantity,
-        receiptItems: data.items.map(item => ({
-          lineId: item.purchaseOrderLineId,
-          received: item.receivedQuantity
-        }))
+        poTotal,
+        paidSoFar,
+        amountOwing,
+        paymentStatus,
       })
 
       return receipt
@@ -287,6 +295,7 @@ export async function createGoodsReceipt(data: CreateGoodsReceiptRequest) {
     revalidatePath(`/dashboard/purchases/goods-receipt/${goodsReceipt.id}`)
     revalidatePath(`/dashboard/purchases/purchase-orders/${data.purchaseOrderId}`)
     revalidatePath('/dashboard/purchases/purchase-orders')
+    revalidatePath('/dashboard/purchases/payables')
     revalidatePath('/dashboard/inventory')
     revalidatePath('/dashboard')
 
@@ -294,9 +303,9 @@ export async function createGoodsReceipt(data: CreateGoodsReceiptRequest) {
       success: true,
       data: {
         goodsReceiptId: goodsReceipt.id,
-        receiptNumber: goodsReceipt.receiptNumber,
-        poNumber: purchaseOrder.poNumber,
-        newStatus: goodsReceipt.purchaseOrder.status // Return the new status for immediate UI update
+        receiptNumber:  goodsReceipt.receiptNumber,
+        poNumber:       purchaseOrder.poNumber,
+        newStatus:      (goodsReceipt.purchaseOrder as any).status,
       },
     }
   } catch (error) {
@@ -307,6 +316,11 @@ export async function createGoodsReceipt(data: CreateGoodsReceiptRequest) {
     }
   }
 }
+
+// ============================================================================
+// UPDATE GOODS RECEIPT
+// ============================================================================
+
 export async function updateGoodsReceipt(id: string, data: UpdateGoodsReceiptRequest) {
   try {
     const user = await getAuthenticatedUser()
@@ -370,8 +384,9 @@ export async function updateGoodsReceipt(id: string, data: UpdateGoodsReceiptReq
     }
   }
 }
+
 // ============================================================================
-// DELETE GOODS RECEIPT - FIXED STATUS LOGIC
+// DELETE GOODS RECEIPT
 // ============================================================================
 
 export async function deleteGoodsReceipt(id: string) {
@@ -438,7 +453,7 @@ export async function deleteGoodsReceipt(id: string) {
         })
       }
 
-      // FIXED STATUS LOGIC - Check updated status after deletion
+      // Recalculate PO status after deletion
       const updatedPOLines = await tx.purchaseOrderLine.findMany({
         where: { purchaseOrderId: receipt.purchaseOrderId }
       })
@@ -451,20 +466,11 @@ export async function deleteGoodsReceipt(id: string) {
         const received = line.receivedQuantity || 0
         const ordered = line.quantity
 
-        if (received > 0) {
-          anyReceived = true
-        }
-
-        if (received < ordered) {
-          allFullyReceived = false
-        }
-
-        if (received > 0 && received < ordered) {
-          anyPartiallyReceived = true
-        }
+        if (received > 0) anyReceived = true
+        if (received < ordered) allFullyReceived = false
+        if (received > 0 && received < ordered) anyPartiallyReceived = true
       }
 
-      // Determine new status
       let newStatus: PurchaseOrderStatus
 
       if (allFullyReceived && anyReceived) {
@@ -472,7 +478,6 @@ export async function deleteGoodsReceipt(id: string) {
       } else if (anyPartiallyReceived || anyReceived) {
         newStatus = PurchaseOrderStatus.PARTIALLY_RECEIVED
       } else {
-        // No items received, revert to appropriate status
         newStatus = receipt.purchaseOrder.status === PurchaseOrderStatus.RECEIVED ||
                     receipt.purchaseOrder.status === PurchaseOrderStatus.PARTIALLY_RECEIVED
           ? PurchaseOrderStatus.SUBMITTED
@@ -504,6 +509,7 @@ export async function deleteGoodsReceipt(id: string) {
     revalidatePath('/dashboard/purchases/goods-receipt')
     revalidatePath(`/dashboard/purchases/purchase-orders/${receipt.purchaseOrderId}`)
     revalidatePath('/dashboard/purchases/purchase-orders')
+    revalidatePath('/dashboard/purchases/payables')
     revalidatePath('/dashboard/inventory')
     revalidatePath('/dashboard')
 
@@ -793,4 +799,3 @@ export async function handleSendEmail(id: string, email?: string) {
     }
   }
 }
-

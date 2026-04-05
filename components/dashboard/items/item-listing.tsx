@@ -604,14 +604,42 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
       accessorKey: (row) => formatCurrency(row.salesTotal),
     },
     {
-      header: "Supplier",
-      accessorKey: "id",
-      cell: (row) => (
-        <Link href={`/dashboard/inventory/items/${row.id}/suppliers`}>
-          <Button variant="outline" size="sm">View Suppliers</Button>
-        </Link>
-      ),
-    },
+     header: "Supplier",
+     accessorKey: "supplierRelations" as any,
+     cell: (row) => {
+       const relations = (row as any).supplierRelations ?? []
+       if (relations.length === 0) {
+         return (
+           <Link href={`/dashboard/inventory/items/${row.id}/suppliers`}>
+             <span className="text-xs text-muted-foreground italic hover:underline">
+               No supplier
+             </span>
+           </Link>
+         )
+       }
+       return (
+         <div className="flex flex-wrap gap-1">
+           {relations.slice(0, 2).map((rel: any) => (
+             <Link key={rel.id} href={`/dashboard/inventory/items/${row.id}/suppliers`}>
+               <Badge
+                 variant="outline"
+                 className="text-xs font-normal cursor-pointer hover:bg-muted"
+               >
+                 {rel.supplier?.name ?? "Unknown"}
+               </Badge>
+             </Link>
+           ))}
+           {relations.length > 2 && (
+             <Link href={`/dashboard/inventory/items/${row.id}/suppliers`}>
+               <Badge variant="secondary" className="text-xs cursor-pointer">
+                 +{relations.length - 2} more
+               </Badge>
+             </Link>
+           )}
+         </div>
+       )
+     },
+   },
   ];
 
   // ── Render ─────────────────────────────────────────────────────────────────

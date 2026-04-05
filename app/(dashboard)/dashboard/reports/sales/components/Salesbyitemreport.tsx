@@ -2,17 +2,24 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Download, Printer, Search, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import {
+  Download, Printer, Search, CircleDollarSign, ShoppingCart,
+  TrendingUp, Package, BarChart3, Layers, Warehouse, ExternalLink,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import type { SalesByItem, SalesSummary } from "@/actions/sales-reports";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import Link from "next/link";
 
 interface SalesByItemReportProps {
   data: {
@@ -21,42 +28,79 @@ interface SalesByItemReportProps {
   };
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
+// ── Currency helper ────────────────────────────────────────────────────────────
 function currency(n: number) {
-  return new Intl.NumberFormat("en-GH", { style: "currency", currency: "GHS", minimumFractionDigits: 2 }).format(n);
+  return new Intl.NumberFormat("en-GH", {
+    style: "currency",
+    currency: "GHS",
+    minimumFractionDigits: 2,
+  }).format(n);
 }
 
-function downloadCsv(content: string, filename: string) {
-  const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement("a");
-  a.href = url; a.download = filename; a.click();
-  URL.revokeObjectURL(url);
+// ── Summary stat card — icon-box style matching the screenshot ─────────────────
+function SummaryCard({
+  label,
+  value,
+  sub,
+  icon: Icon,
+  iconBg,
+  iconColor,
+  valueColor,
+  link,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  icon: React.ElementType;
+  iconBg: string;
+  iconColor: string;
+  valueColor?: string;
+  link?: { href: string; label: string };
+}) {
+  return (
+    <Card className="hover:shadow-lg transition-shadow">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium text-slate-500 dark:text-slate-400">
+          {label}
+        </CardTitle>
+        {/* Rounded icon box — Lucide icon, no emojis */}
+        <div className={`h-10 w-10 rounded-lg ${iconBg} flex items-center justify-center flex-shrink-0`}>
+          <Icon className={`h-5 w-5 ${iconColor}`} />
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className={`text-2xl font-bold truncate ${valueColor ?? "text-slate-700 dark:text-slate-200"}`}>
+          {value}
+        </div>
+        <div className="flex items-center gap-2 mt-1 flex-wrap">
+          {sub && <p className="text-xs text-slate-400 dark:text-slate-500">{sub}</p>}
+          {link && (
+            <Link
+              href={link.href}
+              className="text-xs text-blue-500 hover:text-blue-600 flex items-center gap-0.5"
+            >
+              {link.label}
+              <ExternalLink className="h-3 w-3" />
+            </Link>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
-function toCsv(rows: Record<string, string | number>[], filename: string) {
-  if (!rows.length) { toast.error("No data to export."); return; }
-  const headers = Object.keys(rows[0]);
-  const esc = (v: string | number) => {
-    const s = String(v ?? "");
-    return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  const csv = [headers.map(esc).join(","), ...rows.map(r => headers.map(h => esc(r[h])).join(","))].join("\n");
-  downloadCsv(csv, filename);
-}
-
+// ── Main component ─────────────────────────────────────────────────────────────
 export default function SalesByItemReport({ data }: SalesByItemReportProps) {
   const { items, summary } = data;
-  const [searchQuery,    setSearchQuery]    = useState("");
+  const [searchQuery, setSearchQuery]     = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [sortBy,         setSortBy]         = useState("revenue");
+  const [sortBy, setSortBy]               = useState("revenue");
+  const [dateRange, setDateRange]         = useState("30");
 
-  const totalItemsSold = items.reduce((acc, i) => acc + i.totalQuantitySold, 0);
+  // Unique categories
+  const categories = Array.from(new Set(items.map((item) => item.category).filter(Boolean)));
 
-  // ── Unique categories ───────────────────────────────────────────────────────
-  const categories = Array.from(new Set(items.map(i => i.category).filter(Boolean))) as string[];
-
-  // ── Filter & sort ───────────────────────────────────────────────────────────
+  // Filter + sort
   const filteredItems = items
     .filter((item) => {
       const matchesSearch =
@@ -68,91 +112,87 @@ export default function SalesByItemReport({ data }: SalesByItemReportProps) {
     .sort((a, b) => {
       if (sortBy === "revenue")  return b.totalRevenue - a.totalRevenue;
       if (sortBy === "quantity") return b.totalQuantitySold - a.totalQuantitySold;
-      if (sortBy === "orders")   return b.totalOrders - a.totalOrders;
       if (sortBy === "name")     return a.itemName.localeCompare(b.itemName);
       return 0;
     });
 
-  // ── Top performers ─────────────────────────────────────────────────────────
-  const topItems = [...items]
-    .sort((a, b) => b.totalRevenue - a.totalRevenue)
-    .slice(0, 5)
-    .map((item, i) => ({
-      rank: i + 1,
-      name: item.itemName,
-      value: item.totalRevenue,
-      quantity: item.totalQuantitySold,
-      percentage: summary.totalRevenue > 0 ? (item.totalRevenue / summary.totalRevenue) * 100 : 0,
-    }));
+  // Top 5 for chart tab
+  const topItems = items.slice(0, 5).map((item, index) => ({
+    rank: index + 1,
+    name: item.itemName,
+    value: item.totalRevenue,
+    quantity: item.totalQuantitySold,
+    percentage: (item.totalRevenue / summary.totalRevenue) * 100,
+  }));
 
-  // ── Category revenue totals ────────────────────────────────────────────────
-  const categoryTotals = categories.map(cat => {
-    const catItems  = items.filter(i => i.category === cat);
-    const revenue   = catItems.reduce((s, i) => s + i.totalRevenue, 0);
-    const qty       = catItems.reduce((s, i) => s + i.totalQuantitySold, 0);
-    return { category: cat, revenue, qty, count: catItems.length };
-  }).sort((a, b) => b.revenue - a.revenue);
+  // Derived metrics
+  const totalItemsSold    = items.reduce((acc, item) => acc + item.totalQuantitySold, 0);
+  const totalCOGS         = items.reduce((acc, item) => acc + (item.totalCOGS ?? 0), 0);
+  const totalGrossProfit  = summary.totalRevenue - totalCOGS;
+  const totalInventoryVal = items.reduce((acc, item) => acc + (item.totalCostPrice ?? 0), 0);
 
-  // ── Export ─────────────────────────────────────────────────────────────────
-  const handleExport = () => {
-    toCsv(
-      filteredItems.map(i => ({
-        "Item":           i.itemName,
-        "SKU":            i.sku,
-        "Category":       i.category ?? "",
-        "Qty Sold":       i.totalQuantitySold,
-        "Total Revenue":  i.totalRevenue,
-        "Avg Price":      i.averagePrice,
-        "Total Orders":   i.totalOrders,
-        "Revenue %":      summary.totalRevenue > 0 ? ((i.totalRevenue / summary.totalRevenue) * 100).toFixed(1) + "%" : "0%",
-      })),
-      `sales-by-item-${format(new Date(), "yyyy-MM-dd")}.csv`
-    );
-    toast.success("Item report exported!");
-  };
+  const handleExport = () => toast.info("Exporting item report...");
+  const handlePrint  = () => window.print();
 
   return (
-    <div className="space-y-6 p-6 max-w-7xl mx-auto print:p-0">
-
+    <div className="space-y-6 p-6 max-w-7xl mx-auto">
       {/* ── Header ── */}
-      <div className="flex items-center justify-between print:mb-4">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Sales by Item</h1>
-          <p className="text-muted-foreground mt-1">Product performance analysis and sales metrics</p>
+          <p className="text-muted-foreground mt-1">
+            Product performance analysis and sales metrics
+          </p>
         </div>
-        <div className="flex gap-2 print:hidden">
+        <div className="flex gap-2">
           <Button variant="outline" onClick={handleExport}>
             <Download className="h-4 w-4 mr-2" />Export
           </Button>
-          <Button variant="outline" onClick={() => window.print()}>
+          <Button variant="outline" onClick={handlePrint}>
             <Printer className="h-4 w-4 mr-2" />Print
           </Button>
         </div>
       </div>
 
       {/* ── Filters ── */}
-      <Card className="print:hidden">
+      <Card>
         <CardContent className="pt-6">
           <div className="flex flex-wrap gap-4">
             <div className="flex-1 min-w-[200px] relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search items or SKU..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" />
+              <Input
+                placeholder="Search items..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
             </div>
+
+            <Select value={dateRange} onValueChange={setDateRange}>
+              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7">Last 7 days</SelectItem>
+                <SelectItem value="30">Last 30 days</SelectItem>
+                <SelectItem value="90">Last 90 days</SelectItem>
+                <SelectItem value="365">Last year</SelectItem>
+              </SelectContent>
+            </Select>
+
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-44"><SelectValue placeholder="All Categories" /></SelectTrigger>
+              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
-                {categories.map(cat => (
-                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                {categories.map((category) => (
+                  <SelectItem key={category} value={category || ""}>{category}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
+
             <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="revenue">Sort by Revenue</SelectItem>
                 <SelectItem value="quantity">Sort by Quantity</SelectItem>
-                <SelectItem value="orders">Sort by Orders</SelectItem>
                 <SelectItem value="name">Sort by Name</SelectItem>
               </SelectContent>
             </Select>
@@ -160,171 +200,170 @@ export default function SalesByItemReport({ data }: SalesByItemReportProps) {
         </CardContent>
       </Card>
 
-      {/* ── Summary cards ── */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
-            <div className="h-9 w-9 rounded-lg bg-green-100 flex items-center justify-center">
-              <span className="text-green-600 font-bold">₵</span>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold truncate">{currency(summary.totalRevenue)}</div>
-            <p className="text-xs text-muted-foreground mt-1">From {summary.totalOrders} orders</p>
-          </CardContent>
-        </Card>
+      {/* ── Summary Cards — 7 cards, 3-col grid ── */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Unique Products</CardTitle>
-            <div className="h-9 w-9 rounded-lg bg-purple-100 flex items-center justify-center">
-              <span className="text-xl">📦</span>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{items.length}</div>
-            <p className="text-xs text-muted-foreground mt-1">Across {categories.length} categories</p>
-          </CardContent>
-        </Card>
+        {/* 1. Total Revenue */}
+        <SummaryCard
+          label="Total Revenue"
+          value={currency(summary.totalRevenue)}
+          sub={`From ${summary.totalOrders} orders`}
+          icon={CircleDollarSign}
+          iconBg="bg-emerald-100 dark:bg-emerald-950/40"
+          iconColor="text-emerald-600"
+        />
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Units Sold</CardTitle>
-            <div className="h-9 w-9 rounded-lg bg-teal-100 flex items-center justify-center">
-              <span className="text-xl">📊</span>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalItemsSold.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground mt-1">Total quantity</p>
-          </CardContent>
-        </Card>
+        {/* 2. Total COGS */}
+        <SummaryCard
+          label="Total COGS"
+          value={currency(totalCOGS)}
+          sub="Cost of goods sold"
+          icon={Layers}
+          iconBg="bg-orange-100 dark:bg-orange-950/40"
+          iconColor="text-orange-500"
+          valueColor="text-orange-600 dark:text-orange-400"
+        />
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Avg Items/Order</CardTitle>
-            <div className="h-9 w-9 rounded-lg bg-cyan-100 flex items-center justify-center">
-              <span className="text-xl">🔢</span>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {summary.totalOrders > 0 ? (totalItemsSold / summary.totalOrders).toFixed(1) : "0"}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">Items per transaction</p>
-          </CardContent>
-        </Card>
+        {/* 3. Total Gross Profit */}
+        <SummaryCard
+          label="Total Gross Profit"
+          value={currency(totalGrossProfit)}
+          sub="Revenue - COGS"
+          icon={TrendingUp}
+          iconBg="bg-violet-100 dark:bg-violet-950/40"
+          iconColor="text-violet-600"
+          valueColor="text-violet-600 dark:text-violet-400"
+          link={{ href: "/accounting/profit-loss", label: "Go to accounting" }}
+        />
+
+        {/* 4. Total Orders */}
+        <SummaryCard
+          label="Total Orders"
+          value={summary.totalOrders.toString()}
+          sub="Sales transactions"
+          icon={ShoppingCart}
+          iconBg="bg-blue-100 dark:bg-blue-950/40"
+          iconColor="text-blue-500"
+        />
+
+        {/* 5. Total Products */}
+        <SummaryCard
+          label="Total Products"
+          value={items.length.toString()}
+          sub="Unique items sold"
+          icon={Package}
+          iconBg="bg-indigo-100 dark:bg-indigo-950/40"
+          iconColor="text-indigo-500"
+        />
+
+        {/* 6. Items Sold */}
+        <SummaryCard
+          label="Items Sold"
+          value={totalItemsSold.toLocaleString()}
+          sub="Total quantity"
+          icon={BarChart3}
+          iconBg="bg-teal-100 dark:bg-teal-950/40"
+          iconColor="text-teal-600"
+        />
+
+        {/* 7. Inventory Value */}
+        <SummaryCard
+          label="Inventory Value"
+          value={currency(totalInventoryVal)}
+          sub="Stock value at cost"
+          icon={Warehouse}
+          iconBg="bg-cyan-100 dark:bg-cyan-950/40"
+          iconColor="text-cyan-600"
+        />
+
       </div>
 
-      {/* ── Tabs ── */}
+      {/* ── Tabbed Content ── */}
       <Tabs defaultValue="table" className="space-y-4">
-        <TabsList className="print:hidden">
+        <TabsList>
           <TabsTrigger value="table">Product Details</TabsTrigger>
           <TabsTrigger value="chart">Top Performers</TabsTrigger>
-          <TabsTrigger value="categories">By Category</TabsTrigger>
           <TabsTrigger value="insights">Insights</TabsTrigger>
         </TabsList>
 
-        {/* ── Full table ── */}
+        {/* Table View */}
         <TabsContent value="table">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Product Sales Breakdown</CardTitle>
-                  <p className="text-sm text-muted-foreground mt-0.5">Showing {filteredItems.length} of {items.length} products</p>
-                </div>
-                <Button variant="outline" size="sm" onClick={handleExport} className="print:hidden">
-                  <Download className="h-3.5 w-3.5 mr-1.5" />Export
-                </Button>
-              </div>
+              <CardTitle>Product Sales Breakdown</CardTitle>
+              <p className="text-sm text-muted-foreground">Showing {filteredItems.length} products</p>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full">
                   <thead>
-                    <tr className="border-b bg-muted/30">
-                      <th className="text-left p-3 text-xs font-semibold">#</th>
-                      <th className="text-left p-3 text-xs font-semibold">Item</th>
-                      <th className="text-left p-3 text-xs font-semibold">Category</th>
-                      <th className="text-right p-3 text-xs font-semibold">Qty Sold</th>
-                      <th className="text-right p-3 text-xs font-semibold">Total Revenue</th>
-                      <th className="text-right p-3 text-xs font-semibold">Avg Price</th>
-                      <th className="text-right p-3 text-xs font-semibold">Orders</th>
-                      <th className="text-right p-3 text-xs font-semibold">Revenue %</th>
+                    <tr className="border-b">
+                      <th className="text-left p-3 text-sm font-semibold">Item</th>
+                      <th className="text-left p-3 text-sm font-semibold">Category</th>
+                      <th className="text-right p-3 text-sm font-semibold">Qty Sold</th>
+                      <th className="text-right p-3 text-sm font-semibold">Total Revenue</th>
+                      <th className="text-right p-3 text-sm font-semibold">Avg Price</th>
+                      <th className="text-right p-3 text-sm font-semibold">Orders</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredItems.map((item, idx) => {
-                      const pct = summary.totalRevenue > 0 ? (item.totalRevenue / summary.totalRevenue) * 100 : 0;
-                      return (
-                        <tr key={item.itemId} className="border-b hover:bg-muted/40 transition-colors">
-                          <td className="p-3 text-muted-foreground text-xs">{idx + 1}</td>
-                          <td className="p-3">
+                    {filteredItems.map((item) => (
+                      <tr key={item.itemId} className="border-b hover:bg-muted/50">
+                        <td className="p-3">
+                          <div>
                             <p className="font-medium">{item.itemName}</p>
-                            <p className="text-xs text-muted-foreground font-mono">{item.sku}</p>
-                          </td>
-                          <td className="p-3">
-                            {item.category && <Badge variant="outline" className="text-[10px]">{item.category}</Badge>}
-                          </td>
-                          <td className="text-right p-3 font-semibold">{item.totalQuantitySold.toLocaleString()}</td>
-                          <td className="text-right p-3 font-semibold text-green-600">{currency(item.totalRevenue)}</td>
-                          <td className="text-right p-3 text-muted-foreground">{currency(item.averagePrice)}</td>
-                          <td className="text-right p-3">{item.totalOrders}</td>
-                          <td className="text-right p-3">
-                            <div className="flex items-center justify-end gap-2">
-                              <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden">
-                                <div className="h-full bg-green-500 rounded-full" style={{ width: `${pct}%` }} />
-                              </div>
-                              <span className="text-xs text-muted-foreground w-10 text-right">{pct.toFixed(1)}%</span>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                  {filteredItems.length > 0 && (
-                    <tfoot className="border-t-2 bg-muted/20">
-                      <tr>
-                        <td colSpan={3} className="p-3 font-semibold text-sm">Total</td>
-                        <td className="text-right p-3 font-semibold">{filteredItems.reduce((s,i) => s+i.totalQuantitySold, 0).toLocaleString()}</td>
-                        <td className="text-right p-3 font-semibold text-green-600">{currency(filteredItems.reduce((s,i) => s+i.totalRevenue, 0))}</td>
-                        <td colSpan={3} />
+                            <p className="text-xs text-muted-foreground">{item.sku}</p>
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          {item.category && <Badge variant="outline">{item.category}</Badge>}
+                        </td>
+                        <td className="text-right p-3 font-semibold">
+                          {item.totalQuantitySold.toLocaleString()}
+                        </td>
+                        <td className="text-right p-3 font-semibold text-green-600">
+                          {currency(item.totalRevenue)}
+                        </td>
+                        <td className="text-right p-3">{currency(item.averagePrice)}</td>
+                        <td className="text-right p-3">{item.totalOrders}</td>
                       </tr>
-                    </tfoot>
-                  )}
+                    ))}
+                  </tbody>
                 </table>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* ── Top performers ── */}
+        {/* Top Performers */}
         <TabsContent value="chart">
           <Card>
             <CardHeader>
               <CardTitle>Top Products by Revenue</CardTitle>
-              <p className="text-sm text-muted-foreground">Best performing products this period</p>
+              <p className="text-sm text-muted-foreground">Best performing products</p>
             </CardHeader>
-            <CardContent className="space-y-5">
+            <CardContent className="space-y-6">
               {topItems.map((item) => (
                 <div key={item.rank} className="flex items-center gap-4">
-                  <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center font-bold text-green-600 flex-shrink-0 text-sm">
+                  <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center font-bold text-green-600 flex-shrink-0">
                     {item.rank}
                   </div>
                   <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="font-medium text-sm">{item.name}</span>
-                      <span className="text-sm font-semibold text-green-600">{currency(item.value)}</span>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium">{item.name}</span>
+                      <span className="text-sm font-semibold text-green-600">
+                        {currency(item.value)}
+                      </span>
                     </div>
                     <div className="h-2 bg-muted rounded-full overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-green-500 to-emerald-400 transition-all" style={{ width: `${item.percentage}%` }} />
+                      <div
+                        className="h-full bg-gradient-to-r from-green-500 to-green-400 transition-all"
+                        style={{ width: `${item.percentage}%` }}
+                      />
                     </div>
-                    <div className="flex gap-3 mt-1">
-                      <span className="text-xs text-muted-foreground">{item.quantity.toLocaleString()} units</span>
-                      <span className="text-xs text-muted-foreground">{item.percentage.toFixed(1)}% of revenue</span>
-                    </div>
+                    <span className="text-xs text-muted-foreground mt-1 inline-block">
+                      {item.quantity} units sold
+                    </span>
                   </div>
                 </div>
               ))}
@@ -332,110 +371,43 @@ export default function SalesByItemReport({ data }: SalesByItemReportProps) {
           </Card>
         </TabsContent>
 
-        {/* ── Category breakdown ── */}
-        <TabsContent value="categories">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Sales by Category</CardTitle>
-                <Button variant="outline" size="sm" onClick={() => {
-                  toCsv(categoryTotals.map(c => ({
-                    "Category": c.category, "Products": c.count,
-                    "Units Sold": c.qty, "Revenue": c.revenue,
-                    "Revenue %": summary.totalRevenue > 0 ? ((c.revenue/summary.totalRevenue)*100).toFixed(1)+"%" : "0%",
-                  })), "sales-by-category.csv");
-                  toast.success("Exported!");
-                }} className="print:hidden text-xs">
-                  <Download className="h-3 w-3 mr-1" />Export
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b bg-muted/30">
-                      <th className="text-left p-3 text-xs font-semibold">Category</th>
-                      <th className="text-right p-3 text-xs font-semibold">Products</th>
-                      <th className="text-right p-3 text-xs font-semibold">Units Sold</th>
-                      <th className="text-right p-3 text-xs font-semibold">Revenue</th>
-                      <th className="text-right p-3 text-xs font-semibold">% of Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {categoryTotals.map(({ category, revenue, qty, count }) => {
-                      const pct = summary.totalRevenue > 0 ? (revenue / summary.totalRevenue) * 100 : 0;
-                      return (
-                        <tr key={category} className="border-b hover:bg-muted/30 transition-colors">
-                          <td className="p-3 font-medium">{category}</td>
-                          <td className="text-right p-3 text-muted-foreground">{count}</td>
-                          <td className="text-right p-3">{qty.toLocaleString()}</td>
-                          <td className="text-right p-3 font-semibold text-green-600">{currency(revenue)}</td>
-                          <td className="text-right p-3">
-                            <div className="flex items-center justify-end gap-2">
-                              <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
-                                <div className="h-full bg-blue-500 rounded-full" style={{ width: `${pct}%` }} />
-                              </div>
-                              <span className="text-xs text-muted-foreground">{pct.toFixed(1)}%</span>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* ── Insights ── */}
+        {/* Insights */}
         <TabsContent value="insights">
           <div className="grid gap-6 md:grid-cols-2">
+            <Card>
+              <CardHeader><CardTitle>Product Categories</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                {categories.slice(0, 5).map((category) => {
+                  const categoryRevenue = items
+                    .filter((item) => item.category === category)
+                    .reduce((acc, item) => acc + item.totalRevenue, 0);
+                  return (
+                    <div key={category} className="flex items-center justify-between">
+                      <span className="text-sm">{category}</span>
+                      <span className="font-semibold">{currency(categoryRevenue)}</span>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader><CardTitle>Performance Metrics</CardTitle></CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm">Best Selling Product</span>
-                  <span className="font-semibold text-sm truncate ml-4 max-w-[180px] text-right">{items[0]?.itemName ?? "—"}</span>
+                  <span className="font-semibold">{items[0]?.itemName}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">Highest Revenue</span>
-                  <span className="font-semibold text-green-600">{currency(items[0]?.totalRevenue || 0)}</span>
+                  <span className="text-sm">Highest Revenue Product</span>
+                  <span className="font-semibold">{currency(items[0]?.totalRevenue || 0)}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">Avg Product Revenue</span>
-                  <span className="font-semibold">{currency(items.length > 0 ? summary.totalRevenue / items.length : 0)}</span>
+                  <span className="text-sm">Average Product Revenue</span>
+                  <span className="font-semibold">
+                    {currency(summary.totalRevenue / items.length)}
+                  </span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Total Discounts Given</span>
-                  <span className="font-semibold text-red-500">{currency(summary.totalDiscount)}</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader><CardTitle>Revenue Distribution</CardTitle></CardHeader>
-              <CardContent className="space-y-3">
-                {topItems.slice(0, 3).map((item) => (
-                  <div key={item.rank} className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground w-4">{item.rank}.</span>
-                    <div className="flex-1">
-                      <div className="flex justify-between mb-0.5">
-                        <span className="text-xs font-medium truncate pr-2">{item.name}</span>
-                        <span className="text-xs font-semibold">{item.percentage.toFixed(1)}%</span>
-                      </div>
-                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                        <div className="h-full rounded-full" style={{ width: `${item.percentage}%`, background: `hsl(${140 + item.rank * 20}, 60%, 50%)` }} />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                {items.length > 3 && (
-                  <p className="text-xs text-muted-foreground pt-1">
-                    Remaining {items.length - 3} products account for {(100 - topItems.slice(0, 3).reduce((s, i) => s + i.percentage, 0)).toFixed(1)}% of revenue
-                  </p>
-                )}
               </CardContent>
             </Card>
           </div>

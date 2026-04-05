@@ -33,8 +33,9 @@ import {
   TrendingUp, Users, DollarSign, BellRing, X,
 } from "lucide-react"
 import { toast } from "sonner"
-import { formatCurrency, formatDate } from "../so-utils"
 import { recordPayment } from "@/actions/sales-orders"
+import { formatCurrency, formatDate } from "../so-utils"
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -65,14 +66,17 @@ export interface CreditOrder {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function normaliseStatus(s: CreditOrder["paymentStatus"]): "UNPAID" | "PARTIAL" | "PAID" {
+function normaliseStatus(s: CreditOrder["paymentStatus"], amountOwing?: number): "UNPAID" | "PARTIAL" | "PAID" {
+  // If amountOwing is 0 or less the order is fully paid regardless of DB status
+  // This handles stale PARTIAL status when full payment was recorded
+  if (amountOwing !== undefined && amountOwing < 0.01) return "PAID"
   if (s === "PAID")    return "PAID"
   if (s === "PARTIAL") return "PARTIAL"
   return "UNPAID"
 }
 
-function getPaymentBadge(status: CreditOrder["paymentStatus"]) {
-  const s = normaliseStatus(status)
+function getPaymentBadge(status: CreditOrder["paymentStatus"], amountOwing?: number) {
+  const s = normaliseStatus(status, amountOwing)
   if (s === "PAID")
     return <Badge className="bg-green-100 text-green-800 border-green-200 gap-1"><CheckCircle2 className="w-3 h-3" />Completed</Badge>
   if (s === "PARTIAL")
@@ -88,7 +92,7 @@ function getMethodIcon(method: PaymentRecord["method"]) {
 
 function isOverdue(order: CreditOrder): boolean {
   if (!order.deliveryDate) return false
-  if (normaliseStatus(order.paymentStatus) === "PAID") return false
+  if (normaliseStatus(order.paymentStatus, order.amountOwing) === "PAID") return false
   return new Date(order.deliveryDate) < new Date()
 }
 
@@ -102,7 +106,7 @@ interface DueAlert { order: CreditOrder; daysUntilDue: number }
 function getDueAlerts(orders: CreditOrder[]): DueAlert[] {
   const midnight = new Date(); midnight.setHours(0, 0, 0, 0)
   return orders
-    .filter(o => o.deliveryDate && normaliseStatus(o.paymentStatus) !== "PAID")
+    .filter(o => o.deliveryDate && normaliseStatus(o.paymentStatus, o.amountOwing) !== "PAID")
     .map(o => {
       const dueDay = new Date(o.deliveryDate!); dueDay.setHours(0, 0, 0, 0)
       const daysUntilDue = Math.round((dueDay.getTime() - midnight.getTime()) / 86_400_000)
@@ -180,8 +184,8 @@ function RecordPaymentDialog({ open, onOpenChange, order, onPaymentRecorded }: {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   if (!order) return null
-  const maxAmount    = order.amountOwing
-  const parsedAmount = parseFloat(amount) || 0
+  const maxAmount    = Math.round(order.amountOwing * 100) / 100
+  const parsedAmount = Math.round((parseFloat(amount) || 0) * 100) / 100
   const isValid      = parsedAmount > 0 && parsedAmount <= maxAmount
   const newBalance   = maxAmount - parsedAmount
 
@@ -189,7 +193,7 @@ function RecordPaymentDialog({ open, onOpenChange, order, onPaymentRecorded }: {
     if (!isValid) return
     setIsSubmitting(true)
     try {
-      const result = await recordPayment({ orderId: order.id, amount: parsedAmount, method, reference: reference || undefined })
+      const result = await recordPayment({ orderId: order.id, amount: Math.min(parsedAmount, maxAmount), method, reference: reference || undefined })
       if (result.success && result.data) {
         const p = result.data as any
         const newPayment: PaymentRecord = {
@@ -350,7 +354,7 @@ export default function CreditPaymentTracker({ orders: initialOrders, onPaymentR
   const stats = useMemo(() => ({
     totalOwed:    orders.reduce((s, o) => s + o.amountOwing, 0),
     totalPaid:    orders.reduce((s, o) => s + o.amountPaid, 0),
-    debtors:      orders.filter(o => normaliseStatus(o.paymentStatus) !== "PAID").length,
+    debtors:      orders.filter(o => normaliseStatus(o.paymentStatus, o.amountOwing) !== "PAID").length,
     overdueCount: orders.filter(isOverdue).length,
   }), [orders])
 
@@ -358,7 +362,8 @@ export default function CreditPaymentTracker({ orders: initialOrders, onPaymentR
     const matchSearch =
       o.customerName.toLowerCase().includes(search.toLowerCase()) ||
       o.orderNumber.toLowerCase().includes(search.toLowerCase())
-    const ns = normaliseStatus(o.paymentStatus)
+    // Pass amountOwing so stale PARTIAL (amountOwing=0) shows as PAID in filter
+    const ns = normaliseStatus(o.paymentStatus, o.amountOwing)
     const matchStatus = statusFilter === "ALL" || ns === statusFilter
     return matchSearch && matchStatus
   }), [orders, search, statusFilter])
@@ -376,8 +381,8 @@ export default function CreditPaymentTracker({ orders: initialOrders, onPaymentR
 
   const handleExport = () => {
     const rows =
-      exportFilter === "current_debtors" ? orders.filter(o => normaliseStatus(o.paymentStatus) !== "PAID") :
-      exportFilter === "paid_only"       ? orders.filter(o => normaliseStatus(o.paymentStatus) === "PAID") :
+      exportFilter === "current_debtors" ? orders.filter(o => normaliseStatus(o.paymentStatus, o.amountOwing) !== "PAID") :
+      exportFilter === "paid_only"       ? orders.filter(o => normaliseStatus(o.paymentStatus, o.amountOwing) === "PAID") :
       orders
     const headers = ["Order #","Customer","Phone","Total (GHS)","Paid (GHS)","Owing (GHS)","Status","Order Date","Delivery Date"]
     const csv = [
@@ -385,7 +390,7 @@ export default function CreditPaymentTracker({ orders: initialOrders, onPaymentR
       ...rows.map(o => [
         o.orderNumber, `"${o.customerName}"`, o.customerPhone || "",
         o.totalAmount.toFixed(2), o.amountPaid.toFixed(2), o.amountOwing.toFixed(2),
-        normaliseStatus(o.paymentStatus), formatDate(o.orderDate),
+        normaliseStatus(o.paymentStatus, o.amountOwing), formatDate(o.orderDate),
         o.deliveryDate ? formatDate(o.deliveryDate) : "N/A",
       ].join(",")),
     ].join("\n")
@@ -435,12 +440,12 @@ export default function CreditPaymentTracker({ orders: initialOrders, onPaymentR
             <Input placeholder="Search customer or order…" className="pl-8" value={search} onChange={e => setSearch(e.target.value)} />
           </div>
           <Select value={statusFilter} onValueChange={v => setStatusFilter(v as typeof statusFilter)}>
-            <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="ALL">All Status</SelectItem>
-              <SelectItem value="UNPAID">Unpaid</SelectItem>
-              <SelectItem value="PARTIAL">Partial</SelectItem>
-              <SelectItem value="PAID">Paid</SelectItem>
+              <SelectItem value="ALL">All Status ({orders.length})</SelectItem>
+              <SelectItem value="UNPAID">Unpaid ({orders.filter(o => normaliseStatus(o.paymentStatus, o.amountOwing) === "UNPAID").length})</SelectItem>
+              <SelectItem value="PARTIAL">Partial ({orders.filter(o => normaliseStatus(o.paymentStatus, o.amountOwing) === "PARTIAL").length})</SelectItem>
+              <SelectItem value="PAID">Paid ({orders.filter(o => normaliseStatus(o.paymentStatus, o.amountOwing) === "PAID").length})</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -497,7 +502,7 @@ export default function CreditPaymentTracker({ orders: initialOrders, onPaymentR
                       <TableCell className="text-right font-medium">{formatCurrency(order.totalAmount)}</TableCell>
                       <TableCell className="text-right text-green-700 font-medium">{formatCurrency(order.amountPaid)}</TableCell>
                       <TableCell className="text-right font-bold">
-                        <span className={normaliseStatus(order.paymentStatus) === "PAID" ? "text-green-600" : "text-red-600"}>
+                        <span className={normaliseStatus(order.paymentStatus, order.amountOwing) === "PAID" ? "text-green-600" : "text-red-600"}>
                           {formatCurrency(order.amountOwing)}
                         </span>
                       </TableCell>
@@ -510,10 +515,10 @@ export default function CreditPaymentTracker({ orders: initialOrders, onPaymentR
                           </div>
                         ) : <span className="text-muted-foreground text-sm">—</span>}
                       </TableCell>
-                      <TableCell>{getPaymentBadge(order.paymentStatus)}</TableCell>
+                      <TableCell>{getPaymentBadge(order.paymentStatus, order.amountOwing)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
-                          {normaliseStatus(order.paymentStatus) !== "PAID" && (
+                          {normaliseStatus(order.paymentStatus, order.amountOwing) !== "PAID" && (
                             <Button size="sm" className="h-7 text-xs gap-1" onClick={() => openPayDialog(order)}>
                               <Plus className="w-3 h-3" />Pay
                             </Button>

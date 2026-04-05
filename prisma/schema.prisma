@@ -3,10 +3,10 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
-
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -90,6 +90,7 @@ model User {
   createdReturns         SalesReturn[]          @relation("ReturnCreatedBy")
   approvedReturns        SalesReturn[]          @relation("ReturnApprovedBy")
   recordedPayments       SalesOrderPayment[]    @relation("PaymentRecordedBy")
+  recordedSupplierPayments  SupplierPayment[]  @relation("SupplierPaymentRecorder")
 }
 
 model Organisation {
@@ -129,6 +130,7 @@ model Organisation {
   salesReturns          SalesReturn[]
   Expense               Expense[]
   PayrollEntry          PayrollEntry[]
+  supplierPayments      SupplierPayment[]
 
   @@map("organisations")
 }
@@ -352,6 +354,10 @@ model PurchaseOrder {
   taxAmount            Float               @default(0)
   shippingCost         Float?
   discount             Float?              @default(0)
+  amountPaid           Float                 @default(0)
+  amountOwing          Float                 @default(0)
+  paymentStatus        SupplierPaymentStatus @default(UNPAID)
+  payments             SupplierPayment[]
   notes                String?
   paymentTerms         String?
   expectedDeliveryDate DateTime?
@@ -807,6 +813,41 @@ model PayrollEntry {
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
   org          Organisation @relation(fields: [orgId], references: [id])
+}
+
+model SupplierPayment {
+  id              String                @id @default(cuid())
+  purchaseOrderId String
+  amount          Float
+  method          SupplierPaymentMethod
+  reference       String?               // bank ref, cheque no., MoMo ID
+  notes           String?
+  paidAt          DateTime              @default(now())
+  recordedById    String
+  orgId           String
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  purchaseOrder   PurchaseOrder         @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  recordedBy      User                  @relation("SupplierPaymentRecorder", fields: [recordedById], references: [id])
+  organisation    Organisation          @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseOrderId])
+  @@index([orgId])
+  @@index([paidAt])
+}
+
+enum SupplierPaymentStatus {
+  UNPAID
+  PARTIAL
+  PAID
+}
+
+enum SupplierPaymentMethod {
+  CASH
+  BANK_TRANSFER
+  MOBILE_MONEY
+  CHEQUE
 }
 
 enum PaymentMethod {

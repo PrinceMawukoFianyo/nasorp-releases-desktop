@@ -41,6 +41,18 @@ export interface SalesByItem {
   totalRevenue: number;
   averagePrice: number;
   totalOrders: number;
+  /** Unit cost price from item master */
+  costPrice: number;
+  /** Cost of Goods Sold = totalQuantitySold × costPrice */
+  totalCOGS: number;
+  /** Gross Profit = totalRevenue − totalCOGS */
+  grossProfit: number;
+  /** Gross margin % = (grossProfit / totalRevenue) × 100 */
+  grossMargin: number;
+  /** Current stock remaining across all locations */
+  stockRemaining: number;
+  /** Inventory value of remaining stock = stockRemaining × costPrice */
+  totalCostPrice: number;
 }
 
 export interface SalesTimeline {
@@ -66,15 +78,15 @@ export interface WholesaleSaleDetail {
   itemId:               string;
   itemName:             string;
   sku:                  string;
-  tierName:             string;          // "Box", "Half Sack" etc.
-  packQuantity:         number;          // how many packs
-  unitsPerPack:         number;          // units per pack
-  totalUnits:           number;          // total units deducted
-  pricePerPack:         number;          // GHS per pack
-  pricePerUnit:         number;          // GHS per unit inside pack
-  singleUnitPrice:      number;          // normal retail price per unit
-  savingsPerUnit:       number;          // discount vs single
-  totalSavings:         number;          // savingsPerUnit × totalUnits
+  tierName:             string;
+  packQuantity:         number;
+  unitsPerPack:         number;
+  totalUnits:           number;
+  pricePerPack:         number;
+  pricePerUnit:         number;
+  singleUnitPrice:      number;
+  savingsPerUnit:       number;
+  totalSavings:         number;
   lineTotal:            number;
 }
 
@@ -93,67 +105,50 @@ export interface SingleSaleDetail {
 }
 
 export interface WholesaleVsSingleSummary {
-  // Totals
-  totalRevenue:         number;
-  singleRevenue:        number;
-  wholesaleRevenue:     number;
-  singleRevenuePercent: number;
+  totalRevenue:            number;
+  singleRevenue:           number;
+  wholesaleRevenue:        number;
+  singleRevenuePercent:    number;
   wholesaleRevenuePercent: number;
-
-  // Units
-  totalUnitsSold:       number;
-  singleUnitsSold:      number;
-  wholesaleUnitsSold:   number;
-
-  // Orders
-  totalOrders:          number;
-  singleOrders:         number;          // orders with at least one single line
-  wholesaleOrders:      number;          // orders with at least one wholesale line
-
-  // Savings customers got
-  totalSavingsGiven:    number;
-
-  // Pack type breakdown
+  totalUnitsSold:          number;
+  singleUnitsSold:         number;
+  wholesaleUnitsSold:      number;
+  totalOrders:             number;
+  singleOrders:            number;
+  wholesaleOrders:         number;
+  totalSavingsGiven:       number;
   packBreakdown: {
-    tierName:     string;
-    packsSold:    number;
-    unitsSold:    number;
-    revenue:      number;
-    percentage:   number;
+    tierName:   string;
+    packsSold:  number;
+    unitsSold:  number;
+    revenue:    number;
+    percentage: number;
   }[];
-
-  // Top wholesale items
   topWholesaleItems: {
-    itemName: string;
-    sku:      string;
-    revenue:  number;
+    itemName:  string;
+    sku:       string;
+    revenue:   number;
     unitsSold: number;
   }[];
 }
 
-// ── Credit & Payment breakdown types ─────────────────────────────────────────
-
 export interface CreditPaymentBreakdown {
-  // Revenue by collection method
-  cashRevenue:        number;
-  momoRevenue:        number;
-  cardRevenue:        number;
-  creditRevenue:      number;   // amount still outstanding
-  // Order counts by payment status
-  paidOrders:         number;
-  partialOrders:      number;
-  pendingOrders:      number;
-  cancelledOrders:    number;
-  // Totals
-  totalCollected:     number;
-  totalOutstanding:   number;
-  totalCancelled:     number;
-  // Top debtors (customers with most outstanding)
+  cashRevenue:      number;
+  momoRevenue:      number;
+  cardRevenue:      number;
+  creditRevenue:    number;
+  paidOrders:       number;
+  partialOrders:    number;
+  pendingOrders:    number;
+  cancelledOrders:  number;
+  totalCollected:   number;
+  totalOutstanding: number;
+  totalCancelled:   number;
   topDebtors: {
-    customerName:  string;
-    totalOwing:    number;
-    orderCount:    number;
-    isOverdue:     boolean;
+    customerName: string;
+    totalOwing:   number;
+    orderCount:   number;
+    isOverdue:    boolean;
   }[];
 }
 
@@ -176,12 +171,10 @@ export interface SalesReportData {
     amountOwing: number;
     itemCount: number;
   }>;
-  // Wholesale vs single breakdown
   wholesaleVsSingle: WholesaleVsSingleSummary;
   wholesaleDetails:  WholesaleSaleDetail[];
   singleDetails:     SingleSaleDetail[];
-  // Credit & payment breakdown
-  creditPayment: CreditPaymentBreakdown;
+  creditPayment:     CreditPaymentBreakdown;
 }
 
 // ============================================
@@ -193,7 +186,7 @@ export async function getSalesReport(
   fromDate?: Date,
   toDate?: Date
 ): Promise<SalesReportData> {
-  const user = await getAuthenticatedUser();
+  const user  = await getAuthenticatedUser();
   const orgId = user.orgId;
 
   const startDate = fromDate || startOfDay(subDays(new Date(), days));
@@ -210,9 +203,7 @@ export async function getSalesReport(
       location: { select: { id: true, name: true } },
       lines: {
         include: {
-          item: {
-            include: { category: true },
-          },
+          item: { include: { category: true } },
         },
       },
     },
@@ -268,13 +259,13 @@ export async function getSalesReport(
   const salesByCustomer: SalesByCustomer[] = Array.from(customerMap.entries())
     .map(([customerId, d]) => ({
       customerId,
-      customerName:     d.customerName,
-      customerEmail:    d.customerEmail,
-      totalOrders:      d.totalOrders,
-      totalQuantity:    d.totalQuantity,
-      totalRevenue:     d.totalRevenue,
+      customerName:      d.customerName,
+      customerEmail:     d.customerEmail,
+      totalOrders:       d.totalOrders,
+      totalQuantity:     d.totalQuantity,
+      totalRevenue:      d.totalRevenue,
       averageOrderValue: d.totalRevenue / d.totalOrders,
-      lastOrderDate:    format(d.lastOrderDate, "MMM dd, yyyy"),
+      lastOrderDate:     format(d.lastOrderDate, "MMM dd, yyyy"),
     }))
     .sort((a, b) => b.totalRevenue - a.totalRevenue);
 
@@ -289,8 +280,9 @@ export async function getSalesReport(
   salesOrders.forEach((order) => {
     order.lines.forEach((line: any) => {
       const cur = itemMap.get(line.itemId) || {
-        itemName: line.item?.name || "Unknown", sku: line.item?.sku || "",
-        category: line.item?.category?.name,
+        itemName:      line.item?.name || "Unknown",
+        sku:           line.item?.sku  || "",
+        category:      line.item?.category?.name,
         totalQuantity: 0, totalRevenue: 0, totalOrders: 0, priceSum: 0, priceCount: 0,
       };
       cur.totalQuantity += line.quantity;
@@ -302,12 +294,60 @@ export async function getSalesReport(
     });
   });
 
+  // Fetch current stock levels for every item that appeared in orders
+  const soldItemIds = Array.from(itemMap.keys());
+
+  // Fetch stock entries + item cost prices in one query
+  const stockEntries = soldItemIds.length > 0
+    ? await db.inventory.findMany({
+        where: { orgId, itemId: { in: soldItemIds } },
+        select: { itemId: true, quantity: true },
+      })
+    : [];
+
+  // Aggregate stock per item (multiple locations)
+  const stockByItem = new Map<string, number>();
+  for (const s of stockEntries) {
+    stockByItem.set(s.itemId, (stockByItem.get(s.itemId) ?? 0) + s.quantity);
+  }
+
+  // Fetch cost prices for sold items
+  const itemDetails = soldItemIds.length > 0
+    ? await db.item.findMany({
+        where: { id: { in: soldItemIds }, orgId },
+        select: { id: true, costPrice: true },
+      })
+    : [];
+
+  const costPriceByItem = new Map<string, number>();
+  for (const it of itemDetails) {
+    costPriceByItem.set(it.id, (it.costPrice as number) ?? 0);
+  }
+
   const salesByItem: SalesByItem[] = Array.from(itemMap.entries())
-    .map(([itemId, d]) => ({
-      itemId, itemName: d.itemName, sku: d.sku, category: d.category,
-      totalQuantitySold: d.totalQuantity, totalRevenue: d.totalRevenue,
-      averagePrice: d.priceSum / d.priceCount, totalOrders: d.totalOrders,
-    }))
+    .map(([itemId, d]) => {
+      const stockRemaining = stockByItem.get(itemId) ?? 0;
+      const costPrice      = costPriceByItem.get(itemId) ?? 0;
+      const totalCOGS      = d.totalQuantity * costPrice;
+      const grossProfit    = d.totalRevenue - totalCOGS;
+      const grossMargin    = d.totalRevenue > 0 ? (grossProfit / d.totalRevenue) * 100 : 0;
+      return {
+        itemId,
+        itemName:          d.itemName,
+        sku:               d.sku,
+        category:          d.category,
+        totalQuantitySold: d.totalQuantity,
+        totalRevenue:      d.totalRevenue,
+        averagePrice:      d.priceSum / d.priceCount,
+        totalOrders:       d.totalOrders,
+        costPrice,
+        totalCOGS,
+        grossProfit,
+        grossMargin,
+        stockRemaining,
+        totalCostPrice:    stockRemaining * costPrice,
+      };
+    })
     .sort((a, b) => b.totalRevenue - a.totalRevenue);
 
   // ── Timeline ──────────────────────────────────────────────────────────────
@@ -330,43 +370,40 @@ export async function getSalesReport(
   // ── Top performers ────────────────────────────────────────────────────────
 
   const topCustomers: TopPerformer[] = salesByCustomer.slice(0, 5).map((c) => ({
-    name: c.customerName, value: c.totalRevenue,
+    name:       c.customerName,
+    value:      c.totalRevenue,
     percentage: totalRevenue > 0 ? (c.totalRevenue / totalRevenue) * 100 : 0,
   }));
   const topItems: TopPerformer[] = salesByItem.slice(0, 5).map((i) => ({
-    name: i.itemName, value: i.totalRevenue,
+    name:       i.itemName,
+    value:      i.totalRevenue,
     percentage: totalRevenue > 0 ? (i.totalRevenue / totalRevenue) * 100 : 0,
   }));
 
   // ── Recent orders ─────────────────────────────────────────────────────────
 
   const recentOrders = salesOrders.slice(0, 10).map((order) => {
-    const orderTotal = (order.subtotal || 0) + (order.taxAmount || 0) + (order.shippingCost || 0) - (order.discount || 0);
+    const orderTotal  = (order.subtotal || 0) + (order.taxAmount || 0) + (order.shippingCost || 0) - (order.discount || 0);
     const amountPaid  = (order as any).amountPaid  ?? 0;
     const amountOwing = (order as any).amountOwing ?? Math.max(0, orderTotal - amountPaid);
     return {
-      id:            order.id,
-      orderNumber:   order.orderNumber || "N/A",
-      customerName:  order.customer?.name || "Unknown",
-      date:          format(order.createdAt, "MMM dd, yyyy"),
-      total:         orderTotal,
-      status:        order.status,
+      id:           order.id,
+      orderNumber:  order.orderNumber || "N/A",
+      customerName: order.customer?.name || "Unknown",
+      date:         format(order.createdAt, "MMM dd, yyyy"),
+      total:        orderTotal,
+      status:       order.status,
       paymentStatus: order.paymentStatus,
       amountPaid,
       amountOwing,
-      itemCount:     order.lines.length,
+      itemCount:    order.lines.length,
     };
   });
 
   // ── Wholesale vs Single breakdown ─────────────────────────────────────────
-  //
-  // We detect wholesale lines by checking whether line.notes contains a JSON
-  // payload with a tierId field (the same convention used everywhere else).
 
   const wholesaleDetails: WholesaleSaleDetail[] = [];
   const singleDetails:    SingleSaleDetail[]     = [];
-
-  // Sets of orderIds that have at least one wholesale / single line
   const wholesaleOrderIds = new Set<string>();
   const singleOrderIds    = new Set<string>();
 
@@ -389,11 +426,11 @@ export async function getSalesReport(
         }
       } catch { /* plain-text notes */ }
 
-      const isWholesale  = !!tierId;
-      const singlePrice  = (line.item?.sellingPrice as number) || 0;
+      const isWholesale = !!tierId;
+      const singlePrice = (line.item?.sellingPrice as number) || 0;
 
       if (isWholesale && tierName) {
-        const pricePerUnit  = wholesalePricePerPack / unitsPerPack;
+        const pricePerUnit   = wholesalePricePerPack / unitsPerPack;
         const savingsPerUnit = Math.max(0, singlePrice - pricePerUnit);
         wholesaleOrderIds.add(order.id);
         wholesaleDetails.push({
@@ -438,14 +475,11 @@ export async function getSalesReport(
   const wholesaleRevenue = wholesaleDetails.reduce((s, l) => s + l.lineTotal, 0);
   const singleRevenue    = singleDetails.reduce((s, l) => s + l.lineTotal, 0);
   const grandTotal       = wholesaleRevenue + singleRevenue;
-
   const wholesaleUnitsSold = wholesaleDetails.reduce((s, l) => s + l.totalUnits, 0);
   const singleUnitsSold    = singleDetails.reduce((s, l) => s + l.quantity, 0);
   const totalUnitsSold     = wholesaleUnitsSold + singleUnitsSold;
-
   const totalSavingsGiven  = wholesaleDetails.reduce((s, l) => s + l.totalSavings, 0);
 
-  // Pack type breakdown
   const packMap = new Map<string, { packsSold: number; unitsSold: number; revenue: number }>();
   for (const l of wholesaleDetails) {
     const cur = packMap.get(l.tierName) || { packsSold: 0, unitsSold: 0, revenue: 0 };
@@ -459,7 +493,6 @@ export async function getSalesReport(
     percentage: wholesaleRevenue > 0 ? (v.revenue / wholesaleRevenue) * 100 : 0,
   })).sort((a, b) => b.revenue - a.revenue);
 
-  // Top wholesale items
   const wItemMap = new Map<string, { itemName: string; sku: string; revenue: number; unitsSold: number }>();
   for (const l of wholesaleDetails) {
     const cur = wItemMap.get(l.itemId) || { itemName: l.itemName, sku: l.sku, revenue: 0, unitsSold: 0 };
@@ -488,34 +521,25 @@ export async function getSalesReport(
     topWholesaleItems,
   };
 
-  // ── Credit & Payment breakdown ───────────────────────────────────────────
-  // Fetch payment records for orders in the date range
+  // ── Credit & Payment breakdown ────────────────────────────────────────────
+
   const orderIds = salesOrders.map(o => o.id);
   const payments = orderIds.length > 0 ? await db.salesOrderPayment.findMany({
     where: { orderId: { in: orderIds } },
     select: { amount: true, method: true },
   }) : [];
 
-  const cashRevenue = payments
-    .filter((p: any) => p.method === "CASH")
-    .reduce((s: number, p: any) => s + p.amount, 0);
-  const momoRevenue = payments
-    .filter((p: any) => p.method === "MOMO")
-    .reduce((s: number, p: any) => s + p.amount, 0);
-  const cardRevenue = payments
-    .filter((p: any) => p.method === "CREDIT_CARD")
-    .reduce((s: number, p: any) => s + p.amount, 0);
+  const cashRevenue = payments.filter((p: any) => p.method === "CASH").reduce((s: number, p: any) => s + p.amount, 0);
+  const momoRevenue = payments.filter((p: any) => p.method === "MOMO").reduce((s: number, p: any) => s + p.amount, 0);
+  const cardRevenue = payments.filter((p: any) => p.method === "CREDIT_CARD").reduce((s: number, p: any) => s + p.amount, 0);
 
   const totalCollected   = cashRevenue + momoRevenue + cardRevenue;
   const totalOutstanding = salesOrders.reduce((s, o) => s + ((o as any).amountOwing ?? 0), 0);
-  const totalCancelled   = 0; // not in date range query (excluded by status filter)
 
-  const paidOrders      = salesOrders.filter(o => o.paymentStatus === "PAID").length;
-  const partialOrders   = salesOrders.filter(o => o.paymentStatus === "PARTIAL").length;
-  const pendingOrders   = salesOrders.filter(o => o.paymentStatus === "PENDING").length;
-  const cancelledOrders = 0;
+  const paidOrders    = salesOrders.filter(o => o.paymentStatus === "PAID").length;
+  const partialOrders = salesOrders.filter(o => o.paymentStatus === "PARTIAL").length;
+  const pendingOrders = salesOrders.filter(o => o.paymentStatus === "PENDING").length;
 
-  // Build top debtors from this period's orders
   const now = new Date();
   const debtorMap = new Map<string, { name: string; owing: number; count: number; overdue: boolean }>();
   for (const order of salesOrders) {
@@ -536,32 +560,17 @@ export async function getSalesReport(
     .map(d => ({ customerName: d.name, totalOwing: d.owing, orderCount: d.count, isOverdue: d.overdue }));
 
   const creditPayment: CreditPaymentBreakdown = {
-    cashRevenue,
-    momoRevenue,
-    cardRevenue,
-    creditRevenue: totalOutstanding,
-    paidOrders,
-    partialOrders,
-    pendingOrders,
-    cancelledOrders,
-    totalCollected,
-    totalOutstanding,
-    totalCancelled,
+    cashRevenue, momoRevenue, cardRevenue,
+    creditRevenue:   totalOutstanding,
+    paidOrders, partialOrders, pendingOrders, cancelledOrders: 0,
+    totalCollected, totalOutstanding, totalCancelled: 0,
     topDebtors,
   };
 
   return {
-    summary,
-    salesByCustomer,
-    salesByItem,
-    timeline,
-    topCustomers,
-    topItems,
-    recentOrders,
-    wholesaleVsSingle,
-    wholesaleDetails,
-    singleDetails,
-    creditPayment,
+    summary, salesByCustomer, salesByItem, timeline,
+    topCustomers, topItems, recentOrders,
+    wholesaleVsSingle, wholesaleDetails, singleDetails, creditPayment,
   };
 }
 
@@ -578,10 +587,14 @@ export async function getSalesByItemReport(days = 30, fromDate?: Date, toDate?: 
 export async function getSalesSummaryReport(days = 30, fromDate?: Date, toDate?: Date) {
   const r = await getSalesReport(days, fromDate, toDate);
   return {
-    summary:        r.summary,
-    timeline:       r.timeline,
-    topCustomers:   r.topCustomers,
-    topItems:       r.topItems,
-    recentOrders:   r.recentOrders,
+    summary:      r.summary,
+    timeline:     r.timeline,
+    topCustomers: r.topCustomers,
+    topItems:     r.topItems,
+    recentOrders: r.recentOrders,
   };
+}
+
+export async function getSalesReportWithDateRange(fromDate?: Date, toDate?: Date) {
+  return getSalesReport(30, fromDate, toDate);
 }

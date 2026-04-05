@@ -125,7 +125,13 @@ export async function getOrgBriefItems(orgId: string, params?: any) {
         barcode: true,
         category: { select: { id: true, title: true } },
         brand: { select: { id: true, name: true } },
-        supplierRelations: { select: { id: true, supplierId: true } },
+        supplierRelations: {
+          select: {
+            id: true,
+            supplierId: true,
+            supplier: { select: { id: true, name: true } },
+          },
+        },
         inventories: {
           select: {
             quantity: true,
