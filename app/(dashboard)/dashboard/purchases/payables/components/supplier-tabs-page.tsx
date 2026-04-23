@@ -11,11 +11,12 @@
 import { useState }    from "react"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { CreditCard, Building2, BookOpen } from "lucide-react"
-import SupplierPaymentTracker from "./supplier-payment-tracker"
+
 import CreditorsView          from "./creditors-view"
 import APLedgerView           from "./ap-ledger-view"
 import type { SupplierPayable }                         from "@/actions/supplier-payables"
 import type { APLedgerEntry, APLedgerSummary, APCsvRow, CreditorSummary } from "@/actions/supplier-payables"
+import SupplierPaymentTracker from "./supplier-payment-tracker"
 
 interface SupplierTabsPageProps {
   payables:         SupplierPayable[]

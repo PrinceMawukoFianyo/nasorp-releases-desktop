@@ -380,7 +380,7 @@ const form = useForm({
         toast.success("Sales order created successfully")
         router.push("/dashboard/sales/orders")
       } else {
-        toast.error(result.error || "Failed to create sales order")
+        toast.error(result.error || "Failed to create credit sales")
       }
     } catch (error) {
       console.error("Error creating sales order:", error)
@@ -412,13 +412,13 @@ const form = useForm({
             className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to Sales Orders
+            Back to Credit Sales
           </Link>
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold">Create Sales Order</h1>
+              <h1 className="text-3xl font-bold">Create Credit Sales</h1>
               <p className="text-muted-foreground mt-1">
-                Create a new sales order for your customer
+                Create a new credit sales for your customer
               </p>
             </div>
           </div>
@@ -585,7 +585,7 @@ const form = useForm({
               </div>
 
               <div className="space-y-2">
-                <Label>Expected Delivery Date</Label>
+                <Label>Expected Payment Date</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -887,7 +887,7 @@ const form = useForm({
                   Creating...
                 </>
               ) : (
-                "Create Sales Order"
+                "Create Credit Sales"
               )}
             </Button>
           </div>

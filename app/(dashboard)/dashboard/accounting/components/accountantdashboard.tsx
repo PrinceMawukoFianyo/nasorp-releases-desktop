@@ -25,7 +25,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { createExpense, createPayrollEntry, markPayrollPaid, deletePayrollEntry } from "@/actions/accounting";
-import DailySalesTab from "./DailySalesTab";
+import DailySalesTab      from "./DailySalesTab";
+import ForecastDashboard  from "./ForecastDashboard";
 
 // ══════════════════════════════════════════════════════════════════════
 // TYPES
@@ -1003,36 +1004,7 @@ export default function AccountantDashboard({
             FORECAST
             ════════════════════════════════════════════════════════ */}
         {tab === "forecast" && (
-          <div className="space-y-5">
-            <Card className="border-purple-200 dark:border-purple-800 bg-purple-50/40 dark:bg-purple-950/10">
-              <CardContent className="pt-8 pb-8 text-center">
-                <div className="w-14 h-14 rounded-2xl bg-purple-100 dark:bg-purple-900 flex items-center justify-center mx-auto mb-4">
-                  <TrendingUp className="h-7 w-7 text-purple-600 dark:text-purple-300"/>
-                </div>
-                <h2 className="text-lg font-bold mb-2">AI Forecasting — Coming Soon</h2>
-                <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-1">Seasonality detection, demand forecasting, and smart stock replenishment suggestions powered by your data.</p>
-                <Button onClick={()=>toast.info("You'll be notified when Forecast launches!")} className="mt-5 bg-purple-600 hover:bg-purple-700 text-white">Get Early Access →</Button>
-              </CardContent>
-            </Card>
-
-            {/* Preview cards of what's coming */}
-            <div className="grid grid-cols-3 gap-4">
-              {[
-                { icon:TrendingUp, title:"Revenue Forecast", desc:"30/60/90-day revenue projections based on sales trends", badge:"Coming Soon" },
-                { icon:Package2,   title:"Stock Replenishment", desc:"Auto-detect when to reorder based on sales velocity", badge:"Coming Soon" },
-                { icon:BarChart2,  title:"Seasonal Analysis", desc:"Identify peak periods and plan inventory accordingly", badge:"Coming Soon" },
-              ].map((f,i)=>(
-                <Card key={i} className="border-dashed opacity-60">
-                  <CardContent className="pt-5 pb-5 text-center">
-                    <f.icon className="h-8 w-8 mx-auto mb-3 text-muted-foreground"/>
-                    <p className="text-sm font-semibold mb-1">{f.title}</p>
-                    <p className="text-xs text-muted-foreground mb-3">{f.desc}</p>
-                    <Badge variant="outline" className="text-[10px] text-purple-600 border-purple-300">{f.badge}</Badge>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
+          <ForecastDashboard />
         )}
 
         {/* ════════════════════════════════════════════════════════

@@ -241,7 +241,7 @@ export const sidebarLinks: ISidebarLink[] = [
         permission: "pos.access",
       },
       {
-        title: "Sales Orders",
+        title: "Credit Sales",
         href: "/dashboard/sales/orders",
         permission: "sales.read",
       },
