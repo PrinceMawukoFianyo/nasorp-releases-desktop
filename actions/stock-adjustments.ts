@@ -183,7 +183,20 @@ export async function getItemsForAdjustment(locationId?: string) {
       orderBy: { name: "asc" },
     })
 
-    return { success: true, items }
+    // ✅ Clamp negative DB quantities to 0 before returning to the UI.
+    // Negative inventory is corrupt/invalid data — the form must never see it.
+    const safeItems = items.map((item) => ({
+      ...item,
+      inventories: Array.isArray(item.inventories)
+        ? item.inventories.map((inv: any) => ({
+            ...inv,
+            quantity: Math.max(0, inv.quantity ?? 0),
+            reservedQuantity: Math.max(0, inv.reservedQuantity ?? 0),
+          }))
+        : item.inventories,
+    }))
+
+    return { success: true, items: safeItems }
   } catch (error: any) {
     console.error("Error fetching items:", error)
     return { success: false, items: [], error: error.message }

@@ -50,7 +50,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// ── Next.js redirect() / notFound() throw special errors with a `digest` field.
 function isNextJsInternalError(err: unknown): boolean {
   if (!err || typeof err !== "object") return false;
   const d = (err as any).digest as string | undefined;
@@ -83,7 +82,18 @@ const productFormSchema = z.object({
   description: z.string().optional(),
   barcode: z.string().optional(),
   minStockLevel: z.string().optional(),
-  initialQuantity: z.string().optional(),
+  // ✅ Validate initialQuantity must be a non-negative integer
+  initialQuantity: z
+    .string()
+    .optional()
+    .refine(
+      (val) => {
+        if (!val || val === "") return true;
+        const n = parseInt(val, 10);
+        return !isNaN(n) && n >= 0;
+      },
+      { message: "Quantity must be 0 or greater" }
+    ),
 });
 
 type ProductFormValues = z.infer<typeof productFormSchema>;
@@ -98,7 +108,6 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
 
   const [isPending, startTransition] = useTransition();
 
-  // ── UI state ──────────────────────────────────────────────────────────────
   const [imageUrl, setImageUrl] = useState(DEFAULT_IMAGE);
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -109,16 +118,12 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
   const [currentProduct, setCurrentProduct] = useState<BriefItemResponse | null>(null);
   const [productToDelete, setProductToDelete] = useState<BriefItemResponse | null>(null);
 
-  // ── Location Filter State ─────────────────────────────────────────────────
   const [locations, setLocations] = useState<LocationWithCount[]>([]);
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
-
   const [locationItems, setLocationItems] = useState<BriefItemResponse[] | null>(null);
 
   const displayItems = useMemo<BriefItemResponse[]>(() => {
-    if (selectedLocationId) {
-      return locationItems ?? [];
-    }
+    if (selectedLocationId) return locationItems ?? [];
     return allItems ?? [];
   }, [selectedLocationId, locationItems, allItems]);
 
@@ -128,19 +133,16 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
   const [showLocationFilter, setShowLocationFilter] = useState(true);
   const [totalItemsCount, setTotalItemsCount] = useState(0);
 
-  // ── Dropdown options ──────────────────────────────────────────────────────
   const [categoryOptions, setCategoryOptions] = useState<Option[]>([]);
   const [brandOptions, setBrandOptions] = useState<Option[]>([]);
   const [unitOptions, setUnitOptions] = useState<Option[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(false);
 
-  // ── Selected form values ───────────────────────────────────────────────────
   const [selectedCategory, setSelectedCategory] = useState<Option | null>(null);
   const [selectedBrand, setSelectedBrand] = useState<Option | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<Option | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<Option | null>(null);
 
-  // ── Wholesale pricing ────────────────────────────────────────────────────
   const [packagingUnits, setPackagingUnits] = useState<PackagingUnitRecord[]>([]);
   const [wholesaleTiers, setWholesaleTiers] = useState<WholesaleTierDraft[]>([]);
 
@@ -158,19 +160,11 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
     },
   });
 
-  // ── Load locations once on mount ──────────────────────────────────────────
-  useEffect(() => {
-    loadLocationsWithCounts();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orgId]);
+  useEffect(() => { loadLocationsWithCounts(); }, [orgId]);
 
   useEffect(() => {
-    if (!selectedLocationId) {
-      setLocationItems(null);
-      return;
-    }
+    if (!selectedLocationId) { setLocationItems(null); return; }
     loadItemsForLocation(selectedLocationId);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedLocationId]);
 
   const loadLocationsWithCounts = async () => {
@@ -189,7 +183,6 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
       }
     } catch (err) {
       if (isNextJsInternalError(err)) throw err;
-      console.error("Error loading locations:", err);
       toast.error("Failed to load locations");
     } finally {
       setLoadingLocations(false);
@@ -217,8 +210,9 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
         supplierRelations: item.supplierRelations ?? [],
         salesCount: item.salesCount ?? 0,
         salesTotal: item.salesTotal ?? 0,
+        // ✅ Clamp totalStock to 0 minimum when transforming location data
         totalStock: item.inventories
-          ? item.inventories.reduce((s: number, inv: any) => s + inv.quantity, 0)
+          ? Math.max(0, item.inventories.reduce((s: number, inv: any) => s + inv.quantity, 0))
           : 0,
         updatedAt: item.updatedAt,
         createdAt: item.createdAt,
@@ -226,7 +220,6 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
       setLocationItems(transformed);
     } catch (err) {
       if (isNextJsInternalError(err)) throw err;
-      console.error("Error loading items for location:", err);
       toast.error("Failed to load items for this location");
     } finally {
       setLoadingLocationItems(false);
@@ -236,17 +229,10 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
   const refreshAll = useCallback(async () => {
     await refetch();
     await loadLocationsWithCounts();
-    if (selectedLocationId) {
-      await loadItemsForLocation(selectedLocationId);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (selectedLocationId) await loadItemsForLocation(selectedLocationId);
   }, [selectedLocationId, orgId]);
 
-  // Load dropdown options whenever the form opens
-  useEffect(() => {
-    if (formDialogOpen) loadOptions();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formDialogOpen]);
+  useEffect(() => { if (formDialogOpen) loadOptions(); }, [formDialogOpen]);
 
   const loadOptions = async () => {
     setLoadingOptions(true);
@@ -263,25 +249,17 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
       setPackagingUnits(pkgUnits);
     } catch (err) {
       if (isNextJsInternalError(err)) throw err;
-      console.error("Error loading options:", err);
       toast.error("Failed to load dropdown options");
     } finally {
       setLoadingOptions(false);
     }
   };
 
-  // Reset form when dialog opens for a new item
   useEffect(() => {
     if (!currentProduct) {
       form.reset({
-        name: "",
-        sellingPrice: "",
-        costPrice: "",
-        sku: "",
-        description: "",
-        barcode: "",
-        minStockLevel: "",
-        initialQuantity: "0",
+        name: "", sellingPrice: "", costPrice: "", sku: "",
+        description: "", barcode: "", minStockLevel: "", initialQuantity: "0",
       });
       setImageUrl(DEFAULT_IMAGE);
       setSelectedCategory(null);
@@ -292,7 +270,6 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
     }
   }, [currentProduct, form]);
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
   const formatDate = (date: Date | string) => {
     const d = typeof date === "string" ? new Date(date) : date;
     return format(d, "MMM dd, yyyy");
@@ -300,43 +277,33 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("en-GH", {
-      style: "currency",
-      currency: "GHS",
-      minimumFractionDigits: 0,
+      style: "currency", currency: "GHS", minimumFractionDigits: 0,
     }).format(amount);
 
   const handleExport = async (filtered: BriefItemResponse[]) => {
     setIsExporting(true);
     try {
       const data = filtered.map((p) => ({
-        Name: p.name,
-        SKU: p.sku,
-        "Selling Price": p.sellingPrice,
-        "Cost Price": p.costPrice,
-        "Sales Count": p.salesCount,
-        "Total Sales": formatCurrency(p.salesTotal),
+        Name: p.name, SKU: p.sku,
+        "Selling Price": p.sellingPrice, "Cost Price": p.costPrice,
+        "Sales Count": p.salesCount, "Total Sales": formatCurrency(p.salesTotal),
       }));
       const ws = XLSX.utils.json_to_sheet(data);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Products");
       XLSX.writeFile(wb, `Products_${format(new Date(), "yyyy-MM-dd")}.xlsx`);
       toast.success("Exported successfully");
-    } catch (err) {
+    } catch {
       toast.error("Export failed");
     } finally {
       setIsExporting(false);
     }
   };
 
-  const handleAddClick = () => {
-    setCurrentProduct(null);
-    setFormDialogOpen(true);
-  };
+  const handleAddClick = () => { setCurrentProduct(null); setFormDialogOpen(true); };
 
   const handleEditClick = (product: BriefItemResponse) => {
-    startTransition(() =>
-      router.push(`/dashboard/inventory/items/${product.id}/edit`)
-    );
+    startTransition(() => router.push(`/dashboard/inventory/items/${product.id}/edit`));
   };
 
   const handleDeleteClick = (product: BriefItemResponse) => {
@@ -347,17 +314,13 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
   const handleLocationSelect = (locationId: string | null) => {
     setSelectedLocationId(locationId);
     const params = new URLSearchParams(window.location.search);
-    if (locationId) {
-      params.set("location", locationId);
-    } else {
-      params.delete("location");
-    }
+    if (locationId) params.set("location", locationId);
+    else params.delete("location");
     router.replace(`?${params.toString()}`, { scroll: false });
   };
 
   const clearLocationFilter = () => handleLocationSelect(null);
 
-  // ── Submit ─────────────────────────────────────────────────────────────────
   const onSubmit = async (formData: ProductFormValues) => {
     if (isSubmitting || isUploading) {
       if (isUploading) toast.error("Please wait for the image to finish uploading");
@@ -366,12 +329,13 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
 
     const chosenLocationId = selectedLocation?.value ?? null;
     const chosenLocationLabel = selectedLocation?.label ?? "";
-    const initialQty = Math.max(0, parseInt(formData.initialQuantity ?? "0") || 0);
+
+    // ✅ Parse and hard-clamp to 0 minimum — prevents the Zod "too_small" server error
+    const rawQty = parseInt(formData.initialQuantity ?? "0") || 0;
+    const initialQty = Math.max(0, rawQty);
 
     const slug = formData.name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
+      .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
     const itemPayload = {
       name: formData.name,
@@ -396,35 +360,28 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
     setIsSubmitting(true);
     try {
       const createResult = await createItem(itemPayload);
-
       if (!createResult.success || !createResult.data?.id) {
-        toast.error("Failed to create item", {
-          description: createResult.error ?? "Unknown error",
-        });
+        toast.error("Failed to create item", { description: createResult.error ?? "Unknown error" });
         return;
       }
 
       const newItemId = createResult.data.id;
 
-      // Link to location if selected
       if (chosenLocationId) {
         const linkResult = await linkItemToLocation({
           itemId: newItemId,
           locationId: chosenLocationId,
-          quantity: initialQty,
+          quantity: initialQty, // ✅ always ≥ 0
         });
 
         if (linkResult.success) {
           toast.success("Item added successfully!", {
-            description:
-              initialQty > 0
-                ? `Linked to ${chosenLocationLabel} with ${initialQty} unit${initialQty !== 1 ? "s" : ""} in stock.`
-                : `Linked to ${chosenLocationLabel} (no initial stock set).`,
+            description: initialQty > 0
+              ? `Linked to ${chosenLocationLabel} with ${initialQty} unit${initialQty !== 1 ? "s" : ""} in stock.`
+              : `Linked to ${chosenLocationLabel} (no initial stock set).`,
           });
         } else {
-          toast.warning("Item created but location link failed", {
-            description: linkResult.error,
-          });
+          toast.warning("Item created but location link failed", { description: linkResult.error });
         }
       } else {
         toast.success("Item added successfully!", {
@@ -432,12 +389,8 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
         });
       }
 
-      // Pricing tiers
       const validTiers = wholesaleTiers.filter(
-        (t) =>
-          t.packagingUnitId &&
-          parseInt(t.unitsPerPack) >= 1 &&
-          parseFloat(t.wholesalePrice) > 0
+        (t) => t.packagingUnitId && parseInt(t.unitsPerPack) >= 1 && parseFloat(t.wholesalePrice) > 0
       );
       if (validTiers.length > 0) {
         const tierResult = await createPricingTiersForItem(
@@ -450,27 +403,20 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
           }))
         );
         if (!tierResult.success) {
-          toast.warning("Item created but pricing tiers failed to save", {
-            description: tierResult.error,
-          });
+          toast.warning("Item created but pricing tiers failed to save", { description: tierResult.error });
         }
       }
 
-      // Reset form state
       setFormDialogOpen(false);
       setImageUrl(DEFAULT_IMAGE);
-      setSelectedCategory(null);
-      setSelectedBrand(null);
-      setSelectedUnit(null);
-      setSelectedLocation(null);
+      setSelectedCategory(null); setSelectedBrand(null);
+      setSelectedUnit(null); setSelectedLocation(null);
       setWholesaleTiers([]);
       form.reset();
-
       await refreshAll();
 
     } catch (err) {
       if (isNextJsInternalError(err)) throw err;
-      console.error("❌ onSubmit error:", err);
       toast.error("Something went wrong", {
         description: err instanceof Error ? err.message : "Please try again",
       });
@@ -479,20 +425,16 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
     }
   };
 
-  // ── Delete ─────────────────────────────────────────────────────────────────
   const handleConfirmDelete = async () => {
     if (!productToDelete) return;
     setIsDeleting(true);
-
     try {
       const result = await deleteItem(productToDelete.id);
-
       if (result.success) {
         setDeleteDialogOpen(false);
         setProductToDelete(null);
         toast.success("Item deleted successfully");
         await refreshAll();
-
       } else {
         const isBlockedByRelations =
           result.error?.includes("sales history") ||
@@ -514,9 +456,7 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
                   setProductToDelete(null);
                   await refreshAll();
                 } else {
-                  toast.error("Deactivation also failed", {
-                    description: deactivateResult.error,
-                  });
+                  toast.error("Deactivation also failed", { description: deactivateResult.error });
                 }
               },
             },
@@ -527,39 +467,24 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
       }
     } catch (error: any) {
       if (isNextJsInternalError(error)) throw error;
-      console.error("💥 Delete error:", error);
       toast.error(error?.message || "An unexpected error occurred");
     } finally {
       setIsDeleting(false);
     }
   };
 
-  // ── Inventory Value ────────────────────────────────────────────────────────
-  // Cost value:   quantity × costPrice   — "what did this stock cost me?" (matches accounting dashboard)
-  // Retail value: quantity × sellingPrice — "how much is my stock worth if sold?"
   const getInventoryCostValue = (products: BriefItemResponse[]) =>
-    products.reduce((sum, p) => {
-      const qty = (p as any).totalStock ?? 0;
-      return sum + qty * p.costPrice;
-    }, 0);
+    products.reduce((sum, p) => sum + Math.max(0, (p as any).totalStock ?? 0) * p.costPrice, 0);
 
   const getInventoryRetailValue = (products: BriefItemResponse[]) =>
-    products.reduce((sum, p) => {
-      const qty = (p as any).totalStock ?? 0;
-      return sum + qty * p.sellingPrice;
-    }, 0);
+    products.reduce((sum, p) => sum + Math.max(0, (p as any).totalStock ?? 0) * p.sellingPrice, 0);
 
-  // ── Table columns ─────────────────────────────────────────────────────────
   const columns: Column<BriefItemResponse>[] = [
     {
       header: "Image",
       accessorKey: "thumbnail",
       cell: (row) => (
-        <img
-          className="w-10 h-10 rounded object-cover"
-          src={row.thumbnail ?? "/placeholder.png"}
-          alt={row.name}
-        />
+        <img className="w-10 h-10 rounded object-cover" src={row.thumbnail ?? "/placeholder.png"} alt={row.name} />
       ),
     },
     {
@@ -574,9 +499,7 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
     {
       header: "SKU",
       accessorKey: "sku",
-      cell: (row) => (
-        <span className="text-xs font-mono text-muted-foreground">{row.sku}</span>
-      ),
+      cell: (row) => <span className="text-xs font-mono text-muted-foreground">{row.sku}</span>,
     },
     {
       header: "Price",
@@ -587,7 +510,8 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
       header: "Stock",
       accessorKey: "totalStock" as any,
       cell: (row) => {
-        const qty = (row as any).totalStock ?? 0;
+        // ✅ Clamp display — never show a negative badge
+        const qty = Math.max(0, (row as any).totalStock ?? 0);
         return (
           <Badge
             variant={qty <= 0 ? "destructive" : qty < 5 ? "secondary" : "outline"}
@@ -599,78 +523,61 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
       },
     },
     { header: "Sales Count", accessorKey: "salesCount" },
+    { header: "Total Sales", accessorKey: (row) => formatCurrency(row.salesTotal) },
     {
-      header: "Total Sales",
-      accessorKey: (row) => formatCurrency(row.salesTotal),
+      header: "Supplier",
+      accessorKey: "supplierRelations" as any,
+      cell: (row) => {
+        const relations = (row as any).supplierRelations ?? [];
+        if (relations.length === 0) {
+          return (
+            <Link href={`/dashboard/inventory/items/${row.id}/suppliers`}>
+              <span className="text-xs text-muted-foreground italic hover:underline">No supplier</span>
+            </Link>
+          );
+        }
+        return (
+          <div className="flex flex-wrap gap-1">
+            {relations.slice(0, 2).map((rel: any) => (
+              <Link key={rel.id} href={`/dashboard/inventory/items/${row.id}/suppliers`}>
+                <Badge variant="outline" className="text-xs font-normal cursor-pointer hover:bg-muted">
+                  {rel.supplier?.name ?? "Unknown"}
+                </Badge>
+              </Link>
+            ))}
+            {relations.length > 2 && (
+              <Link href={`/dashboard/inventory/items/${row.id}/suppliers`}>
+                <Badge variant="secondary" className="text-xs cursor-pointer">
+                  +{relations.length - 2} more
+                </Badge>
+              </Link>
+            )}
+          </div>
+        );
+      },
     },
-    {
-     header: "Supplier",
-     accessorKey: "supplierRelations" as any,
-     cell: (row) => {
-       const relations = (row as any).supplierRelations ?? []
-       if (relations.length === 0) {
-         return (
-           <Link href={`/dashboard/inventory/items/${row.id}/suppliers`}>
-             <span className="text-xs text-muted-foreground italic hover:underline">
-               No supplier
-             </span>
-           </Link>
-         )
-       }
-       return (
-         <div className="flex flex-wrap gap-1">
-           {relations.slice(0, 2).map((rel: any) => (
-             <Link key={rel.id} href={`/dashboard/inventory/items/${row.id}/suppliers`}>
-               <Badge
-                 variant="outline"
-                 className="text-xs font-normal cursor-pointer hover:bg-muted"
-               >
-                 {rel.supplier?.name ?? "Unknown"}
-               </Badge>
-             </Link>
-           ))}
-           {relations.length > 2 && (
-             <Link href={`/dashboard/inventory/items/${row.id}/suppliers`}>
-               <Badge variant="secondary" className="text-xs cursor-pointer">
-                 +{relations.length - 2} more
-               </Badge>
-             </Link>
-           )}
-         </div>
-       )
-     },
-   },
   ];
 
-  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
       {/* Location Filter Header */}
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Button
-            variant="outline"
-            size="sm"
+            variant="outline" size="sm"
             onClick={() => setShowLocationFilter(!showLocationFilter)}
             className="flex items-center gap-2"
           >
             <Filter className="h-4 w-4" />
             Filter by Location
-            {showLocationFilter ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : (
-              <ChevronDown className="h-4 w-4" />
-            )}
+            {showLocationFilter ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </Button>
 
           {selectedLocationId && (
             <Badge variant="secondary" className="flex items-center gap-1 px-3 py-1">
               <MapPin className="h-3 w-3" />
               {locations.find((l) => l.id === selectedLocationId)?.name || "Selected Location"}
-              <button
-                onClick={clearLocationFilter}
-                className="ml-1 hover:text-destructive"
-              >
+              <button onClick={clearLocationFilter} className="ml-1 hover:text-destructive">
                 <X className="h-3 w-3" />
               </button>
             </Badge>
@@ -703,17 +610,13 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
           ) : (
             <div className="flex flex-wrap gap-2">
               <Button
-                variant={!selectedLocationId ? "default" : "outline"}
-                size="sm"
+                variant={!selectedLocationId ? "default" : "outline"} size="sm"
                 onClick={() => handleLocationSelect(null)}
                 className="flex items-center gap-2"
               >
                 <Package className="h-3 w-3" />
                 All Locations
-                <Badge
-                  variant={!selectedLocationId ? "secondary" : "outline"}
-                  className="ml-1"
-                >
+                <Badge variant={!selectedLocationId ? "secondary" : "outline"} className="ml-1">
                   {totalItemsCount}
                 </Badge>
               </Button>
@@ -721,17 +624,13 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
               {locations.map((location) => (
                 <Button
                   key={location.id}
-                  variant={selectedLocationId === location.id ? "default" : "outline"}
-                  size="sm"
+                  variant={selectedLocationId === location.id ? "default" : "outline"} size="sm"
                   onClick={() => handleLocationSelect(location.id)}
                   className="flex items-center gap-2"
                 >
                   <MapPin className="h-3 w-3" />
                   {location.name}
-                  <Badge
-                    variant={selectedLocationId === location.id ? "secondary" : "outline"}
-                    className="ml-1"
-                  >
+                  <Badge variant={selectedLocationId === location.id ? "secondary" : "outline"} className="ml-1">
                     {location.itemCount}
                   </Badge>
                 </Button>
@@ -756,9 +655,7 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
         subtitle={
           displayItems.length > 0
             ? `${displayItems.length} ${displayItems.length === 1 ? "item" : "items"} | Cost Value: ${formatCurrency(getInventoryCostValue(displayItems))} | Retail Value: ${formatCurrency(getInventoryRetailValue(displayItems))}`
-            : selectedLocationId
-            ? "No items in this location"
-            : "No items found"
+            : selectedLocationId ? "No items in this location" : "No items found"
         }
         data={displayItems}
         columns={columns}
@@ -790,13 +687,10 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
         onSubmit={onSubmit}
         isSubmitting={isSubmitting || isUploading}
         submitLabel={
-          isUploading
-            ? "Uploading image…"
-            : isSubmitting
-            ? "Creating item…"
-            : currentProduct
-            ? "Save Changes"
-            : "Add Item"
+          isUploading ? "Uploading image…"
+          : isSubmitting ? "Creating item…"
+          : currentProduct ? "Save Changes"
+          : "Add Item"
         }
       >
         <div className="overflow-y-auto max-h-[65vh] px-1">
@@ -808,14 +702,11 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
             </div>
 
             <FormField
-              control={form.control}
-              name="name"
+              control={form.control} name="name"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Item Name *</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter item name" {...field} />
-                  </FormControl>
+                  <FormControl><Input placeholder="Enter item name" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -823,8 +714,7 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
 
             <div className="grid gap-3 grid-cols-2">
               <FormField
-                control={form.control}
-                name="sellingPrice"
+                control={form.control} name="sellingPrice"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Selling Price *</FormLabel>
@@ -839,20 +729,14 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
                 )}
               />
               <FormField
-                control={form.control}
-                name="costPrice"
+                control={form.control} name="costPrice"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Cost Price *</FormLabel>
                     <FormControl>
                       <div className="relative">
                         <span className="absolute left-2 top-2.5 text-sm text-muted-foreground">₵</span>
-                        <Input
-                          placeholder="0.00"
-                          className="pl-8"
-                          {...field}
-                          disabled={!!currentProduct}
-                        />
+                        <Input placeholder="0.00" className="pl-8" {...field} disabled={!!currentProduct} />
                       </div>
                     </FormControl>
                     <FormMessage />
@@ -864,8 +748,7 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
             <div className="grid grid-cols-12 gap-3">
               <div className="col-span-7">
                 <FormField
-                  control={form.control}
-                  name="sku"
+                  control={form.control} name="sku"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Item SKU *</FormLabel>
@@ -880,9 +763,7 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
               </div>
               <div className="col-span-5">
                 <ImageUploadButton
-                  title="Item image"
-                  imageUrl={imageUrl}
-                  setImageUrl={setImageUrl}
+                  title="Item image" imageUrl={imageUrl} setImageUrl={setImageUrl}
                   endpoint="itemImage"
                   onUploadStart={() => setIsUploading(true)}
                   onUploadComplete={() => setIsUploading(false)}
@@ -901,9 +782,7 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
               </div>
               <div>
                 <h4 className="text-sm font-semibold">Storage Location</h4>
-                <p className="text-xs text-muted-foreground">
-                  Where is this item stored and how many units do you have?
-                </p>
+                <p className="text-xs text-muted-foreground">Where is this item stored?</p>
               </div>
             </div>
 
@@ -921,15 +800,10 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
               </div>
             ) : (
               <FormSelectInput
-                label="Select Location"
-                options={locationOptions}
+                label="Select Location" options={locationOptions}
                 option={selectedLocation}
-                setOption={(opt) => {
-                  setSelectedLocation(opt);
-                  form.setValue("initialQuantity", "0");
-                }}
-                toolTipText="Manage Locations"
-                href="/dashboard/inventory/locations"
+                setOption={(opt) => { setSelectedLocation(opt); form.setValue("initialQuantity", "0"); }}
+                toolTipText="Manage Locations" href="/dashboard/inventory/locations"
               />
             )}
 
@@ -942,10 +816,7 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
                   </div>
                   <button
                     type="button"
-                    onClick={() => {
-                      setSelectedLocation(null);
-                      form.setValue("initialQuantity", "0");
-                    }}
+                    onClick={() => { setSelectedLocation(null); form.setValue("initialQuantity", "0"); }}
                     className="text-xs text-muted-foreground underline hover:text-foreground"
                   >
                     Clear
@@ -953,30 +824,30 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
                 </div>
 
                 <FormField
-                  control={form.control}
-                  name="initialQuantity"
+                  control={form.control} name="initialQuantity"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="flex items-center gap-1.5 text-sm">
                         <Package className="h-3.5 w-3.5" />
-                        Opening Stock at{" "}
-                        <span className="font-semibold">{selectedLocation.label}</span>
+                        Opening Stock at <span className="font-semibold">{selectedLocation.label}</span>
                       </FormLabel>
                       <FormControl>
                         <Input
                           type="number"
-                          min="0"
+                          min="0"   
                           step="1"
                           placeholder="0"
                           {...field}
                           onChange={(e) => {
-                            const val = e.target.value;
-                            field.onChange(val === "" ? "0" : val);
+                            // ✅ Clamp on every keystroke — prevent negative entry
+                            const raw = parseInt(e.target.value) || 0;
+                            const safe = Math.max(0, raw).toString();
+                            field.onChange(safe);
                           }}
                         />
                       </FormControl>
                       <FormDescription className="text-xs">
-                        How many units are currently in stock?
+                        How many units are currently in stock? (minimum 0)
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -1012,30 +883,9 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
               <p className="text-xs text-muted-foreground">Categorize your item</p>
             </div>
             <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
-              <FormSelectInput
-                label="Category"
-                options={categoryOptions}
-                option={selectedCategory}
-                setOption={setSelectedCategory}
-                toolTipText="Manage Categories"
-                href="/dashboard/inventory/categories"
-              />
-              <FormSelectInput
-                label="Brand"
-                options={brandOptions}
-                option={selectedBrand}
-                setOption={setSelectedBrand}
-                toolTipText="Manage Brands"
-                href="/dashboard/inventory/brands"
-              />
-              <FormSelectInput
-                label="Unit"
-                options={unitOptions}
-                option={selectedUnit}
-                setOption={setSelectedUnit}
-                toolTipText="Manage Units"
-                href="/dashboard/inventory/units"
-              />
+              <FormSelectInput label="Category" options={categoryOptions} option={selectedCategory} setOption={setSelectedCategory} toolTipText="Manage Categories" href="/dashboard/inventory/categories" />
+              <FormSelectInput label="Brand" options={brandOptions} option={selectedBrand} setOption={setSelectedBrand} toolTipText="Manage Brands" href="/dashboard/inventory/brands" />
+              <FormSelectInput label="Unit" options={unitOptions} option={selectedUnit} setOption={setSelectedUnit} toolTipText="Manage Units" href="/dashboard/inventory/units" />
             </div>
           </div>
 
@@ -1049,16 +899,14 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
             </div>
 
             <FormField
-              control={form.control}
-              name="description"
+              control={form.control} name="description"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Description</FormLabel>
                   <FormControl>
                     <textarea
                       className="w-full px-3 py-2 border border-input bg-background rounded-md text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring min-h-20"
-                      placeholder="Enter item description"
-                      {...field}
+                      placeholder="Enter item description" {...field}
                     />
                   </FormControl>
                   <FormMessage />
@@ -1068,26 +916,28 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
 
             <div className="grid gap-3 grid-cols-2">
               <FormField
-                control={form.control}
-                name="barcode"
+                control={form.control} name="barcode"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Barcode</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter barcode" {...field} />
-                    </FormControl>
+                    <FormControl><Input placeholder="Enter barcode" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
               <FormField
-                control={form.control}
-                name="minStockLevel"
+                control={form.control} name="minStockLevel"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Minimum Stock Level</FormLabel>
                     <FormControl>
-                      <Input type="number" min="0" placeholder="0" {...field} />
+                      <Input
+                        type="number" min="0" placeholder="0" {...field}
+                        onChange={(e) => {
+                          const safe = Math.max(0, parseInt(e.target.value) || 0).toString();
+                          field.onChange(safe);
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1109,9 +959,7 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
               Are you sure you want to delete <strong>{productToDelete.name}</strong>?
               {" "}If this item has sales or order history it will be deactivated instead.
             </>
-          ) : (
-            "Are you sure you want to delete this item?"
-          )
+          ) : "Are you sure you want to delete this item?"
         }
         onConfirm={handleConfirmDelete}
         isConfirming={isDeleting || deleteItemMutation.isPending}

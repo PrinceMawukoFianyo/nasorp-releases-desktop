@@ -155,7 +155,11 @@ export async function getOrgBriefItems(orgId: string, params?: any) {
       const { salesOrderLines, ...rest } = item;
       const salesCount = salesOrderLines.reduce((sum, line) => sum + line.quantity, 0);
       const salesTotal = salesOrderLines.reduce((sum, line) => sum + line.total, 0);
-      const totalStock = item.inventories.reduce((sum, inv) => sum + inv.quantity, 0);
+      // ✅ Clamp each inventory row to 0 minimum — negative DB quantities are invalid data
+      const totalStock = item.inventories.reduce(
+        (sum, inv) => sum + Math.max(0, inv.quantity),
+        0
+      );
       return { ...rest, salesCount, salesTotal, totalStock };
     });
 
@@ -211,7 +215,11 @@ export async function getAllOrgItems(orgId: string, includeInactive = false) {
       const { salesOrderLines, ...rest } = item;
       const salesCount = salesOrderLines.reduce((sum, line) => sum + line.quantity, 0);
       const salesTotal = salesOrderLines.reduce((sum, line) => sum + line.total, 0);
-      const totalStock = item.inventories.reduce((sum, inv) => sum + inv.quantity, 0);
+      // ✅ Clamp each inventory row to 0 minimum — negative DB quantities are invalid data
+      const totalStock = item.inventories.reduce(
+        (sum, inv) => sum + Math.max(0, inv.quantity),
+        0
+      );
       return { ...rest, salesCount, salesTotal, totalStock };
     });
 

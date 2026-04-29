@@ -44,8 +44,11 @@ export async function transferStockWithModel(input: z.infer<typeof transferStock
           throw new Error("Source inventory not found")
         }
 
-        const availableQuantity = sourceInventory.quantity - (sourceInventory.reservedQuantity || 0)
-        
+        // Clamp negative DB quantities to 0 before computing available
+        const safeQty = Math.max(0, sourceInventory.quantity)
+        const safeReserved = Math.max(0, sourceInventory.reservedQuantity || 0)
+        const availableQuantity = safeQty - safeReserved
+
         if (availableQuantity < validatedData.quantity) {
           throw new Error(`Insufficient stock. Available: ${availableQuantity}, Requested: ${validatedData.quantity}`)
         }
@@ -97,7 +100,7 @@ export async function transferStockWithModel(input: z.infer<typeof transferStock
 
         // DO NOT adjust inventory quantities here
         // Inventory will only be adjusted when transfer status becomes COMPLETED
-        
+
         return {
           transferId: transfer.id,
           transferNumber: transfer.transferNumber,
@@ -113,7 +116,7 @@ export async function transferStockWithModel(input: z.infer<typeof transferStock
     revalidatePath("/dashboard/inventory/stock")
     revalidatePath("/dashboard/inventory/transfers")
     revalidatePath(`/dashboard/inventory/transfers/${result.transferId}`)
-    
+
     return { success: true, transfer: result }
   } catch (error: any) {
     console.error("Error creating transfer:", error)
@@ -191,11 +194,15 @@ export async function adjustStock(itemId: string, locationId: string, quantityCh
           throw new Error("Inventory record not found")
         }
 
-        const newQuantity = inventory.quantity + quantityChange
+        // Treat any negative DB quantity as 0 — negative stock is invalid data
+        const currentQuantity = Math.max(0, inventory.quantity)
+        const newQuantity = currentQuantity + quantityChange
+
         if (newQuantity < 0) {
           throw new Error("Cannot adjust stock below zero")
         }
 
+        // Always write the corrected value back (fixes negative DB rows)
         await tx.inventory.update({
           where: {
             itemId_locationId: {
@@ -204,9 +211,7 @@ export async function adjustStock(itemId: string, locationId: string, quantityCh
             },
           },
           data: {
-            quantity: {
-              increment: quantityChange,
-            },
+            quantity: newQuantity, // write absolute value, not increment, to fix negatives
           },
         })
 
@@ -219,14 +224,14 @@ export async function adjustStock(itemId: string, locationId: string, quantityCh
             locationId,
             adjustmentType: "CORRECTION",
             reason,
-            notes: `Manual adjustment: ${quantityChange > 0 ? "Increase" : "Decrease"} by ${Math.abs(quantityChange)} units`,
+            notes: `Manual adjustment: ${quantityChange > 0 ? "Increase" : "Decrease"} by ${Math.abs(quantityChange)} units${inventory.quantity < 0 ? ` (previous value ${inventory.quantity} clamped to 0)` : ""}`,
             status: "COMPLETED",
             orgId: user.orgId!,
             createdById: user.id,
             lines: {
               create: {
                 itemId,
-                beforeQuantity: inventory.quantity,
+                beforeQuantity: currentQuantity,  // report the clamped value, not the negative
                 afterQuantity: newQuantity,
                 adjsutedQuantity: quantityChange,
                 notes: reason,

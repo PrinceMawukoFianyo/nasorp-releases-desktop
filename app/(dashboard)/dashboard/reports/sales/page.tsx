@@ -1,33 +1,23 @@
-"use client";
-
-import { useState, useEffect } from "react";
+// app/(dashboard)/dashboard/reports/sales/page.tsx
+import { Suspense } from "react";
 import { getSalesReport } from "@/actions/sales-reports";
 import { ReportSkeleton } from "../stock-movements/components/ReportSkeleton";
-import SalesReportDashboard from "./SalesReportDashboard";   // 👈 add this line
+import SalesReportClient from "./components/SalesReportClient";
+
+export const metadata = {
+  title: "Sales Report",
+  description: "Comprehensive sales analytics and performance metrics",
+};
+
+async function SalesReportData() {
+  const data = await getSalesReport(30); // initial 30‑day report
+  return <SalesReportClient initialData={data} />;
+}
 
 export default function SalesReportPage() {
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
-  
-  const fetchData = async (from?: Date, to?: Date) => {
-    setLoading(true);
-    try {
-      const result = await getSalesReport(30, from, to);
-      setData(result);
-    } catch (error) {
-      console.error("Error fetching sales report:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData(dateRange.from, dateRange.to);
-  }, [dateRange.from, dateRange.to]);
-
-  if (loading) return <ReportSkeleton />;
-  if (!data) return <div>No data available</div>;
-
-  return <SalesReportDashboard data={data} onDateRangeChange={fetchData} />;
+  return (
+    <Suspense fallback={<ReportSkeleton />}>
+      <SalesReportData />
+    </Suspense>
+  );
 }

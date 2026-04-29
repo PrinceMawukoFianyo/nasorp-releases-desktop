@@ -638,8 +638,12 @@ function EnrichedRecentOrdersTable({ orders }: { orders: SalesReportData["recent
 // ── Main dashboard ─────────────────────────────────────────────────────────────
 export default function SalesReportDashboard({ data, onDateRangeChange }: SalesReportDashboardProps) {
   const { summary, salesByCustomer, salesByItem, timeline, topCustomers, topItems, recentOrders } = data;
-  const [fromDate, setFromDate] = useState<Date | undefined>();
-  const [toDate, setToDate] = useState<Date | undefined>();
+  const [fromDate, setFromDate] = useState<Date | undefined>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d;
+  });
+  const [toDate, setToDate] = useState<Date | undefined>(() => new Date());
 
   const handleRangeChange = (from: Date | undefined, to: Date | undefined) => {
     setFromDate(from);

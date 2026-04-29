@@ -22,12 +22,8 @@ export function InventoryListEnhanced({
   const [searchQuery, setSearchQuery] = useState("")
 
   const filteredItems = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return items
-    }
-
+    if (!searchQuery.trim()) return items
     const query = searchQuery.toLowerCase().trim()
-
     return items.filter(
       (item) =>
         item.name.toLowerCase().includes(query) ||
@@ -36,7 +32,7 @@ export function InventoryListEnhanced({
     )
   }, [items, searchQuery])
 
-  const getStockStatusBadge = (stockStatus: string, availableQuantity: number) => {
+  const getStockStatusBadge = (stockStatus: string) => {
     switch (stockStatus) {
       case "OUT_OF_STOCK":
         return {
@@ -100,7 +96,9 @@ export function InventoryListEnhanced({
         ) : (
           <div className="divide-y divide-border">
             {filteredItems.map((item) => {
-              const status = getStockStatusBadge(item.stockStatus, item.availableQuantity)
+              const status = getStockStatusBadge(item.stockStatus)
+              // ✅ Clamp: never show a negative available quantity
+              const displayAvailable = Math.max(0, item.availableQuantity)
               const isSelected = selectedItem?.id === item.id
 
               return (
@@ -127,7 +125,8 @@ export function InventoryListEnhanced({
                       </div>
                     </div>
                     <div className="text-right flex-shrink-0">
-                      <p className={`font-bold text-sm ${status.textColor}`}>{item.availableQuantity}</p>
+                      {/* ✅ Show clamped value — never negative */}
+                      <p className={`font-bold text-sm ${status.textColor}`}>{displayAvailable}</p>
                       <p className="text-xs text-muted-foreground">available</p>
                     </div>
                   </div>

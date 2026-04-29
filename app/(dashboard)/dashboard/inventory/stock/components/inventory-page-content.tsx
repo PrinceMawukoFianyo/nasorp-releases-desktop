@@ -125,7 +125,7 @@ function buildCombinedHTML(items: InventoryItem[], selectedItem: InventoryItem |
       </div>
     </div>
     ${outOfStock.length > 0 ? `<div class="section-title red">🔴 Out of Stock (${outOfStock.length})</div><table>${TABLE_HEADER}<tbody>${buildTableRows(outOfStock)}</tbody></table>` : ""}
-    ${lowStock.length > 0 ? `<div class="section-title orange">🟠 Low Stock (${lowStock.length})</div><tr>${TABLE_HEADER}<tbody>${buildTableRows(lowStock)}</tbody></table>` : ""}
+    ${lowStock.length > 0 ? `<div class="section-title orange">🟠 Low Stock (${lowStock.length})</div><table>${TABLE_HEADER}<tbody>${buildTableRows(lowStock)}</tbody></table>` : ""}
     ${selectedItem ? buildDetailBlock(selectedItem) : ""}`
   return wrapDocument("Inventory Alert Report", body, exportDate)
 }
@@ -159,7 +159,7 @@ function buildLowStockHTML(items: InventoryItem[], selectedItem: InventoryItem |
         <div class="summary-pills"><span class="pill pill-orange">Low Stock: ${lowStock.length}</span></div>
       </div>
     </div>
-    ${lowStock.length > 0 ? `<div class="section-title orange">🟠 Low Stock (${lowStock.length})</div><tr>${TABLE_HEADER}<tbody>${buildTableRows(lowStock)}</tbody></tr>` : "<p>No low stock items.</p>"}
+    ${lowStock.length > 0 ? `<div class="section-title orange">🟠 Low Stock (${lowStock.length})</div><table>${TABLE_HEADER}<tbody>${buildTableRows(lowStock)}</tbody></table>` : "<p>No low stock items.</p>"}
     ${isSelectedLowStock ? buildDetailBlock(selectedItem!) : ""}`
   return wrapDocument("Low Stock Report", body, exportDate)
 }

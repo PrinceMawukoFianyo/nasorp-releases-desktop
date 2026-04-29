@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { ArrowUpRight, TrendingUp, Package, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
-
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import type { InventoryItem } from "@/types/inventory"
@@ -24,23 +23,24 @@ export function InventoryDetailsEnhanced({ item, orgId, onItemUpdate }: Inventor
     setCurrentItem(item)
   }, [item])
 
-  const availableQuantity = currentItem.totalQuantity - currentItem.reservedQuantity
+  // ✅ Clamp: available can never be shown as negative
+  const availableQuantity = Math.max(0, currentItem.totalQuantity - currentItem.reservedQuantity)
+
   const utilizationRate =
-    currentItem.totalQuantity > 0 ? (currentItem.reservedQuantity / currentItem.totalQuantity) * 100 : 0
+    currentItem.totalQuantity > 0
+      ? Math.min(100, (currentItem.reservedQuantity / currentItem.totalQuantity) * 100)
+      : 0
 
   const handleStockTransferred = (updatedItem: InventoryItem) => {
     setCurrentItem(updatedItem)
     onItemUpdate?.(updatedItem)
-
     toast.success("Stock transferred successfully", {
       description: `Stock has been transferred for ${updatedItem.name}`,
     })
   }
 
   const handleTransferError = (error: string) => {
-    toast.error("Transfer failed", {
-      description: error,
-    })
+    toast.error("Transfer failed", { description: error })
   }
 
   return (
@@ -77,6 +77,7 @@ export function InventoryDetailsEnhanced({ item, orgId, onItemUpdate }: Inventor
                 </div>
               </div>
             </div>
+
             <div className="bg-card border border-border rounded-xl p-4 hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between">
                 <div>
@@ -88,10 +89,12 @@ export function InventoryDetailsEnhanced({ item, orgId, onItemUpdate }: Inventor
                 </div>
               </div>
             </div>
+
             <div className="bg-card border border-border rounded-xl p-4 hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-muted-foreground font-semibold uppercase tracking-widest">Available</p>
+                  {/* ✅ Clamped — never shows negative */}
                   <p className="text-3xl font-bold text-green-600 mt-2">{availableQuantity}</p>
                 </div>
                 <div className="h-12 w-12 rounded-lg bg-green-100 dark:bg-green-900/20 flex items-center justify-center">
@@ -143,14 +146,17 @@ export function InventoryDetailsEnhanced({ item, orgId, onItemUpdate }: Inventor
                 </thead>
                 <tbody className="divide-y divide-border">
                   {currentItem.locations.map((location) => {
-                    const locationAvailable = location.quantity - location.reserved
+                    // ✅ Clamp per-location available to 0 minimum
+                    const locationAvailable = Math.max(0, location.quantity - location.reserved)
                     return (
                       <tr key={location.id} className="hover:bg-secondary/50 transition-colors">
                         <td className="px-4 py-3 text-sm font-medium text-foreground">{location.name}</td>
                         <td className="px-4 py-3 text-sm text-foreground text-right font-semibold">
                           {location.quantity}
                         </td>
-                        <td className="px-4 py-3 text-sm text-accent text-right font-semibold">{location.reserved}</td>
+                        <td className="px-4 py-3 text-sm text-accent text-right font-semibold">
+                          {location.reserved}
+                        </td>
                         <td className="px-4 py-3 text-sm font-semibold text-right">
                           <span className={locationAvailable === 0 ? "text-red-600" : "text-green-600"}>
                             {locationAvailable}
@@ -164,8 +170,22 @@ export function InventoryDetailsEnhanced({ item, orgId, onItemUpdate }: Inventor
             </div>
           </div>
 
-          {/* Low Stock Alert */}
-          {availableQuantity < currentItem.totalQuantity * 0.2 && currentItem.totalQuantity > 0 && (
+          {/* Low Stock / Out of Stock Alert */}
+          {currentItem.totalQuantity > 0 && availableQuantity === 0 && (
+            <div className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 rounded-xl p-4 flex gap-3">
+              <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-red-900 dark:text-red-600">Out of Stock</p>
+                <p className="text-xs text-red-800 dark:text-red-500 mt-1">
+                  All units are reserved or depleted. Reorder immediately.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {currentItem.totalQuantity > 0 &&
+            availableQuantity > 0 &&
+            availableQuantity < currentItem.totalQuantity * 0.2 && (
             <div className="bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-900/30 rounded-xl p-4 flex gap-3">
               <AlertCircle className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
               <div>

@@ -1,4 +1,4 @@
-/* "use client"
+"use client"
 
 import { useState, useMemo, useEffect } from "react"
 import { Button } from "@/components/ui/button"
@@ -20,7 +20,7 @@ interface AdjustmentItem {
 }
 
 const adjustmentTypes = [
-  { value: "STOCk_COUNT", label: "Stock Count" },  
+  { value: "STOCk_COUNT", label: "Stock Count" },
   { value: "DAMAGE", label: "Damage" },
   { value: "THEFT", label: "Theft" },
   { value: "EXPIRED", label: "Expired" },
@@ -59,22 +59,17 @@ export default function CreateAdjustmentPage() {
         setIsLoadingData(false)
       }
     }
-
     loadData()
   }, [])
 
   useEffect(() => {
-    if (locationId) {
-      loadItemsForLocation()
-    }
+    if (locationId) loadItemsForLocation()
   }, [locationId])
 
   const loadItemsForLocation = async () => {
     try {
       const itemsResult = await getItemsForAdjustment(locationId)
-      if (itemsResult.success) {
-        setItems(itemsResult.items)
-      }
+      if (itemsResult.success) setItems(itemsResult.items)
     } catch (error) {
       console.error("Error loading items:", error)
     }
@@ -88,14 +83,16 @@ export default function CreateAdjustmentPage() {
     )
   }, [items, searchQuery])
 
+  // ✅ Always clamp raw DB quantity to 0 minimum — negative stock is invalid
   const getCurrentStock = (itemId: string): number => {
-    const item = items.find(i => i.id === itemId)
+    const item = items.find((i) => i.id === itemId)
     if (!item?.inventories || item.inventories.length === 0) return 0
-    return item.inventories[0].quantity || 0
+    return Math.max(0, item.inventories[0].quantity || 0)
   }
 
   const handleSelectItem = (itemId: string) => {
     setSelectedItem(itemId)
+    // ✅ beforeQuantity is now always ≥ 0, so validation and calculations are safe
     const currentStock = getCurrentStock(itemId)
     setBeforeQuantity(currentStock)
     setAfterQuantity(currentStock)
@@ -132,6 +129,15 @@ export default function CreateAdjustmentPage() {
       return
     }
 
+    // ✅ Extra guard: ensure no item has negative before/after quantities before submitting
+    const hasInvalidQty = adjustmentItems.some(
+      (item) => item.beforeQuantity < 0 || item.afterQuantity < 0
+    )
+    if (hasInvalidQty) {
+      alert("All quantities must be 0 or greater")
+      return
+    }
+
     setIsLoading(true)
     try {
       const result = await createBulkAdjustment({
@@ -139,7 +145,12 @@ export default function CreateAdjustmentPage() {
         adjustmentType: adjustmentType as any,
         reason,
         notes: notes || undefined,
-        items: adjustmentItems,
+        items: adjustmentItems.map((item) => ({
+          ...item,
+          // ✅ Hard-clamp before sending to server — prevents Zod "too_small" error
+          beforeQuantity: Math.max(0, item.beforeQuantity),
+          afterQuantity: Math.max(0, item.afterQuantity),
+        })),
       })
 
       if (result.success && result.adjustmentId) {
@@ -156,22 +167,18 @@ export default function CreateAdjustmentPage() {
   }
 
   const getItemDetails = (itemId: string) => {
-    const item = items.find(i => i.id === itemId)
+    const item = items.find((i) => i.id === itemId)
     return {
       name: item?.name || "Unknown Item",
       sku: item?.sku || "N/A",
       category: item?.category?.title || item?.category?.name || "Uncategorized",
-      currentStock: getCurrentStock(itemId)
+      currentStock: getCurrentStock(itemId), // ✅ already clamped
     }
   }
 
   const calculateDifference = (before: number, after: number) => {
     const diff = after - before
-    return {
-      value: diff,
-      isIncrease: diff > 0,
-      isDecrease: diff < 0,
-    }
+    return { value: diff, isIncrease: diff > 0, isDecrease: diff < 0 }
   }
 
   if (isLoadingData) {
@@ -189,7 +196,10 @@ export default function CreateAdjustmentPage() {
     <div className="max-w-6xl mx-auto space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <Link href="/dashboard/inventory/adjustments" className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-4">
+          <Link
+            href="/dashboard/inventory/adjustments"
+            className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-4"
+          >
             <ArrowLeft className="w-4 h-4" />
             Back to Adjustments
           </Link>
@@ -254,7 +264,9 @@ export default function CreateAdjustmentPage() {
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
                 <AlertCircle className="w-5 h-5 text-yellow-600" />
-                <p className="text-sm text-yellow-800">Please select a location first to add items for adjustment</p>
+                <p className="text-sm text-yellow-800">
+                  Please select a location first to add items for adjustment
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -273,7 +285,7 @@ export default function CreateAdjustmentPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
-                
+
                 {searchQuery && filteredItems.length > 0 && (
                   <div className="border border-gray-200 rounded-lg bg-white shadow-md max-h-48 overflow-y-auto">
                     {filteredItems.slice(0, 10).map((item) => (
@@ -288,8 +300,9 @@ export default function CreateAdjustmentPage() {
                           <p className="text-xs text-gray-600">{item.sku}</p>
                         </div>
                         <div className="flex items-center gap-3">
+                          {/* ✅ Clamp the displayed stock in the dropdown — never show negative */}
                           <span className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-700">
-                            Stock: {item.inventories?.[0]?.quantity || 0}
+                            Stock: {Math.max(0, item.inventories?.[0]?.quantity || 0)}
                           </span>
                           <span className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-700">
                             {item.category?.title || item.category?.name || "Uncategorized"}
@@ -308,6 +321,7 @@ export default function CreateAdjustmentPage() {
                       <div>
                         <p className="font-semibold text-gray-900">{getItemDetails(selectedItem).name}</p>
                         <p className="text-sm text-gray-600">{getItemDetails(selectedItem).sku}</p>
+                        {/* ✅ currentStock is already clamped via getItemDetails → getCurrentStock */}
                         <p className="text-sm text-blue-700 font-medium mt-1">
                           Current Stock: {getItemDetails(selectedItem).currentStock}
                         </p>
@@ -328,7 +342,9 @@ export default function CreateAdjustmentPage() {
                           type="number"
                           min="0"
                           value={beforeQuantity}
-                          onChange={(e) => setBeforeQuantity(Math.max(0, Number.parseInt(e.target.value) || 0))}
+                          onChange={(e) =>
+                            setBeforeQuantity(Math.max(0, Number.parseInt(e.target.value) || 0))
+                          }
                         />
                       </div>
                       <div className="space-y-2">
@@ -337,17 +353,23 @@ export default function CreateAdjustmentPage() {
                           type="number"
                           min="0"
                           value={afterQuantity}
-                          onChange={(e) => setAfterQuantity(Math.max(0, Number.parseInt(e.target.value) || 0))}
+                          onChange={(e) =>
+                            setAfterQuantity(Math.max(0, Number.parseInt(e.target.value) || 0))
+                          }
                         />
                       </div>
                       <div className="space-y-2">
                         <label className="block text-sm font-medium text-gray-700">Difference</label>
-                        <div className={`h-10 px-3 rounded-md flex items-center font-semibold ${
-                          afterQuantity > beforeQuantity ? 'bg-green-100 text-green-700' :
-                          afterQuantity < beforeQuantity ? 'bg-red-100 text-red-700' :
-                          'bg-gray-100 text-gray-700'
-                        }`}>
-                          {afterQuantity > beforeQuantity && '+'}
+                        <div
+                          className={`h-10 px-3 rounded-md flex items-center font-semibold ${
+                            afterQuantity > beforeQuantity
+                              ? "bg-green-100 text-green-700"
+                              : afterQuantity < beforeQuantity
+                              ? "bg-red-100 text-red-700"
+                              : "bg-gray-100 text-gray-700"
+                          }`}
+                        >
+                          {afterQuantity > beforeQuantity && "+"}
                           {afterQuantity - beforeQuantity}
                         </div>
                       </div>
@@ -362,9 +384,9 @@ export default function CreateAdjustmentPage() {
                       />
                     </div>
 
-                    <Button 
-                      type="button" 
-                      onClick={handleAddItem} 
+                    <Button
+                      type="button"
+                      onClick={handleAddItem}
                       className="w-full mt-4 bg-blue-600 hover:bg-blue-700"
                     >
                       <Plus className="w-4 h-4 mr-2" />
@@ -388,14 +410,19 @@ export default function CreateAdjustmentPage() {
                   const details = getItemDetails(item.itemId)
                   const diff = calculateDifference(item.beforeQuantity, item.afterQuantity)
                   return (
-                    <div key={index} className="border border-gray-200 rounded-lg p-4 flex items-center justify-between">
+                    <div
+                      key={index}
+                      className="border border-gray-200 rounded-lg p-4 flex items-center justify-between"
+                    >
                       <div className="flex items-center gap-4 flex-1">
                         <div className="w-10 h-10 rounded bg-gray-100 flex items-center justify-center">
                           <Package className="w-5 h-5 text-gray-600" />
                         </div>
                         <div className="flex-1">
                           <p className="font-medium text-gray-900">{details.name}</p>
-                          <p className="text-sm text-gray-500">{details.sku} • {details.category}</p>
+                          <p className="text-sm text-gray-500">
+                            {details.sku} • {details.category}
+                          </p>
                           {item.notes && (
                             <p className="text-xs text-gray-600 mt-1 italic">{item.notes}</p>
                           )}
@@ -411,12 +438,17 @@ export default function CreateAdjustmentPage() {
                           </div>
                           <div className="text-center min-w-[80px]">
                             <p className="text-xs text-gray-500">Change</p>
-                            <p className={`text-lg font-bold ${
-                              diff.isIncrease ? 'text-green-600' :
-                              diff.isDecrease ? 'text-red-600' :
-                              'text-gray-600'
-                            }`}>
-                              {diff.isIncrease && '+'}{diff.value}
+                            <p
+                              className={`text-lg font-bold ${
+                                diff.isIncrease
+                                  ? "text-green-600"
+                                  : diff.isDecrease
+                                  ? "text-red-600"
+                                  : "text-gray-600"
+                              }`}
+                            >
+                              {diff.isIncrease && "+"}
+                              {diff.value}
                             </p>
                           </div>
                         </div>
@@ -454,11 +486,19 @@ export default function CreateAdjustmentPage() {
 
         <div className="flex gap-3 justify-end">
           <Link href="/dashboard/inventory/adjustments">
-            <Button type="button" variant="outline">Cancel</Button>
+            <Button type="button" variant="outline">
+              Cancel
+            </Button>
           </Link>
           <Button
             type="submit"
-            disabled={isLoading || adjustmentItems.length === 0 || !locationId || !adjustmentType || !reason}
+            disabled={
+              isLoading ||
+              adjustmentItems.length === 0 ||
+              !locationId ||
+              !adjustmentType ||
+              !reason
+            }
             className="bg-pink-600 hover:bg-pink-700 min-w-[140px]"
           >
             {isLoading ? (
@@ -477,4 +517,4 @@ export default function CreateAdjustmentPage() {
       </form>
     </div>
   )
-} */
+}

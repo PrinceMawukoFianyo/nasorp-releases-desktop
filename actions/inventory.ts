@@ -3,6 +3,11 @@
 import { db } from "@/prisma/db"
 import { Item, InventoryItem, LocationStock } from "@/types/inventory"
 
+// Clamp any DB value to minimum 0 to handle corrupted/negative data
+function safeQty(n: number | null | undefined): number {
+  return Math.max(0, n ?? 0)
+}
+
 export async function getInventoryItems(orgId: string, searchQuery?: string) {
   try {
     const items = await db.item.findMany({
@@ -30,18 +35,23 @@ export async function getInventoryItems(orgId: string, searchQuery?: string) {
 
     // Transform data to match InventoryItem interface
     const inventoryItems: InventoryItem[] = items.map((item) => {
-      const locations: LocationStock[] = item.inventories.map((inv) => ({
-        id: inv.locationId,
-        name: inv.location.name,
-        quantity: inv.quantity,
-        reserved: inv.reservedQuantity || 0, // Add safety check
-        available: Math.max(0, inv.quantity - (inv.reservedQuantity || 0)), // Add safety check
-        stockStatus: calculateStockStatus(inv.quantity, inv.reservedQuantity || 0), // Add safety check
-      }))
+      const locations: LocationStock[] = item.inventories.map((inv) => {
+        const qty = safeQty(inv.quantity)
+        const reserved = safeQty(inv.reservedQuantity)
+        const available = Math.max(0, qty - reserved)
+        return {
+          id: inv.locationId,
+          name: inv.location.name,
+          quantity: qty,
+          reserved,
+          available,
+          stockStatus: calculateStockStatus(qty, reserved),
+        }
+      })
 
-      const totalQuantity = item.inventories.reduce((sum, inv) => sum + inv.quantity, 0)
-      const reservedQuantity = item.inventories.reduce((sum, inv) => sum + (inv.reservedQuantity || 0), 0) // Add safety check
-      const availableQuantity = totalQuantity - reservedQuantity
+      const totalQuantity = locations.reduce((sum, loc) => sum + loc.quantity, 0)
+      const reservedQuantity = locations.reduce((sum, loc) => sum + loc.reserved, 0)
+      const availableQuantity = Math.max(0, totalQuantity - reservedQuantity)
       const overallStockStatus = calculateStockStatus(totalQuantity, reservedQuantity)
 
       return {
@@ -66,11 +76,11 @@ export async function getInventoryItems(orgId: string, searchQuery?: string) {
 
 // Helper function to calculate stock status
 function calculateStockStatus(quantity: number, reserved: number): "OUT_OF_STOCK" | "LOW_STOCK" | "IN_STOCK" {
-  const available = quantity - reserved
-  
+  const available = Math.max(0, quantity - reserved)
+
   if (available <= 0) {
     return "OUT_OF_STOCK"
-  } else if (available < 10) { // You can adjust this threshold
+  } else if (available < 10) {
     return "LOW_STOCK"
   } else {
     return "IN_STOCK"
@@ -99,18 +109,23 @@ export async function getInventoryItem(itemId: string, orgId: string) {
     }
 
     // Transform data to match InventoryItem interface
-    const locations: LocationStock[] = item.inventories.map((inv) => ({
-      id: inv.locationId,
-      name: inv.location.name,
-      quantity: inv.quantity,
-      reserved: inv.reservedQuantity || 0, // Add safety check
-      available: Math.max(0, inv.quantity - (inv.reservedQuantity || 0)), // Add safety check
-      stockStatus: calculateStockStatus(inv.quantity, inv.reservedQuantity || 0), // Add safety check
-    }))
+    const locations: LocationStock[] = item.inventories.map((inv) => {
+      const qty = safeQty(inv.quantity)
+      const reserved = safeQty(inv.reservedQuantity)
+      const available = Math.max(0, qty - reserved)
+      return {
+        id: inv.locationId,
+        name: inv.location.name,
+        quantity: qty,
+        reserved,
+        available,
+        stockStatus: calculateStockStatus(qty, reserved),
+      }
+    })
 
-    const totalQuantity = item.inventories.reduce((sum, inv) => sum + inv.quantity, 0)
-    const reservedQuantity = item.inventories.reduce((sum, inv) => sum + (inv.reservedQuantity || 0), 0) // Add safety check
-    const availableQuantity = totalQuantity - reservedQuantity
+    const totalQuantity = locations.reduce((sum, loc) => sum + loc.quantity, 0)
+    const reservedQuantity = locations.reduce((sum, loc) => sum + loc.reserved, 0)
+    const availableQuantity = Math.max(0, totalQuantity - reservedQuantity)
     const overallStockStatus = calculateStockStatus(totalQuantity, reservedQuantity)
 
     const inventoryItem: InventoryItem = {
@@ -138,18 +153,18 @@ export async function getItemsByLocation(orgId: string, locationId: string | nul
     if (!locationId) {
       // Return all active items
       const items = await db.item.findMany({
-        where: { 
-          orgId, 
-          isActive: true 
+        where: {
+          orgId,
+          isActive: true
         },
         include: {
           category: { select: { id: true, title: true } },
           brand: { select: { id: true, name: true } },
           inventories: {
-            include: { 
-              location: { 
-                select: { id: true, name: true, type: true } 
-              } 
+            include: {
+              location: {
+                select: { id: true, name: true, type: true }
+              }
             }
           },
           salesOrderLines: {
@@ -162,12 +177,21 @@ export async function getItemsByLocation(orgId: string, locationId: string | nul
         orderBy: { name: "asc" }
       });
 
-      // Calculate sales stats
+      // Clamp negative inventory quantities and calculate sales stats
       const itemsWithStats = items.map(item => {
         const salesCount = item.salesOrderLines.reduce((sum, line) => sum + line.quantity, 0);
         const salesTotal = item.salesOrderLines.reduce((sum, line) => sum + line.total, 0);
-        const { salesOrderLines, ...rest } = item;
-        return { ...rest, salesCount, salesTotal };
+        const { salesOrderLines, inventories, ...rest } = item;
+        return {
+          ...rest,
+          inventories: inventories.map(inv => ({
+            ...inv,
+            quantity: safeQty(inv.quantity),
+            reservedQuantity: safeQty(inv.reservedQuantity),
+          })),
+          salesCount,
+          salesTotal,
+        };
       });
 
       return itemsWithStats;
@@ -190,10 +214,10 @@ export async function getItemsByLocation(orgId: string, locationId: string | nul
         brand: { select: { id: true, name: true } },
         inventories: {
           where: { locationId: locationId },
-          include: { 
-            location: { 
-              select: { id: true, name: true, type: true } 
-            } 
+          include: {
+            location: {
+              select: { id: true, name: true, type: true }
+            }
           }
         },
         salesOrderLines: {
@@ -206,20 +230,25 @@ export async function getItemsByLocation(orgId: string, locationId: string | nul
       orderBy: { name: "asc" }
     });
 
-    // Calculate sales stats and filter inventories to only show the selected location
+    // Clamp negative quantities and calculate sales stats
     const itemsWithStats = items.map(item => {
       const salesCount = item.salesOrderLines.reduce((sum, line) => sum + line.quantity, 0);
       const salesTotal = item.salesOrderLines.reduce((sum, line) => sum + line.total, 0);
-      
-      // Only include inventories for the selected location
-      const filteredInventories = item.inventories.filter(inv => inv.locationId === locationId);
-      
+
+      const filteredInventories = item.inventories
+        .filter(inv => inv.locationId === locationId)
+        .map(inv => ({
+          ...inv,
+          quantity: safeQty(inv.quantity),
+          reservedQuantity: safeQty(inv.reservedQuantity),
+        }));
+
       const { salesOrderLines, inventories, ...rest } = item;
-      return { 
-        ...rest, 
+      return {
+        ...rest,
         inventories: filteredInventories,
-        salesCount, 
-        salesTotal 
+        salesCount,
+        salesTotal,
       };
     });
 
