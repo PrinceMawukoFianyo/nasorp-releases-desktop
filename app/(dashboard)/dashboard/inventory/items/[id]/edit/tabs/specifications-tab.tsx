@@ -2,7 +2,7 @@
 
 import UpdateCard, { Option } from "./update-card"
 import type { ProductData } from "@/types/item"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,77 +14,86 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog"
-import { getAuthenticatedUser } from "@/config/useAuth"
-import { createBulkAdjustment } from "@/actions/stock-adjustments"
-import { getOrgLocations } from "@/actions/locations"
-import { db } from "@/prisma/db"
+import { createBulkAdjustment, getItemsForAdjustment, getLocationsForAdjustment } from "@/actions/stock-adjustments"
 import {
-  ArrowUp, ArrowDown, RefreshCw, AlertTriangle, Package,
-  MapPin, BarChart2, Zap, Plus, Minus, CheckCircle2,
+  RefreshCw, Package, MapPin, CheckCircle2, Zap,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useEffect } from "react"
+import { getItemInventoryLocations } from "@/actions/inventory-actions"
 
 type AdjustmentType = "STOCk_COUNT" | "DAMAGE" | "THEFT" | "EXPIRED" | "WRITE_OFF" | "CORRECTION" | "OTHER"
 
 interface QuickAdjustmentProps {
-  item: ProductData
+  item: { id: string; name: string; sku: string }
   onAdjusted: () => void
 }
 
 function QuickAdjustment({ item, onAdjusted }: QuickAdjustmentProps) {
-  const [open,         setOpen]         = useState(false)
-  const [locations,    setLocations]    = useState<{ id: string; name: string }[]>([])
-  const [locationId,   setLocationId]   = useState("")
+  const [open, setOpen] = useState(false)
+  const [locations, setLocations] = useState<{ id: string; name: string; quantity: number }[]>([])
+  const [locationId, setLocationId] = useState("")
   const [currentStock, setCurrentStock] = useState(0)
-  const [newQty,       setNewQty]       = useState("")
-  const [adjType,      setAdjType]      = useState<AdjustmentType>("CORRECTION")
-  const [reason,       setReason]       = useState("")
-  const [isLoading,    setIsLoading]    = useState(false)
-  const [isSaving,     setIsSaving]     = useState(false)
+  const [changeAmount, setChangeAmount] = useState<number>(0)
+  const [adjType, setAdjType] = useState<AdjustmentType>("CORRECTION")
+  const [reason, setReason] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
-  // Quick +/- delta
-  const [delta,        setDelta]        = useState("")
+  const afterQuantity = currentStock + changeAmount
+  const isChangeValid = afterQuantity >= 0
+  const canSubmit = isChangeValid && changeAmount !== 0 && reason.trim().length > 0 && locationId
 
   useEffect(() => {
-    if (open) loadLocations()
+    if (open) loadItemLocations()
   }, [open])
 
-  const loadLocations = async () => {
+  const loadItemLocations = async () => {
     setIsLoading(true)
     try {
-      const locs = await getOrgLocations()
-      setLocations(locs as { id: string; name: string }[])
-    } catch (e) {
-      toast.error("Failed to load locations")
+      const result = await getItemInventoryLocations(item.id)
+      if (result && result.length > 0) {
+        const locs = result.map((inv: any) => ({
+          id: inv.locationId,
+          name: inv.locationName,
+          quantity: inv.quantity,
+        }))
+        setLocations(locs)
+        setLocationId(locs[0].id)
+        setCurrentStock(locs[0].quantity)
+        setChangeAmount(0)
+      } else {
+        setLocations([])
+        setLocationId("")
+        setCurrentStock(0)
+        toast.info("No stock found for this item. You can create an adjustment to add stock.")
+      }
+    } catch (error) {
+      toast.error("Failed to load inventory locations")
     } finally {
       setIsLoading(false)
     }
   }
 
-  // Simulate fetching current stock (in real app, pass inventories via props)
-  const handleLocationChange = async (id: string) => {
-    setLocationId(id)
-    // In a real implementation, you'd look up inventory here
-    // For now default to 0 and let user enter the before qty
-    setCurrentStock(0)
-    setNewQty("")
-    setDelta("")
+  const handleLocationChange = (locId: string) => {
+    const selected = locations.find(l => l.id === locId)
+    if (selected) {
+      setLocationId(locId)
+      setCurrentStock(selected.quantity)
+      setChangeAmount(0)
+    }
   }
-
-  const computed = (() => {
-    const n = parseInt(newQty)
-    if (!isNaN(n)) return { after: n, change: n - currentStock }
-    const d = parseInt(delta)
-    if (!isNaN(d)) return { after: currentStock + d, change: d }
-    return null
-  })()
 
   const handleSubmit = async () => {
     if (!locationId) { toast.error("Select a location"); return }
-    if (!computed)   { toast.error("Enter new quantity or delta"); return }
+    if (!isChangeValid) {
+      toast.error(`Cannot reduce stock by ${Math.abs(changeAmount)} — current stock is only ${currentStock}`)
+      return
+    }
+    if (changeAmount === 0) {
+      toast.error("Please enter a change amount (positive to add, negative to reduce)")
+      return
+    }
     if (!reason.trim()) { toast.error("Reason is required"); return }
-    if (computed.after < 0) { toast.error("Quantity cannot be negative"); return }
 
     setIsSaving(true)
     try {
@@ -93,24 +102,24 @@ function QuickAdjustment({ item, onAdjusted }: QuickAdjustmentProps) {
         adjustmentType: adjType,
         reason: reason.trim(),
         items: [{
-          itemId:         item.id,
+          itemId: item.id,
           beforeQuantity: currentStock,
-          afterQuantity:  computed.after,
+          afterQuantity: afterQuantity,
         }],
       })
-
       if (result.success) {
         toast.success("Quick adjustment created!", {
-          description: `${computed.change >= 0 ? "+" : ""}${computed.change} units. Pending approval.`,
+          description: `${changeAmount >= 0 ? "+" : ""}${changeAmount} units. Pending approval.`,
         })
         setOpen(false)
-        setNewQty("")
-        setDelta("")
+        setChangeAmount(0)
         setReason("")
         onAdjusted()
       } else {
         toast.error(result.error || "Adjustment failed")
       }
+    } catch (error: any) {
+      toast.error(error.message || "Unexpected error")
     } finally {
       setIsSaving(false)
     }
@@ -142,14 +151,16 @@ function QuickAdjustment({ item, onAdjusted }: QuickAdjustmentProps) {
           </DialogHeader>
 
           <div className="space-y-4 pt-2">
-            {/* Location */}
+            {/* Location dropdown */}
             <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-1.5">
                 <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
                 Location
               </label>
               {isLoading ? (
-                <p className="text-sm text-muted-foreground animate-pulse">Loading…</p>
+                <p className="text-sm text-muted-foreground animate-pulse">Loading locations…</p>
+              ) : locations.length === 0 ? (
+                <p className="text-sm text-amber-600">No stock anywhere – adjustment will create stock at the selected location below?</p>
               ) : (
                 <Select value={locationId} onValueChange={handleLocationChange}>
                   <SelectTrigger>
@@ -157,88 +168,60 @@ function QuickAdjustment({ item, onAdjusted }: QuickAdjustmentProps) {
                   </SelectTrigger>
                   <SelectContent>
                     {locations.map(loc => (
-                      <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
+                      <SelectItem key={loc.id} value={loc.id}>
+                        {loc.name} (Stock: {loc.quantity})
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               )}
             </div>
 
-            {/* Current qty display */}
-            <div className="flex items-center gap-4 p-3 bg-muted/50 rounded-lg">
-              <div className="text-center flex-1">
+            {/* Stock display – identical to main adjustment page */}
+            <div className="grid grid-cols-3 gap-4 p-3 bg-muted/50 rounded-lg">
+              <div className="text-center">
                 <p className="text-xs text-muted-foreground">Current Stock</p>
                 <p className="text-2xl font-bold">{currentStock}</p>
               </div>
-              <div className="text-muted-foreground">→</div>
-              <div className="text-center flex-1">
-                <p className="text-xs text-muted-foreground">New Stock</p>
-                <p className={cn(
-                  "text-2xl font-bold",
-                  computed && computed.after !== currentStock
-                    ? computed.after > currentStock ? "text-green-600" : "text-red-600"
-                    : ""
-                )}>
-                  {computed ? computed.after : "—"}
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground">Change Amount</p>
+                <Input
+                  type="number"
+                  placeholder="e.g. 10 or -4"
+                  value={changeAmount}
+                  onChange={(e) => {
+                    const raw = e.target.value
+                    if (raw === "" || raw === "-") setChangeAmount(0)
+                    else setChangeAmount(Number(raw) || 0)
+                  }}
+                  className={`font-semibold text-center ${
+                    !isChangeValid
+                      ? "border-red-400 focus-visible:ring-red-400"
+                      : changeAmount > 0
+                        ? "border-green-400 focus-visible:ring-green-400"
+                        : changeAmount < 0
+                          ? "border-orange-400 focus-visible:ring-orange-400"
+                          : ""
+                  }`}
+                />
+                <p className="text-xs text-muted-foreground mt-1">Positive to add · Negative to reduce</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground">New Stock Level</p>
+                <p className={`text-2xl font-bold ${
+                  !isChangeValid
+                    ? "text-red-600"
+                    : changeAmount > 0
+                      ? "text-green-600"
+                      : changeAmount < 0
+                        ? "text-orange-600"
+                        : "text-gray-600"
+                }`}>
+                  {!isChangeValid ? "❌" : afterQuantity}
                 </p>
-              </div>
-              {computed && (
-                <Badge
-                  variant={computed.change >= 0 ? "default" : "destructive"}
-                  className="shrink-0"
-                >
-                  {computed.change >= 0 ? "+" : ""}{computed.change}
-                </Badge>
-              )}
-            </div>
-
-            {/* Quick +/- buttons */}
-            <div>
-              <p className="text-xs text-muted-foreground mb-2">Quick adjust by amount:</p>
-              <div className="flex items-center gap-2 flex-wrap">
-                {[-10, -5, -1, +1, +5, +10].map(d => (
-                  <Button
-                    key={d}
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className={cn(
-                      "min-w-[44px]",
-                      d > 0 ? "border-green-300 text-green-700 hover:bg-green-50" :
-                               "border-red-300 text-red-700 hover:bg-red-50"
-                    )}
-                    onClick={() => {
-                      const curr = parseInt(delta) || 0
-                      setDelta(String(curr + d))
-                      setNewQty("")
-                    }}
-                  >
-                    {d > 0 ? `+${d}` : d}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            {/* Or set absolute qty */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground">Set exact quantity</label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={newQty}
-                  onChange={e => { setNewQty(e.target.value); setDelta("") }}
-                  placeholder="e.g. 50"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground">Or enter delta (±)</label>
-                <Input
-                  type="number"
-                  value={delta}
-                  onChange={e => { setDelta(e.target.value); setNewQty("") }}
-                  placeholder="e.g. -3 or +5"
-                />
+                {!isChangeValid && changeAmount !== 0 && (
+                  <p className="text-xs text-red-500 mt-1">Below zero</p>
+                )}
               </div>
             </div>
 
@@ -276,7 +259,8 @@ function QuickAdjustment({ item, onAdjusted }: QuickAdjustmentProps) {
               <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
               <Button
                 onClick={handleSubmit}
-                disabled={!locationId || !computed || !reason.trim() || isSaving || computed.after < 0}
+                disabled={!canSubmit || isSaving}
+                className="bg-pink-600 hover:bg-pink-700"
               >
                 {isSaving ? (
                   <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Creating…</>
@@ -295,9 +279,8 @@ function QuickAdjustment({ item, onAdjusted }: QuickAdjustmentProps) {
     </>
   )
 }
-
 // ─────────────────────────────────────────────────────────────
-// Main Component
+// Main Component (default export)
 // ─────────────────────────────────────────────────────────────
 
 interface SpecificationsTabProps {
@@ -315,7 +298,6 @@ export default function SpecificationsTab({
 }: SpecificationsTabProps) {
   return (
     <div className="grid gap-6">
-      {/* ── Quick Adjustment Card ── */}
       <Card className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/10 dark:border-amber-900">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">

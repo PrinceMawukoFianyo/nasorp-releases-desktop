@@ -6,10 +6,11 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, Plus, X, Loader2, Package, AlertCircle, Search } from "lucide-react"
+import { ArrowLeft, Plus, X, Loader2, AlertCircle, Search, Package } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { createBulkAdjustment, getItemsForAdjustment, getLocationsForAdjustment } from "@/actions/stock-adjustments"
+import { toast } from "sonner"
 
 interface AdjustmentItem {
   itemId: string
@@ -47,13 +48,12 @@ export default function CreateAdjustmentPage() {
 
   const [selectedItem, setSelectedItem] = useState("")
   const [beforeQuantity, setBeforeQuantity] = useState<number>(0)
-  // changeAmount: positive = add stock, negative = remove stock
-  const [changeAmount, setChangeAmount] = useState<number | string>(0)
+  const [changeAmount, setChangeAmount] = useState<number>(0)
   const [itemNotes, setItemNotes] = useState("")
 
-  // Derived — afterQuantity always = current stock + change entered
-  const afterQuantity = beforeQuantity + (Number(changeAmount) || 0)
+  const afterQuantity = beforeQuantity + changeAmount
   const isChangeValid = afterQuantity >= 0
+  const canAdd = isChangeValid && changeAmount !== 0
 
   useEffect(() => {
     const loadData = async () => {
@@ -66,7 +66,6 @@ export default function CreateAdjustmentPage() {
         setIsLoadingData(false)
       }
     }
-
     loadData()
   }, [])
 
@@ -87,59 +86,58 @@ export default function CreateAdjustmentPage() {
     }
   }
 
-  // Click outside to close dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false)
       }
     }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
 
   const filteredItems = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return items
-    }
+    if (!searchQuery.trim()) return items
     return items.filter(
       (item) =>
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.sku.toLowerCase().includes(searchQuery.toLowerCase()),
+        item.sku.toLowerCase().includes(searchQuery.toLowerCase())
     )
   }, [items, searchQuery])
 
   const getCurrentStock = (itemId: string): number => {
-    const item = items.find(i => i.id === itemId)
+    const item = items.find((i) => i.id === itemId)
     if (!item?.inventories || item.inventories.length === 0) return 0
     return item.inventories[0].quantity || 0
   }
 
   const handleSelectItem = (itemId: string) => {
-    setSelectedItem(itemId)
     const currentStock = getCurrentStock(itemId)
+    setSelectedItem(itemId)
     setBeforeQuantity(currentStock)
-    setChangeAmount(0)          // start with no change
+    setChangeAmount(0)
     setSearchQuery("")
     setIsDropdownOpen(false)
   }
 
   const handleAddItem = () => {
-    if (!selectedItem) return
-    if (!isChangeValid) {
-      alert(`Cannot reduce stock by ${Math.abs(Number(changeAmount))} — current stock is only ${beforeQuantity}`)
+    if (!selectedItem) {
+      toast.error("Select an item first")
       return
     }
-    if (Number(changeAmount) === 0 || changeAmount === "") {
-      alert("Please enter a change amount (positive to add, negative to reduce)")
+    if (!isChangeValid) {
+      toast.error(`Cannot reduce stock by ${Math.abs(changeAmount)} — current stock is only ${beforeQuantity}`)
+      return
+    }
+    if (changeAmount === 0) {
+      toast.error("Please enter a non‑zero change amount (positive to add, negative to reduce)")
       return
     }
 
     const newAdjustmentItem: AdjustmentItem = {
       itemId: selectedItem,
       beforeQuantity,
-      afterQuantity,       // derived: beforeQuantity + changeAmount
+      afterQuantity,
       notes: itemNotes || undefined,
     }
 
@@ -157,7 +155,7 @@ export default function CreateAdjustmentPage() {
 
   const handleSubmit = async () => {
     if (!locationId || !adjustmentType || !reason || adjustmentItems.length === 0) {
-      alert("Please fill in all required fields and add at least one item")
+      toast.error("Please fill in all required fields and add at least one item")
       return
     }
 
@@ -168,39 +166,41 @@ export default function CreateAdjustmentPage() {
         adjustmentType: adjustmentType as any,
         reason,
         notes: notes || undefined,
-        items: adjustmentItems,
+        items: adjustmentItems.map((item) => ({
+          itemId: item.itemId,
+          beforeQuantity: Math.max(0, item.beforeQuantity),
+          afterQuantity: Math.max(0, item.afterQuantity),
+          notes: item.notes,
+        })),
       })
 
       if (result.success && result.adjustmentId) {
+        toast.success("Adjustment created successfully")
         router.push(`/dashboard/inventory/adjustments/${result.adjustmentId}`)
         router.refresh()
       } else {
-        alert(result.error || "Failed to create adjustment")
+        toast.error(result.error || "Failed to create adjustment")
       }
-    } catch (error) {
-      alert("An error occurred while creating the adjustment")
+    } catch (error: any) {
+      toast.error(error.message || "An error occurred while creating the adjustment")
     } finally {
       setIsLoading(false)
     }
   }
 
   const getItemDetails = (itemId: string) => {
-    const item = items.find(i => i.id === itemId)
+    const item = items.find((i) => i.id === itemId)
     return {
       name: item?.name || "Unknown Item",
       sku: item?.sku || "N/A",
       category: item?.category?.title || "Uncategorized",
-      currentStock: getCurrentStock(itemId)
+      currentStock: getCurrentStock(itemId),
     }
   }
 
   const calculateDifference = (before: number, after: number) => {
     const diff = after - before
-    return {
-      value: diff,
-      isIncrease: diff > 0,
-      isDecrease: diff < 0,
-    }
+    return { value: diff, isIncrease: diff > 0, isDecrease: diff < 0 }
   }
 
   if (isLoadingData) {
@@ -218,7 +218,10 @@ export default function CreateAdjustmentPage() {
     <div className="max-w-6xl mx-auto space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <Link href="/dashboard/inventory/adjustments" className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-4">
+          <Link
+            href="/dashboard/inventory/adjustments"
+            className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-4"
+          >
             <ArrowLeft className="w-4 h-4" />
             Back to Adjustments
           </Link>
@@ -249,7 +252,6 @@ export default function CreateAdjustmentPage() {
                   </SelectContent>
                 </Select>
               </div>
-
               <div className="space-y-2">
                 <label className="block text-sm font-semibold text-gray-900">Adjustment Type *</label>
                 <Select value={adjustmentType} onValueChange={setAdjustmentType}>
@@ -266,7 +268,6 @@ export default function CreateAdjustmentPage() {
                 </Select>
               </div>
             </div>
-
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-gray-900">Reason *</label>
               <Input
@@ -297,7 +298,6 @@ export default function CreateAdjustmentPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2" ref={dropdownRef}>
                 <label className="block text-sm font-medium text-gray-700">Search and Select Items *</label>
-                
                 <div className="relative">
                   <div className="relative">
                     <Input
@@ -314,42 +314,42 @@ export default function CreateAdjustmentPage() {
                       <Search className="w-4 h-4" />
                     </div>
                   </div>
-                  
-                  {/* Dropdown Results */}
+
                   {isDropdownOpen && filteredItems.length > 0 && (
-                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                    <div className="absolute z-50 w-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
                       <div className="sticky top-0 bg-gray-50 px-4 py-2 border-b text-xs text-gray-600 font-medium">
-                        {filteredItems.length} item{filteredItems.length !== 1 ? 's' : ''} available
+                        {filteredItems.length} item{filteredItems.length !== 1 ? "s" : ""} available
                       </div>
-                      {filteredItems.map((item) => (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => handleSelectItem(item.id)}
-                          className="w-full text-left px-4 py-3 hover:bg-blue-50 flex justify-between items-center border-b border-gray-100 last:border-b-0 transition-colors focus:bg-blue-50 focus:outline-none"
-                        >
-                          <div className="flex-1 min-w-0 pr-4">
-                            <p className="font-medium text-gray-900 text-sm truncate">{item.name}</p>
-                            <p className="text-xs text-gray-600 mt-0.5">{item.sku}</p>
-                          </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-medium whitespace-nowrap">
-                              Stock: {item.inventories?.[0]?.quantity || 0}
-                            </span>
-                            <span className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-700 truncate max-w-[100px]">
-                              {item.category?.title || "Uncategorized"}
-                            </span>
-                          </div>
-                        </button>
-                      ))}
+                      {filteredItems.map((item) => {
+                        const stockQty = item.inventories?.[0]?.quantity ?? 0
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => handleSelectItem(item.id)}
+                            className="w-full text-left px-3 py-2 hover:bg-blue-50 flex justify-between items-center border-b border-gray-100 last:border-b-0 transition-colors"
+                          >
+                            <div className="flex-1 min-w-0 pr-3">
+                              <p className="font-medium text-gray-900 text-sm truncate">{item.name}</p>
+                              <p className="text-xs text-gray-500 truncate">{item.sku}</p>
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-medium whitespace-nowrap">
+                                Stock: {stockQty}
+                              </span>
+                              <span className="text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-600 truncate max-w-[120px]">
+                                {item.category?.title || "Uncategorized"}
+                              </span>
+                            </div>
+                          </button>
+                        )
+                      })}
                     </div>
                   )}
 
-                  {/* No Results */}
                   {isDropdownOpen && searchQuery && filteredItems.length === 0 && (
-                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg">
-                      <div className="px-4 py-8 text-center text-gray-500">
-                        <Package className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                    <div className="absolute z-50 w-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg">
+                      <div className="px-4 py-6 text-center text-gray-500">
                         <p className="text-sm">No items found</p>
                         <p className="text-xs text-gray-400 mt-1">Try adjusting your search</p>
                       </div>
@@ -379,81 +379,70 @@ export default function CreateAdjustmentPage() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-                      {/* Current Stock — read-only */}
                       <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Current Stock
-                        </label>
+                        <label className="block text-sm font-medium text-gray-700">Current Stock</label>
                         <div className="h-10 px-3 rounded-md border border-gray-200 bg-gray-50 flex items-center font-semibold text-gray-700">
                           {beforeQuantity}
                         </div>
-                        <p className="text-xs text-gray-400">Locked — actual stock on hand</p>
                       </div>
-
-                      {/* Change Amount — the only editable field */}
                       <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Change Amount *
-                        </label>
+                        <label className="block text-sm font-medium text-gray-700">Change Amount *</label>
                         <Input
                           type="number"
                           placeholder="e.g. 10 or -4"
                           value={changeAmount}
                           onChange={(e) => {
                             const raw = e.target.value
-                            // Allow empty string (user is mid-typing) or any integer
-                            if (raw === "" || raw === "-") {
-                              setChangeAmount(raw)
+                            if (raw === "") {
+                              setChangeAmount(0)
                             } else {
-                              setChangeAmount(Number.parseInt(raw) || 0)
+                              setChangeAmount(Number(raw))
                             }
                           }}
                           className={`font-semibold ${
                             !isChangeValid
                               ? "border-red-400 focus-visible:ring-red-400"
-                              : Number(changeAmount) > 0
-                                ? "border-green-400 focus-visible:ring-green-400"
-                                : Number(changeAmount) < 0
-                                  ? "border-orange-400 focus-visible:ring-orange-400"
-                                  : ""
+                              : changeAmount > 0
+                              ? "border-green-400 focus-visible:ring-green-400"
+                              : changeAmount < 0
+                              ? "border-orange-400 focus-visible:ring-orange-400"
+                              : ""
                           }`}
                         />
-                        <p className="text-xs text-gray-400">
-                          Positive to add &nbsp;·&nbsp; Negative to reduce
-                        </p>
+                        <p className="text-xs text-gray-400">Positive to add · Negative to reduce</p>
                       </div>
-
-                      {/* New Stock — derived, shown for confirmation */}
                       <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          New Stock Level
-                        </label>
-                        <div className={`h-10 px-3 rounded-md border flex items-center font-bold text-lg ${
-                          !isChangeValid
-                            ? "bg-red-50 border-red-300 text-red-600"
-                            : Number(changeAmount) > 0
+                        <label className="block text-sm font-medium text-gray-700">New Stock Level</label>
+                        <div
+                          className={`h-10 px-3 rounded-md border flex items-center font-bold text-lg ${
+                            !isChangeValid
+                              ? "bg-red-50 border-red-300 text-red-600"
+                              : changeAmount > 0
                               ? "bg-green-50 border-green-300 text-green-700"
-                              : Number(changeAmount) < 0
-                                ? "bg-orange-50 border-orange-300 text-orange-700"
-                                : "bg-gray-50 border-gray-200 text-gray-500"
-                        }`}>
-                          {!isChangeValid
-                            ? <span className="text-sm font-semibold">❌ Below zero</span>
-                            : (
-                              <>
-                                {Number(changeAmount) > 0 && <span className="text-xs mr-1 font-normal text-green-600">▲</span>}
-                                {Number(changeAmount) < 0 && <span className="text-xs mr-1 font-normal text-orange-500">▼</span>}
-                                {afterQuantity}
-                              </>
-                            )
-                          }
+                              : changeAmount < 0
+                              ? "bg-orange-50 border-orange-300 text-orange-700"
+                              : "bg-gray-50 border-gray-200 text-gray-500"
+                          }`}
+                        >
+                          {!isChangeValid ? (
+                            <span className="text-sm font-semibold">❌ Below zero</span>
+                          ) : (
+                            <>
+                              {changeAmount > 0 && (
+                                <span className="text-xs mr-1 font-normal text-green-600">▲</span>
+                              )}
+                              {changeAmount < 0 && (
+                                <span className="text-xs mr-1 font-normal text-orange-500">▼</span>
+                              )}
+                              {afterQuantity}
+                            </>
+                          )}
                         </div>
                         <p className="text-xs text-gray-400">
-                          {beforeQuantity} {Number(changeAmount) >= 0 ? "+" : "−"} {Math.abs(Number(changeAmount))} = {isChangeValid ? afterQuantity : "invalid"}
+                          {beforeQuantity} {changeAmount >= 0 ? "+" : "−"} {Math.abs(changeAmount)} ={" "}
+                          {isChangeValid ? afterQuantity : "invalid"}
                         </p>
                       </div>
-
                     </div>
 
                     <div className="space-y-2 mt-4">
@@ -468,7 +457,7 @@ export default function CreateAdjustmentPage() {
                     <Button
                       type="button"
                       onClick={handleAddItem}
-                      disabled={!isChangeValid || changeAmount === "" || Number(changeAmount) === 0}
+                      disabled={!canAdd}
                       className="w-full mt-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Plus className="w-4 h-4 mr-2" />
@@ -492,17 +481,20 @@ export default function CreateAdjustmentPage() {
                   const details = getItemDetails(item.itemId)
                   const diff = calculateDifference(item.beforeQuantity, item.afterQuantity)
                   return (
-                    <div key={index} className="border border-gray-200 rounded-lg p-4 flex items-center justify-between">
+                    <div
+                      key={index}
+                      className="border border-gray-200 rounded-lg p-4 flex items-center justify-between"
+                    >
                       <div className="flex items-center gap-4 flex-1">
                         <div className="w-10 h-10 rounded bg-gray-100 flex items-center justify-center">
                           <Package className="w-5 h-5 text-gray-600" />
                         </div>
                         <div className="flex-1">
-                          <p className="font-medium text-gray-900">{details.name}</p>
-                          <p className="text-sm text-gray-500">{details.sku} • {details.category}</p>
-                          {item.notes && (
-                            <p className="text-xs text-gray-600 mt-1 italic">{item.notes}</p>
-                          )}
+                          <p className="font-medium text-gray-900 truncate">{details.name}</p>
+                          <p className="text-sm text-gray-500">
+                            {details.sku} • {details.category}
+                          </p>
+                          {item.notes && <p className="text-xs text-gray-600 mt-1 italic">{item.notes}</p>}
                         </div>
                         <div className="flex items-center gap-6">
                           <div className="text-center">
@@ -515,12 +507,17 @@ export default function CreateAdjustmentPage() {
                           </div>
                           <div className="text-center min-w-[80px]">
                             <p className="text-xs text-gray-500">Change</p>
-                            <p className={`text-lg font-bold ${
-                              diff.isIncrease ? 'text-green-600' :
-                              diff.isDecrease ? 'text-red-600' :
-                              'text-gray-600'
-                            }`}>
-                              {diff.isIncrease && '+'}{diff.value}
+                            <p
+                              className={`text-lg font-bold ${
+                                diff.isIncrease
+                                  ? "text-green-600"
+                                  : diff.isDecrease
+                                  ? "text-red-600"
+                                  : "text-gray-600"
+                              }`}
+                            >
+                              {diff.isIncrease && "+"}
+                              {diff.value}
                             </p>
                           </div>
                         </div>
@@ -558,7 +555,9 @@ export default function CreateAdjustmentPage() {
 
         <div className="flex gap-3 justify-end">
           <Link href="/dashboard/inventory/adjustments">
-            <Button type="button" variant="outline">Cancel</Button>
+            <Button type="button" variant="outline">
+              Cancel
+            </Button>
           </Link>
           <Button
             type="button"

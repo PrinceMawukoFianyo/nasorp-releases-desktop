@@ -132,32 +132,52 @@ export async function updateInventoryQuantity({
  */
 export async function getItemInventoryLocations(itemId: string) {
   try {
-    const user = await getAuthenticatedUser()
-    if (!user?.orgId) return []
+    const user = await getAuthenticatedUser();
+    if (!user?.orgId) {
+      return [];
+    }
+
+    // Fetch the item to get its minStockLevel
+    const item = await db.item.findUnique({
+      where: { id: itemId, orgId: user.orgId },
+      select: { minStockLevel: true },
+    });
+
+    if (!item) return [];
 
     const inventories = await db.inventory.findMany({
       where: { itemId, orgId: user.orgId },
       include: {
-        location: {
-          select: { id: true, name: true, type: true },
-        },
+        location: true,
       },
-      orderBy: { createdAt: "asc" },
-    })
+    });
 
-    return inventories.map((inv) => ({
-      inventoryId: inv.id,
-      locationId: inv.locationId,
-      locationName: inv.location.name,
-      locationType: inv.location.type,
-      quantity: inv.quantity,
-      reservedQuantity: inv.reservedQuantity,
-      available: Math.max(0, inv.quantity - inv.reservedQuantity),
-      stockStatus: inv.stockStatus,
-    }))
+    return inventories.map((inv) => {
+      const quantity = Math.max(0, inv.quantity);
+      const minStock = item.minStockLevel ?? 0;
+      let stockStatus = "OUT_OF_STOCK";
+      if (quantity > 0) {
+        if (quantity < minStock) {
+          stockStatus = "LOW_STOCK";
+        } else {
+          stockStatus = "IN_STOCK";
+        }
+      }
+
+      return {
+        inventoryId: inv.id,
+        locationId: inv.locationId,
+        locationName: inv.location.name,
+        locationType: inv.location.type,
+        quantity: quantity,
+        reservedQuantity: Math.max(0, inv.reservedQuantity),
+        available: Math.max(0, inv.quantity - inv.reservedQuantity),
+        stockStatus: stockStatus, // corrected
+      };
+    });
   } catch (error) {
-    console.error("❌ getItemInventoryLocations failed:", error)
-    return []
+    console.error("Error fetching item inventory locations:", error);
+    return [];
   }
 }
 

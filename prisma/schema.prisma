@@ -7,6 +7,7 @@ datasource db {
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
+
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -49,48 +50,48 @@ model Role {
 }
 
 model User {
-  id                     String                 @id @default(cuid())
-  name                   String
-  firstName              String
-  lastName               String
-  phone                  String                 @unique
-  email                  String                 @unique
-  emailVerified          DateTime?
-  image                  String?
-  jobTitle               String?
-  password               String?
-  status                 Boolean                @default(true)
-  orgName                String?
-  orgId                  String
-  isVerfied              Boolean                @default(false)
-  token                  String?
-  createdAt              DateTime               @default(now())
-  updatedAt              DateTime               @updatedAt
-  roleId                 String?
-  locationId             String?
-  locationName           String?
-  apiKey                 String?                @unique
-  accounts               Account[]
-  approvedAdjustments    Adjustment[]           @relation("AdjustmentApprovedBy")
-  createdAdjustments     Adjustment[]           @relation("AdjustmentCreatedBy")
-  feedbacks              Feedback[]
-  receivedGoodsReceipts  GoodsReceipt[]         @relation("GoodsReceiptReceivedBy")
-  inventoryTransactions  InventoryTransaction[]
-  approvedPurchaseOrders PurchaseOrder[]        @relation("PurchaseOrderApprovedBy")
-  createdPurchaseOrders  PurchaseOrder[]        @relation("PurchaseOrderCreatedBy")
-  createdSalesOrders     SalesOrder[]           @relation("SalesOrderCreatedBy")
-  Saving                 Saving[]
-  sessions               Session[]
-  showcases              Showcase[]
-  approvedTransfers      Transfer[]             @relation("TransferApprovedBy")
-  createdTransfers       Transfer[]             @relation("TransferCreatedBy")
-  Location               Location?              @relation(fields: [locationId], references: [id])
-  organisation           Organisation           @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  roles                  Role[]                 @relation("UserRoles")
-  createdReturns         SalesReturn[]          @relation("ReturnCreatedBy")
-  approvedReturns        SalesReturn[]          @relation("ReturnApprovedBy")
-  recordedPayments       SalesOrderPayment[]    @relation("PaymentRecordedBy")
-  recordedSupplierPayments  SupplierPayment[]  @relation("SupplierPaymentRecorder")
+  id                       String                 @id @default(cuid())
+  name                     String
+  firstName                String
+  lastName                 String
+  phone                    String                 @unique
+  email                    String                 @unique
+  emailVerified            DateTime?
+  image                    String?
+  jobTitle                 String?
+  password                 String?
+  status                   Boolean                @default(true)
+  orgName                  String?
+  orgId                    String
+  isVerfied                Boolean                @default(false)
+  token                    String?
+  createdAt                DateTime               @default(now())
+  updatedAt                DateTime               @updatedAt
+  roleId                   String?
+  locationId               String?
+  locationName             String?
+  apiKey                   String?                @unique
+  accounts                 Account[]
+  approvedAdjustments      Adjustment[]           @relation("AdjustmentApprovedBy")
+  createdAdjustments       Adjustment[]           @relation("AdjustmentCreatedBy")
+  feedbacks                Feedback[]
+  receivedGoodsReceipts    GoodsReceipt[]         @relation("GoodsReceiptReceivedBy")
+  inventoryTransactions    InventoryTransaction[]
+  approvedPurchaseOrders   PurchaseOrder[]        @relation("PurchaseOrderApprovedBy")
+  createdPurchaseOrders    PurchaseOrder[]        @relation("PurchaseOrderCreatedBy")
+  createdSalesOrders       SalesOrder[]           @relation("SalesOrderCreatedBy")
+  Saving                   Saving[]
+  sessions                 Session[]
+  showcases                Showcase[]
+  approvedTransfers        Transfer[]             @relation("TransferApprovedBy")
+  createdTransfers         Transfer[]             @relation("TransferCreatedBy")
+  Location                 Location?              @relation(fields: [locationId], references: [id])
+  organisation             Organisation           @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  roles                    Role[]                 @relation("UserRoles")
+  createdReturns           SalesReturn[]          @relation("ReturnCreatedBy")
+  approvedReturns          SalesReturn[]          @relation("ReturnApprovedBy")
+  recordedPayments         SalesOrderPayment[]    @relation("PaymentRecordedBy")
+  recordedSupplierPayments SupplierPayment[]      @relation("SupplierPaymentRecorder")
 }
 
 model Organisation {
@@ -157,6 +158,7 @@ model Location {
   incomingTransfers     Transfer[]             @relation("ToLocation")
   users                 User[]
   salesReturns          SalesReturn[]
+  adjustmentLines       AdjustmentLine[]
 }
 
 model Category {
@@ -342,18 +344,18 @@ model SerialNumber {
 }
 
 model PurchaseOrder {
-  id                   String              @id @default(cuid())
-  poNumber             String              @unique
+  id                   String                @id @default(cuid())
+  poNumber             String                @unique
   date                 DateTime
   supplierId           String
   address              String
   supplierName         String?
   deliveryLocationId   String
-  status               PurchaseOrderStatus @default(DRAFT)
-  subtotal             Float               @default(0)
-  taxAmount            Float               @default(0)
+  status               PurchaseOrderStatus   @default(DRAFT)
+  subtotal             Float                 @default(0)
+  taxAmount            Float                 @default(0)
   shippingCost         Float?
-  discount             Float?              @default(0)
+  discount             Float?                @default(0)
   amountPaid           Float                 @default(0)
   amountOwing          Float                 @default(0)
   paymentStatus        SupplierPaymentStatus @default(UNPAID)
@@ -364,14 +366,14 @@ model PurchaseOrder {
   orgId                String
   createdById          String
   approvedById         String?
-  createdAt            DateTime            @default(now())
-  updatedAt            DateTime            @updatedAt
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
   goodsReceipts        GoodsReceipt[]
-  approvedBy           User?               @relation("PurchaseOrderApprovedBy", fields: [approvedById], references: [id])
-  createdBy            User                @relation("PurchaseOrderCreatedBy", fields: [createdById], references: [id])
-  deliveryLocation     Location            @relation("DeliveryLocation", fields: [deliveryLocationId], references: [id])
-  organisation         Organisation        @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  supplier             Supplier            @relation(fields: [supplierId], references: [id])
+  approvedBy           User?                 @relation("PurchaseOrderApprovedBy", fields: [approvedById], references: [id])
+  createdBy            User                  @relation("PurchaseOrderCreatedBy", fields: [createdById], references: [id])
+  deliveryLocation     Location              @relation("DeliveryLocation", fields: [deliveryLocationId], references: [id])
+  organisation         Organisation          @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  supplier             Supplier              @relation(fields: [supplierId], references: [id])
   lines                PurchaseOrderLine[]
 
   @@index([poNumber])
@@ -582,7 +584,7 @@ model Adjustment {
   id               String           @id @default(cuid())
   adjustmentNumber String           @unique
   date             DateTime
-  locationId       String
+  locationId       String?
   adjustmentType   AdjustmentType
   reason           String
   notes            String?
@@ -594,7 +596,7 @@ model Adjustment {
   updatedAt        DateTime         @updatedAt
   approvedBy       User?            @relation("AdjustmentApprovedBy", fields: [approvedById], references: [id])
   createdBy        User             @relation("AdjustmentCreatedBy", fields: [createdById], references: [id])
-  location         Location         @relation(fields: [locationId], references: [id])
+  location         Location?        @relation(fields: [locationId], references: [id])
   organisation     Organisation     @relation(fields: [orgId], references: [id], onDelete: Cascade)
   lines            AdjustmentLine[]
 
@@ -607,6 +609,7 @@ model AdjustmentLine {
   id               String     @id @default(cuid())
   adjustmentId     String
   itemId           String
+  locationId       String?
   beforeQuantity   Int
   afterQuantity    Int
   adjsutedQuantity Int
@@ -616,6 +619,7 @@ model AdjustmentLine {
   updatedAt        DateTime   @updatedAt
   adjustment       Adjustment @relation(fields: [adjustmentId], references: [id], onDelete: Cascade)
   item             Item       @relation(fields: [itemId], references: [id])
+  location         Location?  @relation(fields: [locationId], references: [id])
 
   @@index([adjustmentId])
   @@index([itemId])
@@ -820,7 +824,7 @@ model SupplierPayment {
   purchaseOrderId String
   amount          Float
   method          SupplierPaymentMethod
-  reference       String?               // bank ref, cheque no., MoMo ID
+  reference       String? // bank ref, cheque no., MoMo ID
   notes           String?
   paidAt          DateTime              @default(now())
   recordedById    String
@@ -828,9 +832,9 @@ model SupplierPayment {
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
 
-  purchaseOrder   PurchaseOrder         @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
-  recordedBy      User                  @relation("SupplierPaymentRecorder", fields: [recordedById], references: [id])
-  organisation    Organisation          @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  recordedBy    User          @relation("SupplierPaymentRecorder", fields: [recordedById], references: [id])
+  organisation  Organisation  @relation(fields: [orgId], references: [id], onDelete: Cascade)
 
   @@index([purchaseOrderId])
   @@index([orgId])
