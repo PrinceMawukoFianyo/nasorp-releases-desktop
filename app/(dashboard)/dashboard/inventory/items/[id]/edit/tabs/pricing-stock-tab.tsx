@@ -2,7 +2,7 @@
 
 import { updateItemById } from "@/actions/items"
 import { transferStockWithModel } from "@/actions/stock-transfer"
-import { linkItemToLocation, getItemInventoryLocations } from "@/actions/inventory-actions"
+import { linkItemToLocation, getItemInventoryLocations,unlinkItemFromLocation } from "@/actions/inventory-actions"
 import UpdateCard, { Option } from "./update-card"
 import type { ProductData } from "@/types/item"
 import { useState, useEffect } from "react"
@@ -21,6 +21,7 @@ import { upsertItemPricingTiers, getItemPricingTiers, PricingTierInput } from "@
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { ConfirmationDialog } from "@/components/ui/data-table"; // 
 
 interface PricingStockTabProps {
   item: ProductData
@@ -89,6 +90,13 @@ export default function PricingStockTab({
 
   // ── Real inventory locations for this item ──
   const [inventoryLocations, setInventoryLocations] = useState<InventoryLocation[]>([])
+  // ── For location unlink confirmation dialog ──
+  const [unlinkDialogOpen, setUnlinkDialogOpen] = useState(false);
+  const [locationToUnlink, setLocationToUnlink] = useState<{
+    inventoryId: string;
+    locationId: string;
+    locationName: string;
+  } | null>(null);
   const [loadingLocations, setLoadingLocations] = useState(true)
 
   // ── Set Location state ──
@@ -635,28 +643,43 @@ export default function PricingStockTab({
               ) : inventoryLocations.length > 0 ? (
                 <div className="space-y-1.5">
                   <p className="text-xs font-medium text-muted-foreground">Currently stocked at:</p>
-                  {inventoryLocations.map((inv) => (
-                    <div
-                      key={inv.inventoryId}
-                      className="flex items-center justify-between px-3 py-2 bg-muted rounded-md"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm">{locationTypeEmoji(inv.locationType)}</span>
-                        <span className="text-xs font-medium">{inv.locationName}</span>
-                        <span className="text-xs text-muted-foreground">
-                          ({inv.locationType})
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">
-                          Qty: <strong>{inv.quantity}</strong>
-                        </span>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${stockStatusColor(inv.stockStatus)}`}>
-                          {inv.stockStatus.replace("_", " ")}
-                        </span>
-                      </div>
+                 {inventoryLocations.map((inv) => (
+                  <div
+                    key={inv.inventoryId}
+                    className="flex items-center justify-between px-3 py-2 bg-muted rounded-md"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">{locationTypeEmoji(inv.locationType)}</span>
+                      <span className="text-xs font-medium">{inv.locationName}</span>
+                      <span className="text-xs text-muted-foreground">
+                        ({inv.locationType})
+                      </span>
                     </div>
-                  ))}
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        Qty: <strong>{inv.quantity}</strong>
+                      </span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${stockStatusColor(inv.stockStatus)}`}>
+                        {inv.stockStatus.replace("_", " ")}
+                      </span>
+                      {/* ── ADDED: remove from this location button ── */}
+                      <button
+                        onClick={() => {
+                          setLocationToUnlink({
+                            inventoryId: inv.inventoryId,
+                            locationId: inv.locationId,
+                            locationName: inv.locationName,
+                          });
+                          setUnlinkDialogOpen(true);
+                        }}
+                        className="ml-1 p-1 rounded-full text-red-500 hover:bg-red-100 transition-colors"
+                        title="Remove this item from this location"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
                 </div>
               ) : (
                 <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-md border border-dashed">
@@ -771,7 +794,41 @@ export default function PricingStockTab({
           </Tabs>
         </CardContent>
       </Card>
-
+      {/* Unlink Location Confirmation Dialog */}
+      <ConfirmationDialog
+        open={unlinkDialogOpen}
+        onOpenChange={setUnlinkDialogOpen}
+        title="Delete Item"
+        description={
+          locationToUnlink ? (
+            <>
+              Are you sure you want to remove <strong>{locationToUnlink.locationName}</strong> from this item?
+              <br />
+              This will permanently delete all stock records for this location.
+              <br />
+              The item will remain in other locations.
+            </>
+          ) : (
+            "Are you sure you want to remove this location from the item?"
+          )
+        }
+        onConfirm={async () => {
+          if (!locationToUnlink) return;
+          const res = await unlinkItemFromLocation(item.id, locationToUnlink.locationId);
+          if (res.success) {
+            toast.success(`Removed from ${locationToUnlink.locationName}`);
+            const updated = await getItemInventoryLocations(item.id);
+            setInventoryLocations(updated);
+          } else {
+            toast.error(res.error || "Failed to remove location");
+          }
+          setUnlinkDialogOpen(false);
+          setLocationToUnlink(null);
+        }}
+        isConfirming={false}
+        confirmLabel="Delete"
+        variant="destructive"
+      />
       {/* ══ PRICING ══ */}
       <div className="bg-card border border-input rounded-lg p-4 lg:p-6">
         <div className="mb-4">

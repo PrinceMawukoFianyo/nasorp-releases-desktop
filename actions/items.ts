@@ -1,4 +1,3 @@
-// actions/items.ts
 "use server";
 
 import { getAuthenticatedApi } from "@/config/axios";
@@ -37,9 +36,40 @@ function revalidateItemPaths(id?: string) {
   if (id) revalidatePath(`/dashboard/inventory/items/${id}`);
 }
 
+// ── ADDED FOR DUPLICATE MANAGEMENT ──────────────────────────────────────────
+// Helper: check for existing item with same name or SKU (case‑insensitive)
+async function checkDuplicateItem(orgId: string, name: string, sku: string) {
+  const existing = await db.item.findFirst({
+    where: {
+      orgId,
+      OR: [
+        { name: { equals: name.trim(), mode: "insensitive" } },
+        { sku:  { equals: sku.trim(),  mode: "insensitive" } },
+      ],
+    },
+    select: { id: true, name: true, sku: true },
+  });
+  return existing;
+}
+// ───────────────────────────────────────────────────────────────────────────
+
 export async function createItem(data: ItemCreateInput) {
   try {
     const user = await getAuthenticatedUser();
+
+    // ── ADDED: server‑side duplicate check before creating ──
+    const duplicate = await checkDuplicateItem(user.orgId, data.name, data.sku);
+    if (duplicate) {
+      const nameMatch = duplicate.name.toLowerCase() === data.name.trim().toLowerCase();
+      const skuMatch  = duplicate.sku.toLowerCase()  === data.sku.trim().toLowerCase();
+      const field = nameMatch && skuMatch ? "both" : nameMatch ? "name" : "sku";
+      return {
+        success: false,
+        error: `An item with this ${field} already exists: "${duplicate.name}" (SKU: ${duplicate.sku})`,
+        data: null,
+      };
+    }
+    // ─────────────────────────────────────────────────────────
 
     const item = await db.item.create({
       data: {
@@ -91,7 +121,6 @@ export async function createItem(data: ItemCreateInput) {
     };
   }
 }
-
 export async function getOrgItems(orgId: string, params = {}) {
   try {
     const api = await getAuthenticatedApi();

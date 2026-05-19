@@ -1,4 +1,3 @@
-// components/dashboard/items/item-listing.tsx
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useTransition } from "react";
@@ -8,7 +7,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { MapPin, Package, Filter, X, ChevronDown, ChevronUp } from "lucide-react";
+import { MapPin, Package, Filter, X, ChevronDown, ChevronUp, Copy, AlertTriangle } from "lucide-react"; // ← added Copy, AlertTriangle
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -82,7 +81,6 @@ const productFormSchema = z.object({
   description: z.string().optional(),
   barcode: z.string().optional(),
   minStockLevel: z.string().optional(),
-  // ✅ Validate initialQuantity must be a non-negative integer
   initialQuantity: z
     .string()
     .optional()
@@ -99,6 +97,29 @@ const productFormSchema = z.object({
 type ProductFormValues = z.infer<typeof productFormSchema>;
 
 const DEFAULT_IMAGE = "https://3mkq65v2if.ufs.sh/f/nEsxSqMfLeqN5a4owpbHBYgvTZ8SDtkMErGQOR6d42fKLCoP";
+
+// ── ADDED FOR DUPLICATE MANAGEMENT: compute duplicate IDs ────────────────────
+function computeDuplicateIds(items: BriefItemResponse[]): Set<string> {
+  const nameMap = new Map<string, string[]>(); // normalized name → [id, ...]
+  const skuMap  = new Map<string, string[]>(); // normalized sku  → [id, ...]
+
+  for (const item of items) {
+    const normName = item.name.trim().toLowerCase();
+    const normSku  = item.sku.trim().toLowerCase();
+
+    if (!nameMap.has(normName)) nameMap.set(normName, []);
+    nameMap.get(normName)!.push(item.id);
+
+    if (!skuMap.has(normSku)) skuMap.set(normSku, []);
+    skuMap.get(normSku)!.push(item.id);
+  }
+
+  const dupIds = new Set<string>();
+  for (const ids of nameMap.values()) if (ids.length > 1) ids.forEach(id => dupIds.add(id));
+  for (const ids of skuMap.values()) if (ids.length > 1) ids.forEach(id => dupIds.add(id));
+  return dupIds;
+}
+// ────────────────────────────────────────────────────────────────────────────
 
 export default function ItemListing({ title, orgId }: ItemListingProps) {
   const router = useRouter();
@@ -122,10 +143,20 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
   const [locationItems, setLocationItems] = useState<BriefItemResponse[] | null>(null);
 
+  // ── ADDED: duplicate filter state and IDs ─────────────────────────────────
+  const [showDuplicatesOnly, setShowDuplicatesOnly] = useState(false);
+  const [duplicateIds, setDuplicateIds] = useState<Set<string>>(new Set());
+  const [hasShownDuplicateToast, setHasShownDuplicateToast] = useState(false);
+  // ──────────────────────────────────────────────────────────────────────────
+
+  // ── MODIFIED: displayItems respects duplicate filter ──────────────────────
   const displayItems = useMemo<BriefItemResponse[]>(() => {
-    if (selectedLocationId) return locationItems ?? [];
-    return allItems ?? [];
-  }, [selectedLocationId, locationItems, allItems]);
+    const base = selectedLocationId ? (locationItems ?? []) : (allItems ?? []);
+    if (showDuplicatesOnly) {
+      return base.filter(item => duplicateIds.has(item.id));
+    }
+    return base;
+  }, [selectedLocationId, locationItems, allItems, showDuplicatesOnly, duplicateIds]);
 
   const [locationOptions, setLocationOptions] = useState<Option[]>([]);
   const [loadingLocations, setLoadingLocations] = useState(false);
@@ -166,6 +197,31 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
     if (!selectedLocationId) { setLocationItems(null); return; }
     loadItemsForLocation(selectedLocationId);
   }, [selectedLocationId]);
+
+  // ── ADDED: update duplicate IDs when allItems changes ────────────────────
+  useEffect(() => {
+    if (allItems) {
+      setDuplicateIds(computeDuplicateIds(allItems));
+    }
+  }, [allItems]);
+
+  // ── ADDED: duplicate toast warning ───────────────────────────────────────
+  useEffect(() => {
+    if (isLoading) return;
+    if (hasShownDuplicateToast) return;
+    if (duplicateIds.size === 0) return;
+
+    toast.warning(`${duplicateIds.size} duplicate item${duplicateIds.size > 1 ? "s" : ""} detected`, {
+      description: 'Items with the same name or SKU are marked with a "DUPLICATE" badge. Use the filter to review and delete them.',
+      duration: 8000,
+      action: {
+        label: "Show duplicates",
+        onClick: () => setShowDuplicatesOnly(true),
+      },
+    });
+    setHasShownDuplicateToast(true);
+  }, [isLoading, duplicateIds, hasShownDuplicateToast]);
+  // ──────────────────────────────────────────────────────────────────────────
 
   const loadLocationsWithCounts = async () => {
     setLoadingLocations(true);
@@ -210,7 +266,6 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
         supplierRelations: item.supplierRelations ?? [],
         salesCount: item.salesCount ?? 0,
         salesTotal: item.salesTotal ?? 0,
-        // ✅ Clamp totalStock to 0 minimum when transforming location data
         totalStock: item.inventories
           ? Math.max(0, item.inventories.reduce((s: number, inv: any) => s + inv.quantity, 0))
           : 0,
@@ -327,10 +382,26 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
       return;
     }
 
+    // ── ADDED: client‑side duplicate guard ──────────────────────────────────
+    const normName = formData.name.trim().toLowerCase();
+    const normSku = formData.sku.trim().toLowerCase();
+    const duplicateItem = (allItems ?? []).find(
+      item =>
+        item.name.trim().toLowerCase() === normName ||
+        item.sku.trim().toLowerCase() === normSku
+    );
+    if (duplicateItem) {
+      toast.error("Duplicate item – cannot create", {
+        description: `"${duplicateItem.name}" (SKU: ${duplicateItem.sku}) already exists.`,
+        duration: 6000,
+      });
+      return; // stop submission
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
     const chosenLocationId = selectedLocation?.value ?? null;
     const chosenLocationLabel = selectedLocation?.label ?? "";
 
-    // ✅ Parse and hard-clamp to 0 minimum — prevents the Zod "too_small" server error
     const rawQty = parseInt(formData.initialQuantity ?? "0") || 0;
     const initialQty = Math.max(0, rawQty);
 
@@ -371,7 +442,7 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
         const linkResult = await linkItemToLocation({
           itemId: newItemId,
           locationId: chosenLocationId,
-          quantity: initialQty, // ✅ always ≥ 0
+          quantity: initialQty,
         });
 
         if (linkResult.success) {
@@ -479,6 +550,7 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
   const getInventoryRetailValue = (products: BriefItemResponse[]) =>
     products.reduce((sum, p) => sum + Math.max(0, (p as any).totalStock ?? 0) * p.sellingPrice, 0);
 
+  // ── MODIFIED: columns with duplicate badge and inline delete ──────────────
   const columns: Column<BriefItemResponse>[] = [
     {
       header: "Image",
@@ -491,9 +563,30 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
       header: "Name",
       accessorKey: "name",
       cell: (row) => (
-        <span className="font-medium line-clamp-1">
-          {row.name.length > 20 ? `${row.name.substring(0, 20)}...` : row.name}
-        </span>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-medium line-clamp-1">
+            {row.name.length > 20 ? `${row.name.substring(0, 20)}...` : row.name}
+          </span>
+          {duplicateIds.has(row.id) && (
+            <span className="inline-flex items-center gap-1">
+              <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4">
+                <Copy className="h-2.5 w-2.5 mr-1" />
+                DUPLICATE
+              </Badge>
+              <button
+                title="Delete this duplicate item"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setProductToDelete(row);
+                  setDeleteDialogOpen(true);
+                }}
+                className="ml-0.5 rounded-full p-0.5 text-destructive hover:bg-destructive/10"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          )}
+        </div>
       ),
     },
     {
@@ -510,7 +603,6 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
       header: "Stock",
       accessorKey: "totalStock" as any,
       cell: (row) => {
-        // ✅ Clamp display — never show a negative badge
         const qty = Math.max(0, (row as any).totalStock ?? 0);
         return (
           <Badge
@@ -557,6 +649,7 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
       },
     },
   ];
+  // ──────────────────────────────────────────────────────────────────────────
 
   return (
     <>
@@ -572,6 +665,20 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
             Filter by Location
             {showLocationFilter ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </Button>
+
+          {/* ── ADDED: Duplicate filter toggle ────────────────────────────── */}
+          {duplicateIds.size > 0 && (
+            <Button
+              variant={showDuplicatesOnly ? "destructive" : "outline"}
+              size="sm"
+              onClick={() => setShowDuplicatesOnly(prev => !prev)}
+              className="flex items-center gap-2"
+            >
+              <AlertTriangle className="h-4 w-4" />
+              {showDuplicatesOnly ? "Show All Items" : `Show Duplicates (${duplicateIds.size})`}
+            </Button>
+          )}
+          {/* ──────────────────────────────────────────────────────────────── */}
 
           {selectedLocationId && (
             <Badge variant="secondary" className="flex items-center gap-1 px-3 py-1">
@@ -591,7 +698,7 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
         )}
       </div>
 
-      {/* Location Filter Panel */}
+      {/* Location Filter Panel (unchanged) */}
       {showLocationFilter && (
         <div className="mb-6 p-4 border rounded-lg bg-muted/50">
           <div className="flex items-center justify-between mb-3">
@@ -677,7 +784,7 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
         pageSize={100}
       />
 
-      {/* Product Form Dialog */}
+      {/* Product Form Dialog (unchanged) */}
       <EntityForm
         size="lg"
         open={formDialogOpen}
@@ -834,12 +941,11 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
                       <FormControl>
                         <Input
                           type="number"
-                          min="0"   
+                          min="0"
                           step="1"
                           placeholder="0"
                           {...field}
                           onChange={(e) => {
-                            // ✅ Clamp on every keystroke — prevent negative entry
                             const raw = parseInt(e.target.value) || 0;
                             const safe = Math.max(0, raw).toString();
                             field.onChange(safe);
@@ -958,6 +1064,12 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
             <>
               Are you sure you want to delete <strong>{productToDelete.name}</strong>?
               {" "}If this item has sales or order history it will be deactivated instead.
+              {/* ── ADDED: extra context for duplicate delete ── */}
+              {duplicateIds.has(productToDelete.id) && (
+                <span className="block mt-2 text-sm text-muted-foreground">
+                  This item is marked as a duplicate. Deleting it will not affect other items with the same name or SKU.
+                </span>
+              )}
             </>
           ) : "Are you sure you want to delete this item?"
         }

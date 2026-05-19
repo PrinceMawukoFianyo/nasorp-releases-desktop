@@ -160,3 +160,26 @@ export async function getItemInventoryLocations(itemId: string) {
     return []
   }
 }
+
+export async function unlinkItemFromLocation(itemId: string, locationId: string) {
+  try {
+    // Delete the inventory record that connects this item to this location
+    await db.inventory.deleteMany({
+      where: {
+        itemId: itemId,
+        locationId: locationId,
+      },
+    });
+
+    revalidatePath(`/dashboard/inventory/items/${itemId}`);
+    revalidatePath("/dashboard/inventory/items");
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Failed to unlink item from location:", error);
+    return {
+      success: false,
+      error: error?.message || "Could not remove item from this location",
+    };
+  }
+}
