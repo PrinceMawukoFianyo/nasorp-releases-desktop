@@ -5,7 +5,7 @@
 // File: app/dashboard/sales/orders/components/credit-payment-tracker.tsx
 // ============================================================
 
-import { useState, useMemo, useEffect, useRef } from "react"
+import React, { useState, useMemo, useEffect, useRef } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -58,7 +58,6 @@ export interface CreditOrder {
   amountOwing: number
   orderDate: Date
   deliveryDate?: Date | null
-  // PENDING is the DB value for "unpaid" — normalised to UNPAID for display
   paymentStatus: "UNPAID" | "PARTIAL" | "PAID" | "PENDING"
   payments: PaymentRecord[]
 }
@@ -66,8 +65,6 @@ export interface CreditOrder {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function normaliseStatus(s: CreditOrder["paymentStatus"], amountOwing?: number): "UNPAID" | "PARTIAL" | "PAID" {
-  // If amountOwing is 0 or less the order is fully paid regardless of DB status
-  // This handles stale PARTIAL status when full payment was recorded
   if (amountOwing !== undefined && amountOwing < 0.01) return "PAID"
   if (s === "PAID")    return "PAID"
   if (s === "PARTIAL") return "PARTIAL"
@@ -193,22 +190,32 @@ function RecordPaymentDialog({ open, onOpenChange, order, onPaymentRecorded }: {
     setIsSubmitting(true)
     try {
       const result = await recordPayment({ orderId: order.id, amount: Math.min(parsedAmount, maxAmount), method, reference: reference || undefined })
-      if (result.success && result.data) {
-        const p = result.data as any
+      
+      // ✅ Fixed: check result.success and then access result.data
+      if (result.success && (result as any).data) {
+        const p = (result as any).data
         const newPayment: PaymentRecord = {
-          id: p.id, amount: p.amount, method: p.method,
+          id: p.id,
+          amount: p.amount,
+          method: p.method,
           reference: p.reference ?? undefined,
           paidAt: new Date(p.paidAt),
           recordedBy: p.recordedById ?? undefined,
         }
         onPaymentRecorded(order.id, newPayment)
         toast.success(`Payment of ${formatCurrency(parsedAmount)} recorded!`)
-        onOpenChange(false); setAmount(""); setReference("")
+        onOpenChange(false)
+        setAmount("")
+        setReference("")
       } else {
         toast.error((result as any).error || "Failed to record payment")
       }
-    } catch (err) { console.error(err); toast.error("Something went wrong") }
-    finally { setIsSubmitting(false) }
+    } catch (err) {
+      console.error(err)
+      toast.error("Something went wrong")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -304,7 +311,6 @@ export type ExportFilter = "current_debtors" | "all" | "paid_only"
 interface CreditPaymentTrackerProps {
   orders: CreditOrder[]
   onPaymentRecorded?: (orderId: string, payment: PaymentRecord) => void
-  /** When set, auto-opens the payment dialog for this order ID (used from Debtors tab) */
   autoOpenOrderId?: string | null
   onAutoOpenHandled?: () => void
 }
@@ -320,7 +326,6 @@ export default function CreditPaymentTracker({ orders: initialOrders, onPaymentR
   const [visibleAlerts, setVisibleAlerts]         = useState<DueAlert[]>([])
   const alertsFiredRef                            = useRef(false)
 
-  // Auto-open payment dialog when navigated from Debtors tab
   useEffect(() => {
     if (!autoOpenOrderId) return
     const order = orders.find(o => o.id === autoOpenOrderId)
@@ -328,7 +333,6 @@ export default function CreditPaymentTracker({ orders: initialOrders, onPaymentR
     onAutoOpenHandled?.()
   }, [autoOpenOrderId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fire due-date alerts once per session
   useEffect(() => {
     if (alertsFiredRef.current) return
     alertsFiredRef.current = true
@@ -361,7 +365,6 @@ export default function CreditPaymentTracker({ orders: initialOrders, onPaymentR
     const matchSearch =
       o.customerName.toLowerCase().includes(search.toLowerCase()) ||
       o.orderNumber.toLowerCase().includes(search.toLowerCase())
-    // Pass amountOwing so stale PARTIAL (amountOwing=0) shows as PAID in filter
     const ns = normaliseStatus(o.paymentStatus, o.amountOwing)
     const matchStatus = statusFilter === "ALL" || ns === statusFilter
     return matchSearch && matchStatus
@@ -405,7 +408,6 @@ export default function CreditPaymentTracker({ orders: initialOrders, onPaymentR
 
   return (
     <div className="space-y-4">
-      {/* Due-date Alert Banner */}
       <DueAlertBanner
         alerts={visibleAlerts}
         onDismissOne={id => setVisibleAlerts(p => p.filter(a => a.order.id !== id))}
@@ -413,7 +415,6 @@ export default function CreditPaymentTracker({ orders: initialOrders, onPaymentR
         onPayNow={openPayDialog}
       />
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { icon: <DollarSign className="w-4 h-4 text-red-500" />, label: "Total Owing",      value: formatCurrency(stats.totalOwed),   color: "text-red-600" },
@@ -431,7 +432,6 @@ export default function CreditPaymentTracker({ orders: initialOrders, onPaymentR
         ))}
       </div>
 
-      {/* Toolbar */}
       <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center justify-between">
         <div className="flex gap-2 flex-1">
           <div className="relative flex-1 max-w-xs">
@@ -463,7 +463,6 @@ export default function CreditPaymentTracker({ orders: initialOrders, onPaymentR
         </div>
       </div>
 
-      {/* Table */}
       <Card>
         <ScrollArea className="max-h-[560px]">
           <Table>
@@ -487,9 +486,8 @@ export default function CreditPaymentTracker({ orders: initialOrders, onPaymentR
                 const isExpanded = expandedId === order.id
                 const overdue    = isOverdue(order)
                 return (
-                  <>
+                  <React.Fragment key={order.id}>
                     <TableRow
-                      key={order.id}
                       className={`cursor-pointer hover:bg-muted/30 ${overdue ? "bg-orange-50/50" : ""}`}
                       onClick={() => setExpandedId(isExpanded ? null : order.id)}
                     >
@@ -539,7 +537,7 @@ export default function CreditPaymentTracker({ orders: initialOrders, onPaymentR
                       </TableCell>
                     </TableRow>
                     {isExpanded && (
-                      <TableRow key={`${order.id}-exp`} className="bg-muted/20">
+                      <TableRow className="bg-muted/20">
                         <TableCell colSpan={8} className="py-3 px-6">
                           <div className="max-w-lg">
                             <p className="text-sm font-semibold mb-2">Payment History — {order.orderNumber}</p>
@@ -548,7 +546,7 @@ export default function CreditPaymentTracker({ orders: initialOrders, onPaymentR
                         </TableCell>
                       </TableRow>
                     )}
-                  </>
+                  </React.Fragment>
                 )
               })}
             </TableBody>

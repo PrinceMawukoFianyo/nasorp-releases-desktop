@@ -745,3 +745,103 @@ export async function getCustomers(page = 1, limit = 20, search = "") {
     return { success: false, customers: [], total: 0, error: error.message }
   }
 }
+
+export async function getCustomerStatement(customerId: string) {
+  const user = await getAuthenticatedUser();
+  const orgId = user.orgId;
+
+  // Fetch all sales orders (including cancelled/refunded/paid) for statement display
+  const salesOrders = await db.salesOrder.findMany({
+    where: { customerId, orgId, status: { not: "DRAFT" } },
+    include: { payments: true },
+    orderBy: { createdAt: "asc" },
+  });
+
+  // Fetch manual debts (only active ones, not cancelled/paid)
+  const manualDebts = await db.manualDebt.findMany({
+    where: { customerId, orgId, status: { notIn: ["PAID", "CANCELLED"] } },
+    include: { payments: true },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const transactions: any[] = [];
+  let totalInvoiced = 0;
+  let totalPaid = 0;
+  let totalOwing = 0;
+
+  for (const so of salesOrders) {
+    const total = so.subtotal + so.taxAmount + (so.shippingCost || 0) - (so.discount || 0);
+    const isCancelledOrRefunded = ["CANCELLED", "REFUNDED", "RETURNED"].includes(so.status);
+    const isPaid = so.paymentStatus === "PAID";
+    
+    // Determine actual amount still owed (0 for cancelled/refunded/paid)
+    let amountOwing = 0;
+    if (!isCancelledOrRefunded && !isPaid) {
+      // For PENDING/PARTIAL, use the DB amountOwing column (or compute if legacy)
+      amountOwing = Number(so.amountOwing ?? 0) > 0 
+        ? Number(so.amountOwing)
+        : Math.max(0, total - Number(so.amountPaid ?? 0));
+    }
+
+    // Add to totals
+    totalInvoiced += total;
+    totalPaid += Number(so.amountPaid ?? 0);
+    totalOwing += amountOwing;
+
+    transactions.push({
+      date: so.createdAt,
+      type: "INVOICE",
+      number: so.orderNumber,
+      amount: total,
+      status: so.paymentStatus,
+      amountOwing: amountOwing,
+      orderStatus: so.status,
+      invoiceLink: `/dashboard/sales/orders/${so.id}/invoice`,
+      receiptLink: `/dashboard/sales/orders/${so.id}/receipt`,
+    });
+
+    // Payment records (only non-voided)
+    for (const p of so.payments) {
+      if (p.reference?.includes("VOIDED")) continue;
+      totalPaid += p.amount;
+      transactions.push({
+        date: p.paidAt,
+        type: "PAYMENT",
+        number: `PMT-${p.id.slice(-8)}`,
+        amount: p.amount,
+        status: "PAID",
+        receiptLink: `/dashboard/sales/orders/${so.id}/receipt`,
+      });
+    }
+  }
+
+  for (const debt of manualDebts) {
+    const debtTotal = debt.amountOwing + debt.amountPaid;
+    totalInvoiced += debtTotal;
+    totalPaid += debt.amountPaid;
+    totalOwing += debt.amountOwing;
+
+    transactions.push({
+      date: debt.createdAt,
+      type: "MANUAL_DEBT",
+      number: `DEBT-${debt.id.slice(-8)}`,
+      amount: debtTotal,
+      amountOwing: debt.amountOwing,
+      status: debt.status,
+    });
+    for (const p of debt.payments) {
+      totalPaid += p.amount;
+      transactions.push({
+        date: p.paidAt,
+        type: "DEBT_PAYMENT",
+        number: `DEBT-PMT-${p.id.slice(-8)}`,
+        amount: p.amount,
+        status: "PAID",
+      });
+    }
+  }
+
+  transactions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  return { transactions, totalInvoiced, totalPaid, totalOwing };
+}

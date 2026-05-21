@@ -187,9 +187,11 @@ export async function createSalesOrder(data: {
 export async function getSalesOrders() {
   try {
     const user = await getAuthenticatedUser()
-    
+    const orgId = user.orgId
+
+    // 1. Fetch normal sales orders (excluding POS)
     const salesOrders = await db.salesOrder.findMany({
-      where: { orgId: user.orgId },
+      where: { orgId },
       include: {
         customer: true,
         location: true,
@@ -201,9 +203,7 @@ export async function getSalesOrders() {
           include: {
             lines: {
               include: {
-                item: {
-                  select: { id: true, name: true, sku: true }
-                }
+                item: { select: { id: true, name: true, sku: true } }
               }
             }
           }
@@ -212,7 +212,47 @@ export async function getSalesOrders() {
       orderBy: { createdAt: "desc" },
     })
 
-    return salesOrders
+    // 2. Fetch manual debts (from the new table)
+    const manualDebts = await db.manualDebt.findMany({
+      where: { orgId },
+      include: { customer: true, payments: true },
+    })
+
+    // 3. Convert manual debts to a structure compatible with SalesOrder
+    const manualOrders = manualDebts.map(debt => ({
+      id: `debt-${debt.id}`,
+      orderNumber: `DEBT-${debt.id.slice(-8)}`,
+      customer: debt.customer,
+      customerId: debt.customerId,
+      createdAt: debt.createdAt,
+      updatedAt: debt.updatedAt,
+      status: debt.status === "PAID" ? "COMPLETED" : debt.amountPaid > 0 ? "PARTIAL" : "PENDING",
+      paymentStatus: debt.status === "PAID" ? "PAID" : debt.amountPaid > 0 ? "PARTIAL" : "PENDING",
+      subtotal: debt.amountOwing + debt.amountPaid,
+      taxAmount: 0,
+      shippingCost: 0,
+      discount: 0,
+      amountPaid: debt.amountPaid,
+      amountOwing: debt.amountOwing,
+      payments: debt.payments,
+      lines: [],  // manual debts have no items
+      location: null,
+      createdBy: null,
+      salesReturns: [],
+      notes: `Manual debt record (no items)`,
+      orderDate: debt.createdAt,     // required by SalesOrder type
+      deliveryDate: null,
+      paymentMethod: null,
+      source: "MANUAL_DEBT",
+      organisation: null,
+    }))
+
+    // 4. Combine and sort (newest first)
+    const allOrders = [...salesOrders, ...manualOrders].sort((a, b) =>
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )
+
+    return allOrders
   } catch (error: any) {
     console.error("Error fetching sales orders:", error)
     return []
@@ -717,6 +757,12 @@ export async function recordPayment(data: {
 
     if (data.amount > remaining + 0.01) {
       return { success: false, error: `Amount of GHS ${data.amount.toFixed(2)} exceeds remaining balance of GHS ${remaining.toFixed(2)}` }
+    }
+
+    if (data.orderId.startsWith("debt-")) {
+      const debtId = data.orderId.replace("debt-", "");
+      const { recordManualDebtPayment } = await import("./manual-debt");
+      return await recordManualDebtPayment({ debtId, amount: data.amount, method: data.method, reference: data.reference });
     }
 
     // FIX 2: Round to 2 decimal places to eliminate float drift.

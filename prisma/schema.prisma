@@ -92,6 +92,7 @@ model User {
   approvedReturns          SalesReturn[]          @relation("ReturnApprovedBy")
   recordedPayments         SalesOrderPayment[]    @relation("PaymentRecordedBy")
   recordedSupplierPayments SupplierPayment[]      @relation("SupplierPaymentRecorder")
+  ManualDebtPayment        ManualDebtPayment[]
 }
 
 model Organisation {
@@ -132,6 +133,7 @@ model Organisation {
   Expense               Expense[]
   PayrollEntry          PayrollEntry[]
   supplierPayments      SupplierPayment[]
+  ManualDebt            ManualDebt[]
 
   @@map("organisations")
 }
@@ -460,6 +462,7 @@ model Customer {
   organisation Organisation  @relation(fields: [orgId], references: [id], onDelete: Cascade)
   salesOrders  SalesOrder[]
   salesReturns SalesReturn[]
+  ManualDebt   ManualDebt[]
 
   @@index([email])
   @@index([phone])
@@ -787,6 +790,44 @@ model SalesReturnLine {
 
   @@index([returnId])
   @@index([itemId])
+}
+
+model ManualDebt {
+  id          String   @id @default(cuid())
+  orgId       String
+  customerId  String
+  amountOwing Float    @default(0)
+  amountPaid  Float    @default(0)
+  status      String   @default("PENDING") // PENDING, PARTIAL, PAID, CANCELLED
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  customer Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  org      Organisation @relation(fields: [orgId], references: [id])
+
+  payments ManualDebtPayment[]
+
+  @@index([orgId])
+  @@index([customerId])
+  @@index([status])
+}
+
+model ManualDebtPayment {
+  id           String   @id @default(cuid())
+  manualDebtId String
+  amount       Float
+  method       String // CASH, MOMO, CREDIT_CARD
+  reference    String?
+  paidAt       DateTime @default(now())
+  recordedById String
+  orgId        String
+
+  manualDebt ManualDebt @relation(fields: [manualDebtId], references: [id], onDelete: Cascade)
+  recordedBy User       @relation(fields: [recordedById], references: [id])
+
+  @@index([manualDebtId])
+  @@index([orgId])
 }
 
 model Expense {

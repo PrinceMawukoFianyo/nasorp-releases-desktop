@@ -22,6 +22,7 @@ import { getSalesOrders, cancelSalesOrder } from "@/actions/sales-orders"
 import { formatCurrency, formatDate, getStatusColor, getPaymentStatusColor } from "./so-utils"
 import type { SalesOrder } from "@/types/sales-order"
 import SalesOrderDetailView from "./components/sales-order-details-view"
+import { db } from "@/prisma/db"
 
 // ─── Sales Order Card ─────────────────────────────────────────────────────────
 function SalesOrderCard({
@@ -126,19 +127,19 @@ export default function SalesOrdersPage() {
       setIsLoading(true)
       const orders = await getSalesOrders()
 
-      // Filter out POS transactions
-      const salesOrdersOnly = orders.filter(
+      // Filter out POS transactions (order numbers starting with "POS-")
+      const filtered = orders.filter(
         (order: any) => !order.orderNumber.startsWith("POS-")
       )
 
-      setSalesOrders(salesOrdersOnly as unknown as SalesOrder[])
+      setSalesOrders(filtered as unknown as SalesOrder[])
 
-      if (salesOrdersOnly.length > 0 && !selectedOrder) {
-        setSelectedOrder(salesOrdersOnly[0] as unknown as SalesOrder)
+      if (filtered.length > 0 && !selectedOrder) {
+        setSelectedOrder(filtered[0] as unknown as SalesOrder)
       }
 
       if (selectedOrder) {
-        const updatedOrder = salesOrdersOnly.find((o: any) => o.id === selectedOrder.id)
+        const updatedOrder = filtered.find((o: any) => o.id === selectedOrder.id)
         if (updatedOrder) setSelectedOrder(updatedOrder as unknown as SalesOrder)
       }
     } catch (error) {

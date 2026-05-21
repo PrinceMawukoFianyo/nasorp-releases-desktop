@@ -307,3 +307,186 @@ export async function getDailySales(params: {
     return { success: false, error: err?.message ?? "Failed to fetch daily sales" };
   }
 }
+
+export interface StaffSaleDetail {
+  userId: string;
+  userName: string;
+  salesAmount: number;
+  orderCount: number;
+  posAmount: number;
+  posCount: number;
+  creditAmount: number;
+  creditCount: number;
+}
+
+export interface StaffSalesDay {
+  date: string;
+  totalRevenue: number;
+  staff: StaffSaleDetail[];
+}
+
+export async function getStaffSalesBreakdown(
+  fromDate: Date,
+  toDate: Date
+): Promise<{ success: true; data: StaffSalesDay[] } | { success: false; error: string }> {
+  try {
+    const user = await getAuthenticatedUser();
+    const orgId = user.orgId;
+
+    const from = startOfDay(fromDate);
+    const to = endOfDay(toDate);
+
+    // 1. Sales Orders (source = SALES_ORDER)
+    const salesOrders = await db.salesOrder.findMany({
+      where: {
+        orgId,
+        createdAt: { gte: from, lte: to },
+        source: "SALES_ORDER",
+        status: { notIn: ["DRAFT", "CANCELLED"] },
+      },
+      select: {
+        createdById: true,
+        createdAt: true,
+        subtotal: true,
+        taxAmount: true,
+        shippingCost: true,
+        discount: true,
+      },
+    });
+
+    // 2. POS orders (orderNumber starts with "POS-")
+    const posOrders = await db.salesOrder.findMany({
+      where: {
+        orgId,
+        createdAt: { gte: from, lte: to },
+        orderNumber: { startsWith: "POS-" },
+        status: { notIn: ["DRAFT", "CANCELLED"] },
+      },
+      select: {
+        createdById: true,
+        createdAt: true,
+        subtotal: true,
+        taxAmount: true,
+        shippingCost: true,
+        discount: true,
+      },
+    });
+
+    // Helper to compute order total
+    const orderTotal = (o: { subtotal: number; taxAmount: number; shippingCost: number | null; discount: number | null }) =>
+      (o.subtotal || 0) + (o.taxAmount || 0) + (o.shippingCost || 0) - (o.discount || 0);
+
+    // 3. Credit payments (SalesOrderPayment) where reference not voided
+    const creditPayments = await db.salesOrderPayment.findMany({
+      where: {
+        orgId,
+        paidAt: { gte: from, lte: to },
+        reference: { not: { contains: "VOIDED" } },
+      },
+      select: {
+        amount: true,
+        recordedById: true,
+        paidAt: true,
+      },
+    });
+
+    // Map to collect data per day
+    const dayMap = new Map<string, Map<string, StaffSaleDetail>>();
+
+    // Helper to add to day/user
+    const addToDay = (dateKey: string, userId: string, userName: string, amount: number, type: "order" | "pos" | "credit") => {
+      let day = dayMap.get(dateKey);
+      if (!day) {
+        day = new Map();
+        dayMap.set(dateKey, day);
+      }
+      let staff = day.get(userId);
+      if (!staff) {
+        staff = {
+          userId,
+          userName,
+          salesAmount: 0,
+          orderCount: 0,
+          posAmount: 0,
+          posCount: 0,
+          creditAmount: 0,
+          creditCount: 0,
+        };
+        day.set(userId, staff);
+      }
+      if (type === "order") {
+        staff.salesAmount += amount;
+        staff.orderCount += 1;
+      } else if (type === "pos") {
+        staff.salesAmount += amount;
+        staff.posAmount += amount;
+        staff.posCount += 1;
+      } else if (type === "credit") {
+        staff.salesAmount += amount;
+        staff.creditAmount += amount;
+        staff.creditCount += 1;
+      }
+    };
+
+    // Fetch user names in batch
+    const userIds = new Set<string>();
+    for (const o of [...salesOrders, ...posOrders]) if (o.createdById) userIds.add(o.createdById);
+    for (const p of creditPayments) if (p.recordedById) userIds.add(p.recordedById);
+    const users = await db.user.findMany({
+      where: { id: { in: Array.from(userIds) } },
+      select: { id: true, name: true, firstName: true, lastName: true },
+    });
+    const userNameMap = new Map<string, string>();
+    for (const u of users) {
+      userNameMap.set(u.id, u.name || `${u.firstName} ${u.lastName}`.trim() || u.id);
+    }
+
+    // Process sales orders
+    for (const o of salesOrders) {
+      const dateKey = format(o.createdAt, "yyyy-MM-dd");
+      const amount = orderTotal(o);
+      if (amount === 0) continue;
+      const userId = o.createdById;
+      const userName = userNameMap.get(userId) || "Unknown";
+      addToDay(dateKey, userId, userName, amount, "order");
+    }
+
+    // Process POS orders
+    for (const o of posOrders) {
+      const dateKey = format(o.createdAt, "yyyy-MM-dd");
+      const amount = orderTotal(o);
+      if (amount === 0) continue;
+      const userId = o.createdById;
+      const userName = userNameMap.get(userId) || "Unknown";
+      addToDay(dateKey, userId, userName, amount, "pos");
+    }
+
+    // Process credit payments
+    for (const p of creditPayments) {
+      const dateKey = format(p.paidAt, "yyyy-MM-dd");
+      const amount = p.amount;
+      if (amount === 0) continue;
+      const userId = p.recordedById;
+      const userName = userNameMap.get(userId) || "Unknown";
+      addToDay(dateKey, userId, userName, amount, "credit");
+    }
+
+    // Build result array
+    const result: StaffSalesDay[] = [];
+    for (const [dateKey, staffMap] of dayMap.entries()) {
+      const staffArray = Array.from(staffMap.values());
+      const totalRevenue = staffArray.reduce((sum, s) => sum + s.salesAmount, 0);
+      result.push({
+        date: dateKey,
+        totalRevenue,
+        staff: staffArray.sort((a, b) => b.salesAmount - a.salesAmount),
+      });
+    }
+    result.sort((a, b) => a.date.localeCompare(b.date));
+
+    return { success: true, data: result };
+  } catch (error: any) {
+    console.error("getStaffSalesBreakdown error:", error);
+    return { success: false, error: error.message || "Failed to load staff sales" };
+  }
+}
