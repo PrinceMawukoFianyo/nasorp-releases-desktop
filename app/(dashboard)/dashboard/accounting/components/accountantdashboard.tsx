@@ -7,7 +7,7 @@
  * – All other tabs (Overview, Expenses, Payroll, etc.) unchanged
  */
 
-import React, { useState, useEffect, useTransition } from "react";
+import React, { useState, useEffect, useTransition, useMemo  } from "react";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,11 @@ import { getCustomerStatement, getBriefCustomers } from "@/actions/customers";
 import { ManualDebtDialog } from "@/components/ManualDebtDialog";
 import { formatCurrency, formatDate } from "../../sales/orders/so-utils";
 import { ChevronDown, ChevronUp, FileText as FileTextIcon, Receipt as ReceiptIcon } from "lucide-react";
+import { ManualSupplierDebtDialog } from "@/components/ManualSupplierDebtDialog";
+import { getBriefSuppliers, getSupplierStatement } from "@/actions/suppliers";
+import StaffPerformanceTab from "./StaffPerformanceTab";
+
+
 
 // ══════════════════════════════════════════════════════════════════════
 // TYPES
@@ -57,7 +62,7 @@ type CreditSummary = { totalOutstanding: number; totalCollected: number; activeD
 type ExpenseRecord = { id: string; date: string; category: string; description: string; amount: number; recorded: string; isPayroll?: boolean };
 type PayrollRecord = { id: string; employeeName: string; role: string; amount: number; period: string; date: string; status: "PAID" | "PENDING" };
 
-const VALID_TABS = ["overview", "daily", "expenses", "payroll", "customers", "locations", "credit", "forecast", "paystack", "billing"] as const;
+const VALID_TABS = ["overview", "daily", "expenses", "payroll", "customers", "suppliers", "locations", "credit", "forecast", "staff", "paystack", "billing"] as const;
 type TabId = typeof VALID_TABS[number];
 
 type Props = {
@@ -418,9 +423,11 @@ const TABS: { id: TabId; label: string; icon: React.ElementType; permission: str
   { id: "expenses", label: "Expenses", icon: Receipt, permission: "accounting.read" },
   { id: "payroll", label: "Payroll", icon: Users, permission: "accounting.payroll" },
   { id: "customers", label: "Customers", icon: Users, permission: "accounting.read" },
+  { id: "suppliers", label: "Suppliers", icon: Building2, permission: "accounting.read" },
   { id: "locations", label: "Locations P&L", icon: MapPin, permission: "accounting.read" },
   { id: "credit", label: "Credit & Payments", icon: CreditCard, permission: "accounting.read" },
   { id: "forecast", label: "Forecast", icon: TrendingUp, permission: "accounting.read" },
+  { id: "staff", label: "Staff Performance", icon: Users, permission: "accounting.read" },
   { id: "paystack", label: "Paystack Settings", icon: Layers, permission: "accounting.admin" },
   { id: "billing", label: "Billing & Plan", icon: DollarSign, permission: "accounting.read" },
 ];
@@ -447,6 +454,11 @@ export default function AccountantDashboard({
   const [manualDebtOpen, setManualDebtOpen] = useState(false);
   const [allCustomers, setAllCustomers] = useState<any[]>([]);
 
+  const [supplierStatements, setSupplierStatements] = useState<Record<string, any>>({});
+  const [expandedSupplier, setExpandedSupplier] = useState<string | null>(null);
+  const [manualSupplierDebtOpen, setManualSupplierDebtOpen] = useState(false);
+  const [allSuppliers, setAllSuppliers] = useState<any[]>([]);
+
   // Load all customers once
   useEffect(() => {
     async function loadCustomers() {
@@ -454,6 +466,14 @@ export default function AccountantDashboard({
       setAllCustomers(res);
     }
     loadCustomers();
+  }, []);
+
+  useEffect(() => {
+  async function loadSuppliers() {
+      const res = await getBriefSuppliers();
+      setAllSuppliers(res);
+    }
+    loadSuppliers();
   }, []);
 
   // Re-sync when server revalidates and sends fresh props
@@ -491,103 +511,265 @@ export default function AccountantDashboard({
     }
   };
 
-  // ── Print individual statement ────────────────────────────────────────
-  const printStatement = (customer: any, statement: any) => {
-    const printWindow = window.open("", "_blank", "width=800,height=600");
-    if (!printWindow) {
-      toast.error("Please allow pop-ups to print");
-      return;
+// ── Print single customer statement ──────────────────────────────
+const printStatement = (customer: any, statement: any) => {
+  const printWindow = window.open("", "_blank", "width=860,height=700");
+  if (!printWindow) {
+    toast.error("Please allow pop-ups to print");
+    return;
+  }
+
+  const rows =
+    statement.transactions.length === 0
+      ? `<tr><td colspan="5" style="text-align:center;color:#999;padding:20px">No transactions found</td></tr>`
+      : statement.transactions
+          .map(
+            (t: any) => `
+          <tr>
+            <td>${formatDate(t.date)}</td>
+            <td>${t.number}</td>
+            <td>${t.type}</td>
+            <td>${formatCurrency(t.amount)}</td>
+            <td class="status-${(t.status || "").toLowerCase()}">${t.status}</td>
+          </tr>`
+          )
+          .join("");
+
+  const content = `<!DOCTYPE html>
+<html>
+<head>
+  <title>Statement – ${customer.name}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; padding: 24px; margin: 0; color: #222; }
+    .header { border-bottom: 2px solid #222; padding-bottom: 14px; margin-bottom: 20px; }
+    .header h2 { margin: 0 0 4px; font-size: 20px; }
+    .header p  { margin: 2px 0; color: #555; font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    th, td { border: 1px solid #ddd; padding: 9px 10px; text-align: left; font-size: 13px; }
+    th { background: #f5f5f5; font-weight: 700; }
+    tr:nth-child(even) td { background: #fafafa; }
+    .totals { margin-top: 18px; border-top: 1px solid #ddd; padding-top: 12px; text-align: right; }
+    .totals p { margin: 5px 0; font-size: 13px; }
+    .totals .owing { font-size: 16px; font-weight: bold; color: #b91c1c; }
+    .status-paid    { color: #15803d; font-weight: 600; }
+    .status-unpaid  { color: #dc2626; font-weight: 600; }
+    .status-partial { color: #d97706; font-weight: 600; }
+    @media print {
+      body { padding: 10px; }
     }
-    const content = `<!DOCTYPE html><html><head><title>Statement - ${customer.name}</title>
-      <style>
-        body { font-family: Arial, sans-serif; padding: 20px; margin: 0; }
-        table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background: #f2f2f2; }
-        .totals { margin-top: 20px; text-align: right; }
-        .header { margin-bottom: 20px; }
-        @media print { body { margin: 0; padding: 10px; } }
-      </style>
-    </head>
-    <body>
-      <div class="header">
-        <h2>Customer Statement</h2>
-        <p><strong>${customer.name}</strong><br/>${customer.email || ""}</p>
-      </div>
-      <table>
-        <thead><tr><th>Date</th><th>Document #</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead>
-        <tbody>
-          ${statement.transactions.map((t: any) => `
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h2>Customer Statement</h2>
+    <p><strong>${customer.name}</strong></p>
+    ${customer.email ? `<p>${customer.email}</p>` : ""}
+    <p>Generated: ${new Date().toLocaleDateString()}</p>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Document #</th>
+        <th>Type</th>
+        <th>Amount</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+
+  <div class="totals">
+    <p>Total Invoiced: <strong>${formatCurrency(statement.totalInvoiced)}</strong></p>
+    <p>Total Paid: <strong style="color:#15803d">${formatCurrency(statement.totalPaid)}</strong></p>
+    <p class="owing">Outstanding: ${formatCurrency(statement.totalOwing)}</p>
+  </div>
+
+  <` + `script>
+    window.onload = function () {
+      window.print();
+      setTimeout(function () { window.close(); }, 1000);
+    };
+  </` + `script>
+</body>
+</html>`;
+
+  printWindow.document.open();
+  printWindow.document.write(content);
+  printWindow.document.close();
+};
+
+// ── Print ALL customers' statements ──────────────────────────────
+const printAllStatements = async () => {
+  const toastId = toast.loading("Preparing all statements…");
+
+  let allStatements: { customer: any; statement: any }[] = [];
+
+  try {
+    allStatements = await Promise.all(
+      topCustomers.map(async (c) => ({
+        customer: c,
+        statement: await getCustomerStatement(c.id),
+      }))
+    );
+  } catch (err) {
+    toast.dismiss(toastId);
+    toast.error("Failed to load customer statements");
+    return;
+  }
+
+  toast.dismiss(toastId);
+
+  const printWindow = window.open("", "_blank", "width=860,height=700");
+  if (!printWindow) {
+    toast.error("Please allow pop-ups to print");
+    return;
+  }
+
+  // Build one block per customer
+  const blocks = allStatements
+    .map(({ customer, statement }) => {
+      const rows =
+        statement.transactions.length === 0
+          ? `<tr><td colspan="5" style="text-align:center;color:#999;padding:16px">No transactions</td></tr>`
+          : statement.transactions
+              .map(
+                (t: any) => `
             <tr>
               <td>${formatDate(t.date)}</td>
               <td>${t.number}</td>
               <td>${t.type}</td>
               <td>${formatCurrency(t.amount)}</td>
-              <td>${t.status}</td>
-            </tr>
-          `).join("")}
-        </tbody>
-      </table>
-      <div class="totals">
-        <p>Total Invoiced: ${formatCurrency(statement.totalInvoiced)}</p>
-        <p>Total Paid: ${formatCurrency(statement.totalPaid)}</p>
-        <p><strong>Outstanding: ${formatCurrency(statement.totalOwing)}</strong></p>
-      </div>
-      <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); };</script>
-    </body></html>`;
+              <td class="status-${(t.status || "").toLowerCase()}">${t.status}</td>
+            </tr>`
+              )
+              .join("");
+
+      return `
+        <div class="customer-block">
+          <div class="header">
+            <h2>${customer.name}</h2>
+            ${customer.email ? `<p>${customer.email}</p>` : ""}
+            <p>Generated: ${new Date().toLocaleDateString()}</p>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Document #</th>
+                <th>Type</th>
+                <th>Amount</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <div class="totals">
+            <p>Total Invoiced: <strong>${formatCurrency(statement.totalInvoiced)}</strong></p>
+            <p>Total Paid: <strong style="color:#15803d">${formatCurrency(statement.totalPaid)}</strong></p>
+            <p class="owing">Outstanding: ${formatCurrency(statement.totalOwing)}</p>
+          </div>
+        </div>`;
+    })
+    .join("\n");
+
+  const content = `<!DOCTYPE html>
+<html>
+<head>
+  <title>All Customer Statements</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; padding: 24px; margin: 0; color: #222; }
+    .customer-block { margin-bottom: 48px; page-break-after: always; }
+    .customer-block:last-child { page-break-after: avoid; }
+    .header { border-bottom: 2px solid #222; padding-bottom: 12px; margin-bottom: 16px; }
+    .header h2 { margin: 0 0 4px; font-size: 18px; }
+    .header p  { margin: 2px 0; color: #555; font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #ddd; padding: 8px 10px; text-align: left; font-size: 13px; }
+    th { background: #f5f5f5; font-weight: 700; }
+    tr:nth-child(even) td { background: #fafafa; }
+    .totals { margin-top: 14px; border-top: 1px solid #ddd; padding-top: 10px; text-align: right; }
+    .totals p { margin: 4px 0; font-size: 13px; }
+    .totals .owing { font-size: 15px; font-weight: bold; color: #b91c1c; }
+    .status-paid    { color: #15803d; font-weight: 600; }
+    .status-unpaid  { color: #dc2626; font-weight: 600; }
+    .status-partial { color: #d97706; font-weight: 600; }
+    @media print {
+      body { padding: 10px; }
+      .customer-block { page-break-after: always; }
+      .customer-block:last-child { page-break-after: avoid; }
+    }
+  </style>
+</head>
+<body>
+  ${blocks}
+  <` + `script>
+    window.onload = function () {
+      window.print();
+      setTimeout(function () { window.close(); }, 1000);
+    };
+  </` + `script>
+</body>
+</html>`;
+
+  printWindow.document.open();
+  printWindow.document.write(content);
+  printWindow.document.close();
+};
+
+  const fetchSupplierStatement = async (supplierId: string) => {
+    if (supplierStatements[supplierId]) return;
+    const data = await getSupplierStatement(supplierId);
+    setSupplierStatements(prev => ({ ...prev, [supplierId]: data }));
+  };
+
+  const toggleSupplierExpand = async (supplierId: string) => {
+    if (expandedSupplier === supplierId) {
+      setExpandedSupplier(null);
+    } else {
+      setExpandedSupplier(supplierId);
+      await fetchSupplierStatement(supplierId);
+    }
+  };
+
+  const printSupplierStatement = (supplier: any, statement: any) => {
+    // same as printStatement but with supplier data
+    const printWindow = window.open("", "_blank", "width=800,height=600");
+    if (!printWindow) { toast.error("Please allow pop-ups to print"); return; }
+    const content = `<!DOCTYPE html>...`; // adapt from printStatement
+    // ... similar to customer version, using supplier.name, etc.
     printWindow.document.write(content);
     printWindow.document.close();
   };
 
-  // ── Print all customers statements ────────────────────────────────────
-  const printAllStatements = async () => {
+// Compute top suppliers (sorted by totalOwing from statements)
+const topSuppliers = useMemo(() => {
+  if (!allSuppliers.length) return [];
+  return allSuppliers
+    .map(s => ({
+      ...s,
+      totalOwing: supplierStatements[s.id]?.totalOwing ?? 0,
+      orderCount: supplierStatements[s.id]?.transactions?.filter((t: any) => t.type === "PURCHASE_ORDER").length ?? 0,
+    }))
+    .sort((a, b) => b.totalOwing - a.totalOwing)
+    .slice(0, 5);
+}, [allSuppliers, supplierStatements]);
+
+const totalSupplierOwing = useMemo(() => {
+  return topSuppliers.reduce((sum, s) => sum + s.totalOwing, 0);
+}, [topSuppliers]);
+
+  const printAllSupplierStatements = async () => {
     const allStatements = await Promise.all(
-      topCustomers.map(async (c) => ({
-        customer: c,
-        statement: await getCustomerStatement(c.id)
+      topSuppliers.map(async (s) => ({
+        supplier: s,
+        statement: await getSupplierStatement(s.id)
       }))
     );
-    const printWindow = window.open("", "_blank", "width=800,height=600");
-    if (!printWindow) {
-      toast.error("Please allow pop-ups to print");
-      return;
-    }
-    let content = `<!DOCTYPE html><html><head><title>All Customers Statements</title>
-      <style>
-        body { font-family: Arial, sans-serif; padding: 20px; margin: 0; }
-        .customer-block { margin-bottom: 40px; page-break-after: always; }
-        table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background: #f2f2f2; }
-        .totals { margin-top: 10px; text-align: right; }
-        h2 { margin-bottom: 0; }
-      </style>
-    </head>
-    <body>`;
-    for (const { customer, statement } of allStatements) {
-      content += `
-        <div class="customer-block">
-          <h2>${customer.name}</h2>
-          <p>${customer.email || ""}</p>
-          <tr>
-            <thead><tr><th>Date</th><th>Document #</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead>
-            <tbody>
-              ${statement.transactions.map((t: any) => `
-                <tr><td>${formatDate(t.date)}</td><td>${t.number}</td><td>${t.type}</td><td>${formatCurrency(t.amount)}</td><td>${t.status}</td></tr>
-              `).join("")}
-            </tbody>
-          </table>
-          <div class="totals">
-            <p>Total Invoiced: ${formatCurrency(statement.totalInvoiced)}</p>
-            <p>Total Paid: ${formatCurrency(statement.totalPaid)}</p>
-            <p><strong>Outstanding: ${formatCurrency(statement.totalOwing)}</strong></p>
-          </div>
-        </div>
-      `;
-    }
-    content += `<script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); };</script></body></html>`;
-    printWindow.document.write(content);
-    printWindow.document.close();
+    // same as printAllStatements but for suppliers
   };
 
   // Derived numbers
@@ -1115,6 +1297,137 @@ export default function AccountantDashboard({
           </div>
         )}
 
+        {/* SUPPLIERS – with expandable statements, print all, manual debt */}
+        {tab === "suppliers" && (
+          <div className="space-y-5">
+            {/* Top Stats Cards */}
+            <div className="grid grid-cols-3 gap-3">
+              <StatCard label="Active Suppliers" value={String(allSuppliers.length)} sub="In selected period" accent="blue" icon={Building2} href="/dashboard/purchases/suppliers" />
+              <StatCard label="Top Creditor" value={fmt(topSuppliers[0]?.totalOwing ?? 0)} sub={topSuppliers[0]?.name ?? "—"} accent="purple" icon={TrendingUp} />
+              <StatCard label="Avg Payable" value={fmt(totalSupplierOwing / (allSuppliers.length || 1))} sub="Per supplier" accent="teal" icon={DollarSign} />
+            </div>
+
+            {/* Top Creditor Mini Cards */}
+            {topSuppliers.length > 0 && (
+              <div className="grid grid-cols-5 gap-3">
+                {topSuppliers.map((s, i) => (
+                  <Card key={i} className="text-center">
+                    <CardContent className="pt-4 pb-3">
+                      <div className="w-10 h-10 rounded-full mx-auto flex items-center justify-center font-bold text-sm mb-2" style={{ background: `hsl(${i * 55}, 55%, 92%)`, color: `hsl(${i * 55}, 55%, 35%)` }}>{s.name.charAt(0)}</div>
+                      <p className="text-xs font-semibold truncate">{s.name}</p>
+                      <p className="text-sm font-bold text-rose-700 mt-0.5">{fmt(s.totalOwing)}</p>
+                      <p className="text-[10px] text-muted-foreground">{s.orderCount} POs</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-semibold">Supplier Performance</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="outline" className="h-7 text-xs border-amber-500 text-amber-600 hover:bg-amber-50" onClick={() => setManualSupplierDebtOpen(true)}>
+                      + Manual Debt
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-7 text-xs border-blue-500 text-blue-600 hover:bg-blue-50" onClick={printAllSupplierStatements}>
+                      <Printer className="w-3.5 h-3.5 mr-1" /> Print All
+                    </Button>
+                    <Link href="/dashboard/purchases/suppliers" className="text-xs text-emerald-600 hover:underline">Manage all →</Link>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead><tr className="border-b bg-muted/40"><Th>#</Th><Th>Supplier</Th><Th>Email</Th><Th right>Total Owing</Th><Th center>POs</Th><Th right>Avg PO</Th><Th>Status</Th></tr></thead>
+                    <tbody>
+                      {topSuppliers.map((s, i) => {
+                        const isExpanded = expandedSupplier === s.id;
+                        const statement = supplierStatements[s.id];
+                        return (
+                          <React.Fragment key={s.id}>
+                            <tr className="border-b hover:bg-muted/30">
+                              <td className="py-2 px-1">
+                                <button onClick={() => toggleSupplierExpand(s.id)} className="p-1">
+                                  {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                </button>
+                              </td>
+                              <Td className="text-xs text-muted-foreground">#{i+1}</Td>
+                              <Td><div className="flex items-center gap-2"><div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ background: `hsl(${i * 55}, 55%, 92%)`, color: `hsl(${i * 55}, 55%, 35%)` }}>{s.name.charAt(0)}</div><span className="text-xs font-medium">{s.name}</span></div></Td>
+                              <Td className="text-xs text-muted-foreground">{s.email || "—"}</Td>
+                              <Td right className="font-semibold text-rose-700 text-xs">{fmt(s.totalOwing)}</Td>
+                              <Td center className="text-xs">{s.orderCount}</Td>
+                              <Td right className="text-xs text-muted-foreground">{fmt(s.orderCount > 0 ? s.totalOwing / s.orderCount : 0)}</Td>
+                              <Td><Badge variant="outline" className={s.totalOwing > 0 ? "bg-red-100 text-red-700 border-red-200" : "bg-green-100 text-green-700 border-green-200"}>{s.totalOwing > 0 ? "Has Debt" : "Settled"}</Badge></Td>
+                            </tr>
+                            {isExpanded && statement && (
+                              <tr className="bg-muted/20">
+                                <td colSpan={8} className="p-4">
+                                  <div className="space-y-3">
+                                    <div className="flex justify-between items-center">
+                                      <h4 className="text-sm font-semibold">Transaction Statement</h4>
+                                      <Button size="sm" variant="outline" onClick={() => printSupplierStatement(s, statement)}>
+                                        <Printer className="h-3.5 w-3.5 mr-1" /> Print Statement
+                                      </Button>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                      <table className="w-full text-sm">
+                                        <thead className="bg-muted/40">
+                                          <tr><th className="p-2 text-left">Date</th><th className="p-2 text-left">Document #</th><th className="p-2 text-left">Type</th><th className="p-2 text-right">Amount</th><th className="p-2 text-left">Status</th><th className="p-2 text-center">Actions</th></tr>
+                                        </thead>
+                                        <tbody>
+                                          {statement.transactions.map((t: any, idx: number) => (
+                                            <tr key={idx} className="border-b">
+                                              <td className="p-2">{formatDate(t.date)}</td>
+                                              <td className="p-2 font-mono text-xs">{t.number}</td>
+                                              <td className="p-2">{t.type}</td>
+                                              <td className="p-2 text-right font-medium">{fmt(t.amount)}</td>
+                                              <td className="p-2">{t.status}</td>
+                                              <td className="p-2 text-center">
+                                                {t.link && (
+                                                  <a href={t.link} target="_blank" className="text-blue-600 hover:underline" title="View PO">
+                                                    <FileTextIcon className="h-4 w-4 inline" />
+                                                  </a>
+                                                )}
+                                              </td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                        <tfoot className="border-t-2">
+                                          <tr><td colSpan={3} className="p-2 font-semibold">Totals</td><td className="p-2 text-right font-semibold">{fmt(statement.totalInvoiced)}</td><td colSpan={2}></td></tr>
+                                          <tr><td colSpan={3} className="p-2">Total Paid</td><td className="p-2 text-right text-green-700">{fmt(statement.totalPaid)}</td><td colSpan={2}></td></tr>
+                                          <tr><td colSpan={3} className="p-2 font-bold">Outstanding Balance</td><td className="p-2 text-right font-bold text-red-600">{fmt(statement.totalOwing)}</td><td colSpan={2}></td></tr>
+                                        </tfoot>
+                                      </table>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+                      {!topSuppliers.length && <tr><td colSpan={8} className="py-8 text-center text-xs text-muted-foreground">No supplier data</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+
+            <ManualSupplierDebtDialog
+              open={manualSupplierDebtOpen}
+              onOpenChange={setManualSupplierDebtOpen}
+              suppliers={allSuppliers}
+              onSuccess={() => {
+                toast.success("Manual supplier debt added. It will appear in Payables tracker.");
+                // Optionally refresh supplier statements
+              }}
+            />
+          </div>
+        )}
+
         {/* LOCATIONS P&L */}
         {tab === "locations" && (
           <div className="space-y-5">
@@ -1243,6 +1556,9 @@ export default function AccountantDashboard({
 
         {/* FORECAST */}
         {tab === "forecast" && <ForecastDashboard />}
+
+        {/* STAFF PERFORMANCE */}
+        {tab === "staff" && <StaffPerformanceTab />}
 
         {/* PAYSTACK SETTINGS */}
         {tab === "paystack" && (

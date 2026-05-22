@@ -189,7 +189,8 @@ function RecordPaymentDialog({
         onOpenChange(false)
         onSuccess()
       } else {
-        toast.error(result.error ?? "Failed to record payment")
+        const failed = result as { success: false; error: string }
+        toast.error(failed.error ?? "Failed to record payment")
       }
     } catch (error) {
       console.error("Payment error:", error)
@@ -339,7 +340,8 @@ function ReturnDialog({
         onOpenChange(false)
         onSuccess()
       } else {
-        toast.error(result.error ?? "Failed to process return")
+        const failed = result as { success: false; error: string }
+        toast.error(failed.error ?? "Failed to process return")
       }
     } catch (error) {
       console.error("Return error:", error)
@@ -562,7 +564,8 @@ function UpdateStatusDialog({
         onOpenChange(false)
         onSuccess()
       } else {
-        toast.error(result.error ?? "Failed to update status")
+        const failed = result as { success: false; error: string }
+        toast.error(failed.error ?? "Failed to update status")
       }
     } catch (error) {
       console.error("Status update error:", error)

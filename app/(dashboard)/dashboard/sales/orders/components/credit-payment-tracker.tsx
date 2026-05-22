@@ -194,8 +194,9 @@ function RecordPaymentDialog({ open, onOpenChange, order, onPaymentRecorded }: {
     setIsSubmitting(true)
     try {
       const result = await recordPayment({ orderId: order.id, amount: Math.min(parsedAmount, maxAmount), method, reference: reference || undefined })
-      if (result.success && result.data) {
-        const p = result.data as any
+      // ✅ Fix: cast result to any before accessing .data to satisfy TypeScript union
+      if (result.success && (result as any).data) {
+        const p = (result as any).data
         const newPayment: PaymentRecord = {
           id: p.id, amount: p.amount, method: p.method,
           reference: p.reference ?? undefined,

@@ -621,3 +621,31 @@ export async function exportAPLedgerToCsv(rows: APCsvRow[]): Promise<string> {
     ...rows.map(r => headers.map(h => esc(r[h])).join(",")),
   ].join("\n")
 }
+
+export async function createManualSupplierDebt(data: {
+  supplierId: string;
+  amountOwing: number;
+  notes?: string;
+}) {
+  try {
+    const user = await getAuthenticatedUser();
+    const supplier = await db.supplier.findFirst({
+      where: { id: data.supplierId, orgId: user.orgId },
+    });
+    if (!supplier) return { success: false, error: "Supplier not found" };
+
+    const debt = await db.manualSupplierDebt.create({
+      data: {
+        orgId: user.orgId,
+        supplierId: data.supplierId,
+        amountOwing: data.amountOwing,
+        amountPaid: 0,
+        status: data.amountOwing > 0 ? "PENDING" : "PAID",
+        notes: data.notes,
+      },
+    });
+    return { success: true, data: debt };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}

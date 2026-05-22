@@ -50,49 +50,50 @@ model Role {
 }
 
 model User {
-  id                       String                 @id @default(cuid())
-  name                     String
-  firstName                String
-  lastName                 String
-  phone                    String                 @unique
-  email                    String                 @unique
-  emailVerified            DateTime?
-  image                    String?
-  jobTitle                 String?
-  password                 String?
-  status                   Boolean                @default(true)
-  orgName                  String?
-  orgId                    String
-  isVerfied                Boolean                @default(false)
-  token                    String?
-  createdAt                DateTime               @default(now())
-  updatedAt                DateTime               @updatedAt
-  roleId                   String?
-  locationId               String?
-  locationName             String?
-  apiKey                   String?                @unique
-  accounts                 Account[]
-  approvedAdjustments      Adjustment[]           @relation("AdjustmentApprovedBy")
-  createdAdjustments       Adjustment[]           @relation("AdjustmentCreatedBy")
-  feedbacks                Feedback[]
-  receivedGoodsReceipts    GoodsReceipt[]         @relation("GoodsReceiptReceivedBy")
-  inventoryTransactions    InventoryTransaction[]
-  approvedPurchaseOrders   PurchaseOrder[]        @relation("PurchaseOrderApprovedBy")
-  createdPurchaseOrders    PurchaseOrder[]        @relation("PurchaseOrderCreatedBy")
-  createdSalesOrders       SalesOrder[]           @relation("SalesOrderCreatedBy")
-  Saving                   Saving[]
-  sessions                 Session[]
-  showcases                Showcase[]
-  approvedTransfers        Transfer[]             @relation("TransferApprovedBy")
-  createdTransfers         Transfer[]             @relation("TransferCreatedBy")
-  Location                 Location?              @relation(fields: [locationId], references: [id])
-  organisation             Organisation           @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  roles                    Role[]                 @relation("UserRoles")
-  createdReturns           SalesReturn[]          @relation("ReturnCreatedBy")
-  approvedReturns          SalesReturn[]          @relation("ReturnApprovedBy")
-  recordedPayments         SalesOrderPayment[]    @relation("PaymentRecordedBy")
-  recordedSupplierPayments SupplierPayment[]      @relation("SupplierPaymentRecorder")
-  ManualDebtPayment        ManualDebtPayment[]
+  id                        String                      @id @default(cuid())
+  name                      String
+  firstName                 String
+  lastName                  String
+  phone                     String                      @unique
+  email                     String                      @unique
+  emailVerified             DateTime?
+  image                     String?
+  jobTitle                  String?
+  password                  String?
+  status                    Boolean                     @default(true)
+  orgName                   String?
+  orgId                     String
+  isVerfied                 Boolean                     @default(false)
+  token                     String?
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime                    @updatedAt
+  roleId                    String?
+  locationId                String?
+  locationName              String?
+  apiKey                    String?                     @unique
+  accounts                  Account[]
+  approvedAdjustments       Adjustment[]                @relation("AdjustmentApprovedBy")
+  createdAdjustments        Adjustment[]                @relation("AdjustmentCreatedBy")
+  feedbacks                 Feedback[]
+  receivedGoodsReceipts     GoodsReceipt[]              @relation("GoodsReceiptReceivedBy")
+  inventoryTransactions     InventoryTransaction[]
+  approvedPurchaseOrders    PurchaseOrder[]             @relation("PurchaseOrderApprovedBy")
+  createdPurchaseOrders     PurchaseOrder[]             @relation("PurchaseOrderCreatedBy")
+  createdSalesOrders        SalesOrder[]                @relation("SalesOrderCreatedBy")
+  Saving                    Saving[]
+  sessions                  Session[]
+  showcases                 Showcase[]
+  approvedTransfers         Transfer[]                  @relation("TransferApprovedBy")
+  createdTransfers          Transfer[]                  @relation("TransferCreatedBy")
+  Location                  Location?                   @relation(fields: [locationId], references: [id])
+  organisation              Organisation                @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  roles                     Role[]                      @relation("UserRoles")
+  createdReturns            SalesReturn[]               @relation("ReturnCreatedBy")
+  approvedReturns           SalesReturn[]               @relation("ReturnApprovedBy")
+  recordedPayments          SalesOrderPayment[]         @relation("PaymentRecordedBy")
+  recordedSupplierPayments  SupplierPayment[]           @relation("SupplierPaymentRecorder")
+  ManualDebtPayment         ManualDebtPayment[]
+  ManualSupplierDebtPayment ManualSupplierDebtPayment[]
 }
 
 model Organisation {
@@ -134,6 +135,7 @@ model Organisation {
   PayrollEntry          PayrollEntry[]
   supplierPayments      SupplierPayment[]
   ManualDebt            ManualDebt[]
+  ManualSupplierDebt    ManualSupplierDebt[]
 
   @@map("organisations")
 }
@@ -276,23 +278,24 @@ model Item {
 }
 
 model Supplier {
-  id                String          @id @default(cuid())
-  name              String
-  contactPerson     String?
-  email             String?
-  phone             String?
-  address           String?
-  taxId             String?
-  orgId             String
-  paymentTerms      Int?
-  notes             String?
-  isActive          Boolean         @default(true)
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-  supplierRelations ItemSupplier[]
-  purchaseOrders    PurchaseOrder[]
-  organisation      Organisation    @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  items             Item[]          @relation("SupplierItems")
+  id                 String               @id @default(cuid())
+  name               String
+  contactPerson      String?
+  email              String?
+  phone              String?
+  address            String?
+  taxId              String?
+  orgId              String
+  paymentTerms       Int?
+  notes              String?
+  isActive           Boolean              @default(true)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  supplierRelations  ItemSupplier[]
+  purchaseOrders     PurchaseOrder[]
+  organisation       Organisation         @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  items              Item[]               @relation("SupplierItems")
+  ManualSupplierDebt ManualSupplierDebt[]
 }
 
 model ItemSupplier {
@@ -827,6 +830,44 @@ model ManualDebtPayment {
   recordedBy User       @relation(fields: [recordedById], references: [id])
 
   @@index([manualDebtId])
+  @@index([orgId])
+}
+
+model ManualSupplierDebt {
+  id          String   @id @default(cuid())
+  orgId       String
+  supplierId  String
+  amountOwing Float    @default(0)
+  amountPaid  Float    @default(0)
+  status      String   @default("PENDING") // PENDING, PARTIAL, PAID, CANCELLED
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  supplier Supplier     @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  org      Organisation @relation(fields: [orgId], references: [id])
+
+  payments ManualSupplierDebtPayment[]
+
+  @@index([orgId])
+  @@index([supplierId])
+  @@index([status])
+}
+
+model ManualSupplierDebtPayment {
+  id                   String   @id @default(cuid())
+  manualSupplierDebtId String
+  amount               Float
+  method               String // CASH, BANK_TRANSFER, MOBILE_MONEY, CHEQUE
+  reference            String?
+  paidAt               DateTime @default(now())
+  recordedById         String
+  orgId                String
+
+  manualSupplierDebt ManualSupplierDebt @relation(fields: [manualSupplierDebtId], references: [id], onDelete: Cascade)
+  recordedBy         User               @relation(fields: [recordedById], references: [id])
+
+  @@index([manualSupplierDebtId])
   @@index([orgId])
 }
 
