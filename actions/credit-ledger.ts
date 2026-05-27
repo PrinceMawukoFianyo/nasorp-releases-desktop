@@ -216,7 +216,6 @@ export async function getCreditLedger(filters?: {
       },
       include: {
         customer: true,
-        createdBy: { select: { name: true } },
         payments: {
           include: { recordedBy: { select: { name: true } } },
         },
