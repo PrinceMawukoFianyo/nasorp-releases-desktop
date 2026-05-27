@@ -805,6 +805,7 @@ model ManualDebt {
   notes       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  createdById  String? 
 
   customer Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
   org      Organisation @relation(fields: [orgId], references: [id])

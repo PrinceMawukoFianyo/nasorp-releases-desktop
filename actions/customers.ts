@@ -750,17 +750,17 @@ export async function getCustomerStatement(customerId: string) {
   const user = await getAuthenticatedUser();
   const orgId = user.orgId;
 
-  // Fetch all orders (including cancelled/refunded) – we need them for display
+  // Fetch all orders (excluding DRAFT – cancelled/refunded orders are shown but don't affect totals)
   const salesOrders = await db.salesOrder.findMany({
     where: { customerId, orgId, status: { not: "DRAFT" } },
     include: { payments: true },
     orderBy: { createdAt: "asc" },
   });
 
-  // Fetch manual debts (only active, not paid/cancelled)
+  // Fetch ALL manual debts (including PAID and CANCELLED) for complete history
   const manualDebts = await db.manualDebt.findMany({
-    where: { customerId, orgId, status: { notIn: ["PAID", "CANCELLED"] } },
-    include: { payments: true },
+    where: { customerId, orgId },
+    include: { payments: true, createdBy: { select: { name: true } } },
     orderBy: { createdAt: "asc" },
   });
 
@@ -769,12 +769,12 @@ export async function getCustomerStatement(customerId: string) {
   let totalPaid = 0;
   let totalOwing = 0;
 
+  // ---------- Sales Orders ----------
   for (const so of salesOrders) {
     const total = so.subtotal + so.taxAmount + (so.shippingCost || 0) - (so.discount || 0);
     const isCancelledOrRefunded = ["CANCELLED", "REFUNDED", "RETURNED"].includes(so.status);
     const isPaid = so.paymentStatus === "PAID";
 
-    // Determine amount still owed (only for active, non‑paid orders)
     let amountOwing = 0;
     if (!isCancelledOrRefunded && !isPaid) {
       amountOwing = Number(so.amountOwing ?? 0) > 0
@@ -782,18 +782,14 @@ export async function getCustomerStatement(customerId: string) {
         : Math.max(0, total - Number(so.amountPaid ?? 0));
     }
 
-    // ---- Contribution to totals (only if order is not cancelled/refunded) ----
+    // Add to totals only if the order is active (not cancelled/refunded)
     if (!isCancelledOrRefunded) {
       totalInvoiced += total;
       totalPaid += Number(so.amountPaid ?? 0);
       totalOwing += amountOwing;
-    } else {
-      // Cancelled/refunded orders contribute nothing to totals
-      // (their payments are also ignored because they were refunded/voided)
-      // But we still show them in the transaction list for transparency.
     }
 
-    // Add invoice transaction (always shown, but with correct status)
+    // Invoice line (always shown, but with correct status)
     transactions.push({
       date: so.createdAt,
       type: "INVOICE",
@@ -806,7 +802,7 @@ export async function getCustomerStatement(customerId: string) {
       receiptLink: `/dashboard/sales/orders/${so.id}/simple-receipt`,
     });
 
-    // Add payment transactions – include them only for display, but for totals they are already accounted above
+    // Payment lines (skip voided)
     for (const p of so.payments) {
       if (p.reference?.includes("VOIDED")) continue;
       transactions.push({
@@ -820,13 +816,25 @@ export async function getCustomerStatement(customerId: string) {
     }
   }
 
-  // Manual debts – treat like active invoices
+  // ---------- Manual Debts ----------
   for (const debt of manualDebts) {
     const debtTotal = debt.amountOwing + debt.amountPaid;
-    totalInvoiced += debtTotal;
-    totalPaid += debt.amountPaid;
-    totalOwing += debt.amountOwing;
+    const isPaid = debt.status === "PAID";
 
+    // Add to totals only if debt is not cancelled and not fully paid
+    if (debt.status !== "CANCELLED" && !isPaid) {
+      totalInvoiced += debtTotal;
+      totalPaid += debt.amountPaid;
+      totalOwing += debt.amountOwing;
+    } else if (debt.status !== "CANCELLED" && isPaid) {
+      // Fully paid debts: add to invoiced and paid, but owing is 0
+      totalInvoiced += debtTotal;
+      totalPaid += debt.amountPaid;
+      // totalOwing unchanged (0)
+    }
+    // Cancelled debts: do not add to totals (just for history)
+
+    // Manual debt creation line
     transactions.push({
       date: debt.createdAt,
       type: "MANUAL_DEBT",
@@ -835,8 +843,9 @@ export async function getCustomerStatement(customerId: string) {
       amountOwing: debt.amountOwing,
       status: debt.status,
     });
+
+    // Payment lines – do NOT add to totals again (already accounted in debt.amountPaid)
     for (const p of debt.payments) {
-      totalPaid += p.amount; // already counted above, but keep for consistency
       transactions.push({
         date: p.paidAt,
         type: "DEBT_PAYMENT",
@@ -847,6 +856,7 @@ export async function getCustomerStatement(customerId: string) {
     }
   }
 
+  // Sort all transactions by date
   transactions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   return { transactions, totalInvoiced, totalPaid, totalOwing };

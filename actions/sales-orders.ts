@@ -725,6 +725,14 @@ export async function recordPayment(data: {
     if (!data.orderId)    return { success: false, error: "Order ID is required" }
     if (data.amount <= 0) return { success: false, error: "Amount must be greater than zero" }
 
+    // ✅ FIX: Handle manual debt FIRST – before any sales order lookup
+    if (data.orderId.startsWith("debt-")) {
+      const debtId = data.orderId.replace("debt-", "");
+      const { recordManualDebtPayment } = await import("./manual-debt");
+      return await recordManualDebtPayment({ debtId, amount: data.amount, method: data.method, reference: data.reference });
+    }
+
+    // Now safe to query sales order
     const order = await db.salesOrder.findUnique({
       where: { id: data.orderId, orgId: user.orgId },
       include: { payments: true },
@@ -740,11 +748,6 @@ export async function recordPayment(data: {
       Number(order.discount     ?? 0)
     )
 
-    // FIX 1: Use amountPaid DB column as authoritative source.
-    // Summing order.payments was unreliable because voided payments
-    // are still in the table, inflating currentPaid → remaining → 0.
-    // amountPaid column is always kept in sync by this very function.
-    // Use max(amountPaid, paymentsSum) to handle any sync drift.
     const paymentsSum = order.payments
       .filter((p: any) => !(p.reference ?? "").includes("VOIDED"))
       .reduce((sum: number, p: { amount: number }) => sum + Number(p.amount), 0)
@@ -759,20 +762,11 @@ export async function recordPayment(data: {
       return { success: false, error: `Amount of GHS ${data.amount.toFixed(2)} exceeds remaining balance of GHS ${remaining.toFixed(2)}` }
     }
 
-    if (data.orderId.startsWith("debt-")) {
-      const debtId = data.orderId.replace("debt-", "");
-      const { recordManualDebtPayment } = await import("./manual-debt");
-      return await recordManualDebtPayment({ debtId, amount: data.amount, method: data.method, reference: data.reference });
-    }
-
-    // FIX 2: Round to 2 decimal places to eliminate float drift.
-    // Without rounding: 370.00 - 370.00 = 0.0000000001 → newAmountOwing > 0
-    // → newPaymentStatus = PARTIAL instead of PAID.
+    // Round to avoid floating point drift
     const newAmountPaid  = Math.round((currentPaid + data.amount) * 100) / 100
     const newAmountOwing = Math.round(Math.max(0, orderTotal - newAmountPaid) * 100) / 100
 
     let newPaymentStatus: PaymentStatus
-    // Use 0.01 tolerance — less than 1 pesewa remaining = fully paid
     if (newAmountOwing < 0.01) {
       newPaymentStatus = PaymentStatus.PAID
     } else if (newAmountPaid > 0) {

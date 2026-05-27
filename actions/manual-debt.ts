@@ -26,6 +26,7 @@ export async function createManualDebt(data: {
         amountPaid: 0,
         status: data.amountOwing > 0 ? "PENDING" : "PAID",
         notes: data.notes,
+        createdById: user.id, // ✅ ADD THIS
       },
     });
 
