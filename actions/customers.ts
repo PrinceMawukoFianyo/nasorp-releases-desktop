@@ -758,9 +758,10 @@ export async function getCustomerStatement(customerId: string) {
   });
 
   // Fetch ALL manual debts (including PAID and CANCELLED) for complete history
+  // ✅ REMOVED `createdBy` include – it doesn't exist in the schema
   const manualDebts = await db.manualDebt.findMany({
     where: { customerId, orgId },
-    include: { payments: true, createdBy: { select: { name: true } } },
+    include: { payments: true },
     orderBy: { createdAt: "asc" },
   });
 
