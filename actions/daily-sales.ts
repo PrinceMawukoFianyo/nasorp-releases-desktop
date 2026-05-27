@@ -53,8 +53,8 @@ export type DaySummary = {
   creditPaid:           DailySaleOrder[];   // SalesOrderPayment records
   totalRevenue:         number;             // POS + upfront deposits + credit payments collected
   totalPOS:             number;
-  totalCreditInvoiced:  number;             // full billed value of all sales orders (the invoice total)
-  totalCredit:          number;             // cash actually received upfront from sales orders
+  totalCreditInvoiced:  number;             // full billed value of all Credit Saless (the invoice total)
+  totalCredit:          number;             // cash actually received upfront from Credit Saless
   totalCreditPaid:      number;             // credit payments collected on this day
   orderCount:           number;
 };
@@ -112,7 +112,6 @@ export async function getDailySales(params: {
   toDate:   Date;
 }): Promise<{ success: true; data: DailySalesResult } | { success: false; error: string }> {
   try {
-    // Get orgId from session so data is scoped to the logged-in org
     const user = await getAuthenticatedUser();
     const orgId = user.orgId;
     if (!orgId) return { success: false, error: "Not authenticated" };
@@ -121,51 +120,32 @@ export async function getDailySales(params: {
     const from  = startOfDay(params.fromDate);
     const to    = endOfDay(params.toDate);
 
-    // ── 1. Fetch all sales orders in the date range ──────────────────────────
+    // ── 1. Fetch all orders (sales orders + POS) ──────────────────────────
     const orders = await db.salesOrder.findMany({
       where: {
         orgId,
         createdAt: { gte: from, lte: to },
-        // Exclude DRAFT — only show confirmed / processing / completed / etc.
         status: { not: "DRAFT" },
       },
       include: {
-        customer: {
-          select: { id: true, name: true, email: true, phone: true },
-        },
-        lines: {
-          include: {
-            item: { select: { name: true, sku: true } },
-          },
-        },
+        customer: { select: { id: true, name: true, email: true, phone: true } },
+        lines: { include: { item: { select: { name: true, sku: true } } } },
       },
       orderBy: { createdAt: "asc" },
     });
 
-    // ── 2. Fetch payment records collected in the date range ─────────────────
-    //    These are SalesOrderPayment rows — they record when a customer pays
-    //    against a credit order (PENDING / PARTIAL → PAID).
-    //    We only want payments on orders that were SALES_ORDER (not POS),
-    //    because POS is paid immediately.
+    // ── 2. Fetch all payments collected in the date range ─────────────────
     const payments = await db.salesOrderPayment.findMany({
       where: {
         orgId,
         paidAt: { gte: from, lte: to },
-        order: {
-          source: "SALES_ORDER",   // only credit order payments
-        },
+        order: { source: "SALES_ORDER" },
       },
       include: {
         order: {
           include: {
-            customer: {
-              select: { id: true, name: true, email: true, phone: true },
-            },
-            lines: {
-              include: {
-                item: { select: { name: true, sku: true } },
-              },
-            },
+            customer: { select: { id: true, name: true, email: true, phone: true } },
+            lines: { include: { item: { select: { name: true, sku: true } } } },
           },
         },
         recordedBy: { select: { name: true } },
@@ -173,7 +153,7 @@ export async function getDailySales(params: {
       orderBy: { paidAt: "asc" },
     });
 
-    // ── 3. Build a day-keyed map covering every day in the range ─────────────
+    // ── 3. Build day map covering every day in the range ─────────────────
     const dayMap = new Map<string, DaySummary>();
     let cursor = startOfDay(from);
     while (cursor <= to) {
@@ -181,27 +161,13 @@ export async function getDailySales(params: {
       cursor = addDays(cursor, 1);
     }
 
-    // ── 4. Assign orders to their day ────────────────────────────────────────
-    //
-    //  POS detection: use orderNumber.startsWith("POS-") — this is the
-    //  reliable identifier used across the whole codebase, not o.source.
-    //
-    //  Revenue rules:
-    //  • POS orders  → always fully paid at point of sale → full total is revenue
-    //  • SALES_ORDER → may be on credit (PENDING/PARTIAL with amountPaid = 0).
-    //      - A pure credit order (nothing paid upfront) adds 0 to today's revenue.
-    //      - It still appears in salesOrders so staff can see it.
-    //      - Any cash collected later appears in step 5 on the payment date.
+    // ── 4. Process orders ────────────────────────────────────────────────
     for (const o of orders) {
       const key = format(o.createdAt, "yyyy-MM-dd");
       const day = dayMap.get(key);
       if (!day) continue;
 
-      const total       = orderTotal(o);
-      const amountPaid  = Number(o.amountPaid);
-      const amountOwing = Number(o.amountOwing);
-
-      // Use orderNumber prefix as the reliable POS identifier
+      const total = orderTotal(o);
       const isPOS = o.orderNumber.startsWith("POS-") || o.source === "POS";
 
       const lineItems: SaleLineItem[] = o.lines.map(li => ({
@@ -223,8 +189,8 @@ export async function getDailySales(params: {
         status:        o.status,
         paymentStatus: o.paymentStatus,
         total,
-        amountPaid,
-        amountOwing,
+        amountPaid:    Number(o.amountPaid ?? 0),
+        amountOwing:   Number(o.amountOwing ?? 0),
         paymentMethod: o.paymentMethod ?? null,
         createdAt:     o.createdAt.toISOString(),
         time:          format(o.createdAt, "HH:mm"),
@@ -233,29 +199,20 @@ export async function getDailySales(params: {
       };
 
       if (isPOS) {
-        // POS: always fully paid at the till — full total is today's revenue
+        // POS: full total is revenue (paid at the till)
         day.posOrders.push(entry);
         day.totalPOS     += total;
         day.totalRevenue += total;
       } else {
-        // SALES_ORDER:
-        //  • totalCreditInvoiced = full billed value regardless of payment (what was issued on invoice)
-        //  • totalCredit         = cash actually received upfront today (amountPaid)
-        //  • totalRevenue        = only the cash actually collected today
-        //    Pure credit orders (amountPaid=0) add nothing to revenue — they appear in
-        //    creditPaid when the customer pays later (step 5).
+        // Credit order: only track the invoice value (not revenue)
         day.salesOrders.push(entry);
-        day.totalCreditInvoiced += total;       // ← full invoice value
-        day.totalCredit         += amountPaid;  // ← cash received upfront (may be 0)
-        day.totalRevenue        += amountPaid;  // ← only real cash hits revenue
+        day.totalCreditInvoiced += total;   // full invoice amount (info only)
+        // ✨ FIX: Do NOT add amountPaid here – payments will be added from the payment loop
       }
       day.orderCount++;
     }
 
-    // ── 5. Assign credit payments to their collection day ────────────────────
-    //    Each SalesOrderPayment = real cash received from a debtor.
-    //    Revenue is recognised on the day the payment was collected (paidAt),
-    //    not the day the original credit order was created.
+    // ── 5. Process payments (these are real cash collected) ───────────────
     for (const pmt of payments) {
       const key = format(pmt.paidAt, "yyyy-MM-dd");
       const day = dayMap.get(key);
@@ -293,11 +250,11 @@ export async function getDailySales(params: {
 
       day.creditPaid.push(entry);
       day.totalCreditPaid += Number(pmt.amount);
-      day.totalRevenue    += Number(pmt.amount); // real cash received today
+      day.totalRevenue    += Number(pmt.amount); // revenue = only cash collected today
     }
 
-    // ── 6. Build result ───────────────────────────────────────────────────────
-    const days       = Array.from(dayMap.values());
+    // ── 6. Build result ───────────────────────────────────────────────────
+    const days = Array.from(dayMap.values());
     const grandTotal = days.reduce((s, d) => s + d.totalRevenue, 0);
     const periodLabel = `${format(from, "d MMM")} – ${format(to, "d MMM yyyy")}`;
 
@@ -336,7 +293,7 @@ export async function getStaffSalesBreakdown(
     const from = startOfDay(fromDate);
     const to = endOfDay(toDate);
 
-    // 1. Sales Orders (source = SALES_ORDER)
+    // 1. Credit Saless (source = SALES_ORDER)
     const salesOrders = await db.salesOrder.findMany({
       where: {
         orgId,
@@ -441,7 +398,7 @@ export async function getStaffSalesBreakdown(
       userNameMap.set(u.id, u.name || `${u.firstName} ${u.lastName}`.trim() || u.id);
     }
 
-    // Process sales orders
+    // Process Credit Saless
     for (const o of salesOrders) {
       const dateKey = format(o.createdAt, "yyyy-MM-dd");
       const amount = orderTotal(o);

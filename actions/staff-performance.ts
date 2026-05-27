@@ -90,7 +90,7 @@ export async function getStaffPerformance(
     const createdAtFilter = from ? { gte: from, lte: to } : { lte: to };
     const paidAtFilter    = from ? { gte: from, lte: to } : { lte: to };
 
-    // ── 1. Sales Orders (excluding DRAFT and CANCELLED) ───────────────
+    // ── 1. Credit Saless (excluding DRAFT and CANCELLED) ───────────────
     const salesOrders = await db.salesOrder.findMany({
       where: {
         orgId,

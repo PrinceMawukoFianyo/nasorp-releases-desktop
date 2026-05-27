@@ -377,14 +377,14 @@ const form = useForm({
       const result = await createSalesOrder(salesOrderData)
       
       if (result.success) {
-        toast.success("Sales order created successfully")
+        toast.success("Credit Sales created successfully")
         router.push("/dashboard/sales/orders")
       } else {
         toast.error(result.error || "Failed to create credit sales")
       }
     } catch (error) {
-      console.error("Error creating sales order:", error)
-      toast.error("An error occurred while creating the sales order")
+      console.error("Error creating Credit Sales:", error)
+      toast.error("An error occurred while creating the Credit Sales")
     } finally {
       setIsSubmitting(false)
     }

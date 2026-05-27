@@ -15,13 +15,13 @@ export const useSalesOrderQueries = () => {
       if (filters?.paymentStatus) queryParams.append('paymentStatus', filters.paymentStatus)
 
       const response = await fetch(`/api/sales-orders?${queryParams.toString()}`)
-      if (!response.ok) throw new Error('Failed to fetch sales orders')
+      if (!response.ok) throw new Error('Failed to fetch Credit Saless')
       
       const data = await response.json()
       return data
     } catch (error) {
-      console.error('Error fetching sales orders:', error)
-      toast.error('Failed to load sales orders')
+      console.error('Error fetching Credit Saless:', error)
+      toast.error('Failed to load Credit Saless')
       throw error
     } finally {
       setIsLoading(false)
@@ -32,13 +32,13 @@ export const useSalesOrderQueries = () => {
     setIsLoading(true)
     try {
       const response = await fetch(`/api/sales-orders/${id}`)
-      if (!response.ok) throw new Error('Failed to fetch sales order')
+      if (!response.ok) throw new Error('Failed to fetch Credit Sales')
       
       const data = await response.json()
       return data
     } catch (error) {
-      console.error('Error fetching sales order:', error)
-      toast.error('Failed to load sales order')
+      console.error('Error fetching Credit Sales:', error)
+      toast.error('Failed to load Credit Sales')
       throw error
     } finally {
       setIsLoading(false)
@@ -54,14 +54,14 @@ export const useSalesOrderQueries = () => {
         body: JSON.stringify(orderData),
       })
       
-      if (!response.ok) throw new Error('Failed to create sales order')
+      if (!response.ok) throw new Error('Failed to create Credit Sales')
       
       const data = await response.json()
-      toast.success('Sales order created successfully')
+      toast.success('Credit Sales created successfully')
       return data
     } catch (error) {
-      console.error('Error creating sales order:', error)
-      toast.error('Failed to create sales order')
+      console.error('Error creating Credit Sales:', error)
+      toast.error('Failed to create Credit Sales')
       throw error
     } finally {
       setIsLoading(false)
@@ -77,14 +77,14 @@ export const useSalesOrderQueries = () => {
         body: JSON.stringify(orderData),
       })
       
-      if (!response.ok) throw new Error('Failed to update sales order')
+      if (!response.ok) throw new Error('Failed to update Credit Sales')
       
       const data = await response.json()
-      toast.success('Sales order updated successfully')
+      toast.success('Credit Sales updated successfully')
       return data
     } catch (error) {
-      console.error('Error updating sales order:', error)
-      toast.error('Failed to update sales order')
+      console.error('Error updating Credit Sales:', error)
+      toast.error('Failed to update Credit Sales')
       throw error
     } finally {
       setIsLoading(false)
@@ -98,14 +98,14 @@ export const useSalesOrderQueries = () => {
         method: 'POST',
       })
       
-      if (!response.ok) throw new Error('Failed to cancel sales order')
+      if (!response.ok) throw new Error('Failed to cancel Credit Sales')
       
       const data = await response.json()
-      toast.success('Sales order cancelled successfully')
+      toast.success('Credit Sales cancelled successfully')
       return data
     } catch (error) {
-      console.error('Error cancelling sales order:', error)
-      toast.error('Failed to cancel sales order')
+      console.error('Error cancelling Credit Sales:', error)
+      toast.error('Failed to cancel Credit Sales')
       throw error
     } finally {
       setIsLoading(false)

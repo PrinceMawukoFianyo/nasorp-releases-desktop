@@ -158,7 +158,7 @@ export async function createSalesOrder(data: {
               type:            "SALE",
               quantity:        -line.quantity,
               referenceNumber: data.orderNumber,
-              notes:           `Credit Sales Order ${data.orderNumber} — stock deducted on creation`,
+              notes:           `Credit Credit Sales ${data.orderNumber} — stock deducted on creation`,
               orgId:           user.orgId,
               userId:          user.id,
             },
@@ -177,10 +177,10 @@ export async function createSalesOrder(data: {
 
     return { success: true, data: salesOrder }
   } catch (error: any) {
-    console.error("Error creating sales order:", error)
+    console.error("Error creating Credit Sales:", error)
     if (error.code === 'P2002') return { success: false, error: "Order number already exists" }
     if (error.code === 'P2003') return { success: false, error: "Invalid customer or location" }
-    return { success: false, error: error.message || "Failed to create sales order" }
+    return { success: false, error: error.message || "Failed to create Credit Sales" }
   }
 }
 
@@ -189,7 +189,7 @@ export async function getSalesOrders() {
     const user = await getAuthenticatedUser()
     const orgId = user.orgId
 
-    // 1. Fetch normal sales orders (excluding POS)
+    // 1. Fetch normal Credit Saless (excluding POS)
     const salesOrders = await db.salesOrder.findMany({
       where: { orgId },
       include: {
@@ -254,7 +254,7 @@ export async function getSalesOrders() {
 
     return allOrders
   } catch (error: any) {
-    console.error("Error fetching sales orders:", error)
+    console.error("Error fetching Credit Saless:", error)
     return []
   }
 }
@@ -305,7 +305,7 @@ export async function getSalesOrderById(id: string) {
     // Return the order with salesReturns as is - don't rename to returns
     return salesOrder
   } catch (error) {
-    console.error("Error fetching sales order:", error)
+    console.error("Error fetching Credit Sales:", error)
     return null
   }
 }
@@ -319,7 +319,7 @@ export async function cancelSalesOrder(id: string) {
       include: { lines: true },
     })
 
-    if (!existingOrder) return { success: false, error: "Sales order not found" }
+    if (!existingOrder) return { success: false, error: "Credit Sales not found" }
     if (existingOrder.status === "CANCELLED") return { success: false, error: "Order is already cancelled" }
 
     const wasStockDeducted = existingOrder.status !== "DRAFT"
@@ -360,7 +360,7 @@ export async function cancelSalesOrder(id: string) {
               type:            "RETURN",
               quantity:        line.quantity,
               referenceNumber: existingOrder.orderNumber,
-              notes:           `Cancelled Sales Order ${existingOrder.orderNumber} — stock reversed`,
+              notes:           `Cancelled Credit Sales ${existingOrder.orderNumber} — stock reversed`,
               orgId:           user.orgId,
               userId:          user.id,
             },
@@ -379,8 +379,8 @@ export async function cancelSalesOrder(id: string) {
 
     return { success: true, data: salesOrder }
   } catch (error) {
-    console.error("Error cancelling sales order:", error)
-    return { success: false, error: "Failed to cancel sales order" }
+    console.error("Error cancelling Credit Sales:", error)
+    return { success: false, error: "Failed to cancel Credit Sales" }
   }
 }
 
@@ -397,7 +397,7 @@ export async function cancelCreditOrder(id: string, reason?: string) {
       },
     })
 
-    if (!order) return { success: false, error: "Sales order not found" }
+    if (!order) return { success: false, error: "Credit Sales not found" }
     if (order.status === "CANCELLED") return { success: false, error: "Order is already cancelled" }
     if (order.paymentStatus === "PAID") {
       return {
@@ -492,7 +492,7 @@ export async function updateSalesOrder(id: string, data: any) {
       include: { lines: true },
     })
 
-    if (!existingOrder) return { success: false, error: "Sales order not found" }
+    if (!existingOrder) return { success: false, error: "Credit Sales not found" }
     if (existingOrder.status === "CANCELLED") return { success: false, error: "Cannot update a cancelled order" }
     if (!data.lines?.create || data.lines.create.length === 0)
       return { success: false, error: "At least one line item is required" }
@@ -529,8 +529,8 @@ export async function updateSalesOrder(id: string, data: any) {
 
     return { success: true, data: salesOrder }
   } catch (error) {
-    console.error("Error updating sales order:", error)
-    return { success: false, error: "Failed to update sales order" }
+    console.error("Error updating Credit Sales:", error)
+    return { success: false, error: "Failed to update Credit Sales" }
   }
 }
 
@@ -543,7 +543,7 @@ export async function deleteSalesOrder(id: string) {
       include: { lines: true },
     })
 
-    if (!existingOrder) return { success: false, error: "Sales order not found" }
+    if (!existingOrder) return { success: false, error: "Credit Sales not found" }
     if (!["DRAFT", "CANCELLED"].includes(existingOrder.status))
       return { success: false, error: "Only DRAFT or CANCELLED orders can be deleted" }
 
@@ -558,8 +558,8 @@ export async function deleteSalesOrder(id: string) {
 
     return { success: true }
   } catch (error) {
-    console.error("Error deleting sales order:", error)
-    return { success: false, error: "Failed to delete sales order" }
+    console.error("Error deleting Credit Sales:", error)
+    return { success: false, error: "Failed to delete Credit Sales" }
   }
 }
 
@@ -576,7 +576,7 @@ export async function updateOrderStatus(id: string, status: string) {
       include: { lines: true },
     })
 
-    if (!existingOrder) return { success: false, error: "Sales order not found" }
+    if (!existingOrder) return { success: false, error: "Credit Sales not found" }
     if (existingOrder.status === "CANCELLED")
       return { success: false, error: "Cannot change status of a cancelled order" }
     if (existingOrder.status === status)
@@ -644,7 +644,7 @@ export async function updateOrderStatus(id: string, status: string) {
             data: {
               itemId: line.itemId, locationId: resolvedLocationId, type: "SALE",
               quantity: -line.quantity, referenceNumber: existingOrder.orderNumber,
-              notes: `Confirmed Sales Order ${existingOrder.orderNumber}`,
+              notes: `Confirmed Credit Sales ${existingOrder.orderNumber}`,
               orgId: user.orgId, userId: user.id,
             },
           })
@@ -725,20 +725,20 @@ export async function recordPayment(data: {
     if (!data.orderId)    return { success: false, error: "Order ID is required" }
     if (data.amount <= 0) return { success: false, error: "Amount must be greater than zero" }
 
-    // ✅ FIX: Handle manual debt FIRST – before any sales order lookup
+    // ✅ FIX: Handle manual debt FIRST – before any Credit Sales lookup
     if (data.orderId.startsWith("debt-")) {
       const debtId = data.orderId.replace("debt-", "");
       const { recordManualDebtPayment } = await import("./manual-debt");
       return await recordManualDebtPayment({ debtId, amount: data.amount, method: data.method, reference: data.reference });
     }
 
-    // Now safe to query sales order
+    // Now safe to query Credit Sales
     const order = await db.salesOrder.findUnique({
       where: { id: data.orderId, orgId: user.orgId },
       include: { payments: true },
     })
 
-    if (!order) return { success: false, error: "Sales order not found" }
+    if (!order) return { success: false, error: "Credit Sales not found" }
     if (order.status === "CANCELLED") return { success: false, error: "Cannot record payment on a cancelled order" }
 
     const orderTotal = (
@@ -863,7 +863,7 @@ export async function sendSalesOrderEmail(orderId: string, recipientEmail: strin
       },
     })
 
-    if (!order) return { success: false, error: "Sales order not found" }
+    if (!order) return { success: false, error: "Credit Sales not found" }
     if (!order.customer) return { success: false, error: "Customer not found for this order" }
 
     const subtotal     = order.subtotal || 0
@@ -884,7 +884,7 @@ export async function sendSalesOrderEmail(orderId: string, recipientEmail: strin
       </style></head><body>
         <div class="container">
           <div class="header">
-            <h1>Sales Order Confirmation</h1>
+            <h1>Credit Sales Confirmation</h1>
             <p>Order #${order.orderNumber}</p>
           </div>
           <div class="order-details">
@@ -919,9 +919,9 @@ export async function sendSalesOrderEmail(orderId: string, recipientEmail: strin
       </body></html>`
 
     const { data, error } = await resend.emails.send({
-      from: process.env.EMAIL_FROM ?? 'Sales Orders <onboarding@resend.dev>',
+      from: process.env.EMAIL_FROM ?? 'Credit Saless <onboarding@resend.dev>',
       to: [recipientEmail],
-      subject: `Sales Order Confirmation - ${order.orderNumber}`,
+      subject: `Credit Sales Confirmation - ${order.orderNumber}`,
       html: emailHtml,
     })
 
@@ -995,7 +995,7 @@ async function prepareSalesOrderEmailData(orderNumber: string) {
     },
   })
 
-  if (!salesOrder) throw new Error("Sales order not found")
+  if (!salesOrder) throw new Error("Credit Sales not found")
 
   const companyInfo = {
     name: "Business Inventory",
@@ -1081,7 +1081,7 @@ export async function sendSOToCustomer(orderNumber: string): Promise<{ success: 
     await resend.emails.send({
       from: "Business Inventory <noreply@rich83ventures.inventpmf.com>",
       to: emailData.customer.email ?? "",
-      subject: `Sales Order Confirmation ${emailData.salesOrder.orderNumber}`,
+      subject: `Credit Sales Confirmation ${emailData.salesOrder.orderNumber}`,
       react: SalesOrderEmail(emailData),
     })
 

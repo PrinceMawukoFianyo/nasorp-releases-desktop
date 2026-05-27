@@ -179,17 +179,17 @@ export default function NewReturnForm({ salesOrders, locations, customers }: Pro
             <CardTitle className="text-base">Return Details</CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Sales Order */}
+            {/* Credit Sales */}
             <FormField
               control={form.control}
               name="salesOrderId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Original Sales Order (optional)</FormLabel>
+                  <FormLabel>Original Credit Sales (optional)</FormLabel>
                   <Select onValueChange={handleOrderSelect} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select a sales order…" />
+                        <SelectValue placeholder="Select a Credit Sales…" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>

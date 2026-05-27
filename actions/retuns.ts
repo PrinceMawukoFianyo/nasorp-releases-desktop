@@ -56,12 +56,12 @@ export async function createSalesReturn(
     })
     if (!location) return { success: false, error: "Location not found" }
 
-    // Verify sales order if provided
+    // Verify Credit Sales if provided
     if (validated.salesOrderId) {
       const so = await db.salesOrder.findUnique({
         where: { id: validated.salesOrderId, orgId: user.orgId },
       })
-      if (!so) return { success: false, error: "Sales order not found" }
+      if (!so) return { success: false, error: "Credit Sales not found" }
     }
 
     // Verify all items exist
@@ -272,7 +272,7 @@ export async function declineSalesReturn(id: string, reason?: string) {
 }
 
 // ─── Receive Return (restocks inventory + updates order + processes refund) ───
-// FIX: Now also updates the linked sales order's amountPaid, amountOwing,
+// FIX: Now also updates the linked Credit Sales's amountPaid, amountOwing,
 // salesTotal on the item, and sets paymentStatus to REFUNDED if applicable.
 
 export async function receiveSalesReturn(
@@ -372,7 +372,7 @@ export async function receiveSalesReturn(
         }
       }
 
-      // ── FIX: Update linked sales order financials ──────────────────────
+      // ── FIX: Update linked Credit Sales financials ──────────────────────
       if (linkedOrder && totalRefundValue > 0) {
         const orderTotal =
           (linkedOrder.subtotal ?? 0) +
@@ -431,7 +431,7 @@ export async function receiveSalesReturn(
         },
       })
 
-      // Update linked sales order status
+      // Update linked Credit Sales status
       if (ret.salesOrderId) {
         await tx.salesOrder.update({
           where: { id: ret.salesOrderId },
@@ -484,7 +484,7 @@ export async function quickReturnFromOrder(data: {
       where: { id: data.salesOrderId, orgId: user.orgId },
       include: { payments: true },
     })
-    if (!order) return { success: false, error: "Sales order not found" }
+    if (!order) return { success: false, error: "Credit Sales not found" }
     if (order.status === "CANCELLED") return { success: false, error: "Cannot return a cancelled order" }
 
     const refundAmount = data.lines.reduce((sum, l) => sum + l.quantity * l.unitPrice, 0)
@@ -716,7 +716,7 @@ export async function getReturnsSummaryStats(dateRange = "30d") {
   }
 }
 
-// ─── Get Sales Orders for Return creation ────────────────────────────────────
+// ─── Get Credit Saless for Return creation ────────────────────────────────────
 
 export async function getEligibleSalesOrders() {
   try {

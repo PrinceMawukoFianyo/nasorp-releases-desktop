@@ -6,7 +6,7 @@ import CreditPaymentTracker, {
   CreditOrder, PaymentRecord,
 } from "../components/credit-payment-tracker"
 
-// ── Helper: get all credit sales orders ─────────────────────────────────────
+// ── Helper: get all credit Credit Saless ─────────────────────────────────────
 async function getCreditSalesOrders() {
   const user = await getAuthenticatedUser()
   const orgId = user.orgId
@@ -45,7 +45,7 @@ async function getManualDebts() {
   })
 }
 
-// ── Adapter: convert a sales order to CreditOrder ────────────────────────────
+// ── Adapter: convert a Credit Sales to CreditOrder ────────────────────────────
 function adaptSalesOrder(o: Awaited<ReturnType<typeof getCreditSalesOrders>>[number]): CreditOrder {
   const totalAmount =
     Number(o.subtotal ?? 0) +

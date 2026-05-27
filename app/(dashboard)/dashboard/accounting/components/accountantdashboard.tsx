@@ -227,7 +227,7 @@ function RevenueSplitCard({ totalSales, fromOrders, fromCredit, fromPOS, expense
 }) {
   const net = totalSales - expenses;
   const items = [
-    { label: "Sales Orders", amount: fromOrders, color: "bg-emerald-500", href: "/dashboard/sales/orders" },
+    { label: "Credit Saless", amount: fromOrders, color: "bg-emerald-500", href: "/dashboard/sales/orders" },
     { label: "Credit Payments", amount: fromCredit, color: "bg-blue-500", href: "/dashboard/sales/orders/credit" },
     { label: "POS Sales", amount: fromPOS, color: "bg-violet-500", href: "/dashboard/sales/pos" },
   ];
@@ -923,7 +923,7 @@ const totalSupplierOwing = useMemo(() => {
             {/* Recent orders + top products */}
             <div className="grid grid-cols-2 gap-4">
               <Card>
-                <CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-sm font-semibold">Recent Sales Orders</CardTitle><Link href="/dashboard/sales/orders" className="text-xs text-emerald-600 hover:underline">View all →</Link></div></CardHeader>
+                <CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-sm font-semibold">Recent Credit Saless</CardTitle><Link href="/dashboard/sales/orders" className="text-xs text-emerald-600 hover:underline">View all →</Link></div></CardHeader>
                 <CardContent>
                   <div className="overflow-x-auto">
                     <table className="w-full">
@@ -1291,7 +1291,7 @@ const totalSupplierOwing = useMemo(() => {
               onOpenChange={setManualDebtOpen}
               customers={allCustomers}
               onSuccess={() => {
-                toast.success("Manual debt added. It will appear in Credit & Payments tracker and Sales Orders.");
+                toast.success("Manual debt added. It will appear in Credit & Payments tracker and Credit Saless.");
               }}
             />
           </div>

@@ -159,7 +159,7 @@ export default function POSStatsHeader({ initialRange = "7d" }: POSStatsHeaderPr
           loading={loading}
         />
         <StatCard
-          title="Total Sales Orders"
+          title="Total Credit Saless"
           value={stats ? formatCurrency(stats.salesOrdersValue) : "—"}
           sub={stats ? `${stats.salesOrdersCount} order(s)` : undefined}
           icon={<ShoppingCart className="h-4 w-4 text-white" />}

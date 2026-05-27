@@ -770,7 +770,7 @@ export async function getCustomerStatement(customerId: string) {
   let totalPaid = 0;
   let totalOwing = 0;
 
-  // ---------- Sales Orders ----------
+  // ---------- Credit Saless ----------
   for (const so of salesOrders) {
     const total = so.subtotal + so.taxAmount + (so.shippingCost || 0) - (so.discount || 0);
     const isCancelledOrRefunded = ["CANCELLED", "REFUNDED", "RETURNED"].includes(so.status);

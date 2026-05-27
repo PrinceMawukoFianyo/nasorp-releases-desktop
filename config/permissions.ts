@@ -206,7 +206,7 @@ export const permissions: ModulePermissions[] = [
     },
   },
   {
-    display: "Sales Orders",
+    display: "Credit Saless",
     name: "sales.orders",
     permissions: {
       create: "sales.orders.create",
@@ -545,7 +545,7 @@ export const adminPermissions = [
   "sales.update",
   "sales.delete",
 
-  // Sales Orders
+  // Credit Saless
   "sales.orders.create",
   "sales.orders.read",
   "sales.orders.update",
@@ -720,7 +720,7 @@ export const managerPermissions = [
   "sales.read",
   "sales.update",
 
-  // Sales Orders
+  // Credit Saless
   "sales.orders.create",
   "sales.orders.read",
   "sales.orders.update",
@@ -796,7 +796,7 @@ export const userPermissions = [
   "sales.create",
   "sales.read",
 
-  // Sales Orders
+  // Credit Saless
   "sales.orders.create",
   "sales.orders.read",
 

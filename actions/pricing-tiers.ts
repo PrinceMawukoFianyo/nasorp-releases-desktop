@@ -126,7 +126,7 @@ export async function getItemPricingTiers(itemId: string) {
   }
 }
 
-// ── Batch fetch tiers for many items (POS / sales order) ────────────────────
+// ── Batch fetch tiers for many items (POS / Credit Sales) ────────────────────
 export async function getPricingTiersForItems(
   itemIds: string[]
 ): Promise<Record<string, PricingTierRecord[]>> {

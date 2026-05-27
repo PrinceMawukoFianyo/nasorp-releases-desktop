@@ -24,7 +24,7 @@ import type { SalesOrder } from "@/types/sales-order"
 import SalesOrderDetailView from "./components/sales-order-details-view"
 import { db } from "@/prisma/db"
 
-// ─── Sales Order Card ─────────────────────────────────────────────────────────
+// ─── Credit Sales Card ─────────────────────────────────────────────────────────
 function SalesOrderCard({
   order,
   isSelected,
@@ -143,8 +143,8 @@ export default function SalesOrdersPage() {
         if (updatedOrder) setSelectedOrder(updatedOrder as unknown as SalesOrder)
       }
     } catch (error) {
-      console.error("Failed to load sales orders:", error)
-      toast.error("Failed to load sales orders")
+      console.error("Failed to load Credit Saless:", error)
+      toast.error("Failed to load Credit Saless")
     } finally {
       setIsLoading(false)
     }
@@ -244,7 +244,7 @@ export default function SalesOrdersPage() {
       <div className="min-h-screen bg-background p-6">
         <div className="max-w-7xl mx-auto flex items-center justify-center min-h-[400px]">
           <Spinner className="size-8" />
-          <p className="ml-4 text-muted-foreground">Loading sales orders...</p>
+          <p className="ml-4 text-muted-foreground">Loading Credit Saless...</p>
         </div>
       </div>
     )
@@ -258,9 +258,9 @@ export default function SalesOrdersPage() {
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold">Sales Orders</h1>
+              <h1 className="text-3xl font-bold">Credit Saless</h1>
               <p className="text-sm text-muted-foreground mt-1">
-                Manage and track your sales orders (POS transactions excluded)
+                Manage and track your Credit Saless (POS transactions excluded)
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -380,7 +380,7 @@ export default function SalesOrdersPage() {
                             </>
                           ) : (
                             <>
-                              <p className="text-muted-foreground mb-4">No sales orders yet</p>
+                              <p className="text-muted-foreground mb-4">No Credit Saless yet</p>
                               <Button variant="outline" onClick={() => router.push("/dashboard/sales/orders/create")}>
                                 <Plus className="w-4 h-4 mr-2" />Create Your First Order
                               </Button>

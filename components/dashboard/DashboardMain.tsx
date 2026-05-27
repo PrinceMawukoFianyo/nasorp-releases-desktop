@@ -347,7 +347,7 @@ export default function DashboardMain({
       href: "/dashboard/inventory/items",
     },
     {
-      title: "Total Sales Orders",
+      title: "Total Credit Saless",
       value: `GH₵${(data.salesOrdersValue || 0).toLocaleString()}`,
       icon: ShoppingCart,
       href: "/dashboard/sales/orders",
@@ -571,12 +571,12 @@ export default function DashboardMain({
           </Card>
         </div>
 
-        {/* Recent Sales Orders */}
+        {/* Recent Credit Saless */}
         <div className="grid grid-cols-1 gap-6">
           <Card className="hover:shadow-md transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle>Recent Sales Orders</CardTitle>
+                <CardTitle>Recent Credit Saless</CardTitle>
                 <CardDescription>Latest transactions</CardDescription>
               </div>
               <Link href="/dashboard/sales/orders">
@@ -590,7 +590,7 @@ export default function DashboardMain({
                 <div className="text-center text-muted-foreground py-8">
                   <FileText className="h-12 w-12 mx-auto mb-2 opacity-50" />
                   <p>No recent orders</p>
-                  <p className="text-sm mt-2">New sales orders will appear here</p>
+                  <p className="text-sm mt-2">New Credit Saless will appear here</p>
                 </div>
               ) : (
                 <Table>

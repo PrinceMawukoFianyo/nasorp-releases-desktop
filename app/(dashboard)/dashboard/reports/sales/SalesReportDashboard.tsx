@@ -22,7 +22,8 @@ import SalesByItemTable from "./components/SalesByItemTable";
 import {
   SalesReportData, SingleSaleDetail, WholesaleSaleDetail,
 } from "@/actions/sales-reports";
-import { DateRangePicker } from "../../sales/orders/components/DateRangePicker";
+import { startOfDay, endOfDay } from "date-fns";
+import { DateRangePicker } from "./components/DateRangePicker";
 
 interface SalesReportDashboardProps {
   data: SalesReportData;
@@ -638,18 +639,27 @@ function EnrichedRecentOrdersTable({ orders }: { orders: SalesReportData["recent
 // ── Main dashboard ─────────────────────────────────────────────────────────────
 export default function SalesReportDashboard({ data, onDateRangeChange }: SalesReportDashboardProps) {
   const { summary, salesByCustomer, salesByItem, timeline, topCustomers, topItems, recentOrders } = data;
-  const [fromDate, setFromDate] = useState<Date | undefined>(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 30);
-    return d;
-  });
-  const [toDate, setToDate] = useState<Date | undefined>(() => new Date());
+const [fromDate, setFromDate] = useState<Date | undefined>(() => {
+  const d = new Date();
+  d.setDate(d.getDate() - 30);
+  return d;
+});
+const [toDate, setToDate] = useState<Date | undefined>(() => new Date());
 
-  const handleRangeChange = (from: Date | undefined, to: Date | undefined) => {
-    setFromDate(from);
-    setToDate(to);
-    onDateRangeChange(from, to);
-  };
+const handleRangeChange = (from: Date | undefined, to: Date | undefined) => {
+  setFromDate(from);
+  setToDate(to);
+  onDateRangeChange(from, to);
+};
+
+const handleToday = () => {
+  const today = new Date();
+  const from = startOfDay(today);
+  const to = endOfDay(today);
+  setFromDate(from);
+  setToDate(to);
+  onDateRangeChange(from, to);
+};
 
   const handleExportAll = () => {
     toCsv(
@@ -701,8 +711,13 @@ export default function SalesReportDashboard({ data, onDateRangeChange }: SalesR
           </Button>
         </PageHeader>
 
+         {/* Filter row */}
+      <div className="flex items-center gap-3 flex-wrap">
         <DateRangePicker from={fromDate} to={toDate} onRangeChange={handleRangeChange} />
-
+        <Button variant="outline" onClick={handleToday} className="text-xs">
+          Today
+        </Button>
+      </div>
         <SalesSummaryCards summary={summary} />
 
         <Tabs defaultValue="summary" className="space-y-6">

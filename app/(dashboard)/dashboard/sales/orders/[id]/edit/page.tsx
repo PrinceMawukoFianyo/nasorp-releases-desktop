@@ -239,7 +239,7 @@ export default function EditSalesOrderPage() {
         </Button>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Edit Sales Order</h1>
+            <h1 className="text-2xl font-bold">Edit Credit Sales</h1>
             <p className="text-sm text-muted-foreground">{order?.orderNumber}</p>
           </div>
           <Button onClick={handleSave} disabled={isSaving} className="bg-rose-600 hover:bg-rose-700">

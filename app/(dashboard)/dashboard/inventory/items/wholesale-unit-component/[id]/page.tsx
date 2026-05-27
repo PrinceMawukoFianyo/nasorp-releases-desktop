@@ -143,7 +143,7 @@ export default function EditSalesOrderPage() {
       ])
 
       if (!salesOrder) {
-        toast.error("Sales order not found")
+        toast.error("Credit Sales not found")
         router.push("/dashboard/sales/orders")
         return
       }
@@ -223,7 +223,7 @@ export default function EditSalesOrderPage() {
       }
     } catch (error) {
       console.error("Failed to load:", error)
-      toast.error("Failed to load sales order")
+      toast.error("Failed to load Credit Sales")
       router.push("/dashboard/sales/orders")
     } finally {
       setIsLoadingData(false)
@@ -391,10 +391,10 @@ export default function EditSalesOrderPage() {
 
       const result = await updateSalesOrder(orderId, salesOrderData)
       if (result.success) {
-        toast.success("Sales order updated successfully")
+        toast.success("Credit Sales updated successfully")
         router.push("/dashboard/sales/orders")
       } else {
-        toast.error(result.error || "Failed to update sales order")
+        toast.error(result.error || "Failed to update Credit Sales")
       }
     } catch (error) {
       console.error("Error:", error)
@@ -452,11 +452,11 @@ export default function EditSalesOrderPage() {
         <div className="mb-6">
           <Link href="/dashboard/sales/orders"
             className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4">
-            <ArrowLeft className="w-4 h-4" />Back to Sales Orders
+            <ArrowLeft className="w-4 h-4" />Back to Credit Saless
           </Link>
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold">Edit Sales Order</h1>
+              <h1 className="text-3xl font-bold">Edit Credit Sales</h1>
               <p className="text-muted-foreground mt-1">Update order details and items</p>
             </div>
             <Button variant="outline" onClick={() => setShowEmailDialog(true)} disabled={isSendingEmail}>
@@ -820,7 +820,7 @@ export default function EditSalesOrderPage() {
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting
                 ? <><Spinner className="mr-2 h-4 w-4" />Updating…</>
-                : "Update Sales Order"}
+                : "Update Credit Sales"}
             </Button>
           </div>
         </form>

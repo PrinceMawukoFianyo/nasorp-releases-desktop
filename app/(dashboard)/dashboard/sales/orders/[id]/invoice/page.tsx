@@ -203,14 +203,14 @@ export default function SalesOrderInvoicePage() {
       setIsLoading(true)
       const order = await getSalesOrderById(orderId)
       if (!order) {
-        toast.error("Sales order not found")
+        toast.error("Credit Sales not found")
         router.push("/dashboard/sales/orders")
         return
       }
       setSalesOrder(order)
       toast.success("Invoice loaded")
     } catch {
-      toast.error("Failed to load sales order")
+      toast.error("Failed to load Credit Sales")
       router.push("/dashboard/sales/orders")
     } finally {
       setIsLoading(false)
@@ -573,7 +573,7 @@ export default function SalesOrderInvoicePage() {
           <div className="mb-6 no-print">
             <Link href="/dashboard/sales/orders"
               className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4">
-              <ArrowLeft className="w-4 h-4" />Back to Sales Orders
+              <ArrowLeft className="w-4 h-4" />Back to Credit Saless
             </Link>
 
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">

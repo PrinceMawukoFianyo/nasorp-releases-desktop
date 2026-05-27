@@ -155,7 +155,7 @@ export async function createPOSSale(data: CreatePOSSaleData) {
       lineDeductMap.values().next().value?.locationId ??
       null
 
-    // ── Create the sales order ─────────────────────────────────────────────
+    // ── Create the Credit Sales ─────────────────────────────────────────────
     const salesOrder = await db.salesOrder.create({
       data: {
         orderNumber,

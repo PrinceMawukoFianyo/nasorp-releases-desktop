@@ -119,7 +119,7 @@ export async function getDashboardData(dateRange: string) {
       where: { orgId, isActive: true },
     });
 
-    // ── 2. Sales Orders ───────────────────────────────────────────────────────
+    // ── 2. Credit Saless ───────────────────────────────────────────────────────
     // FIX: use calcOrderTotal (stored order columns) instead of re-multiplying
     // line.quantity × line.unitPrice, which misses discounts and shipping.
     const salesOrders = await db.salesOrder.findMany({
@@ -247,7 +247,7 @@ export async function getDashboardData(dateRange: string) {
       .sort((a, b) => b.totalSpent - a.totalSpent)
       .slice(0, 5);
 
-    // ── 7. Recent Sales Orders ────────────────────────────────────────────────
+    // ── 7. Recent Credit Saless ────────────────────────────────────────────────
     // FIX: calcOrderTotal — not line re-multiplication
     const recentSalesOrders = activeSalesOrders.slice(0, 8).map(order => ({
       id:           order.id,
@@ -340,7 +340,7 @@ export async function getDashboardData(dateRange: string) {
     }
 
     // ── 10. Sales Timeline — daily aggregated for the performance chart ──────
-    // Groups all active sales orders by day so the chart shows one bar per day
+    // Groups all active Credit Saless by day so the chart shows one bar per day
     // instead of one bar per order (which caused all bars to show the same date).
     const timelineMap = new Map<string, { sales: number; orders: number }>();
 

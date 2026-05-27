@@ -141,7 +141,7 @@ export async function getCreditLedger(filters?: {
     const to       = filters?.toDate
     const showPaid = filters?.includeFullyPaid ?? true
 
-    // ── 1. Fetch active sales orders ──────────────────────────────────
+    // ── 1. Fetch active Credit Saless ──────────────────────────────────
     const where: any = {
       orgId:  user.orgId,
       source: "SALES_ORDER",
@@ -187,7 +187,7 @@ export async function getCreditLedger(filters?: {
       orderBy: { createdAt: "desc" },
     })
 
-    // ── 2. Fetch cancelled sales orders ───────────────────────────────
+    // ── 2. Fetch cancelled Credit Saless ───────────────────────────────
     const cancelledOrders = await db.salesOrder.findMany({
       where: {
         orgId:  user.orgId,
@@ -222,7 +222,7 @@ export async function getCreditLedger(filters?: {
       },
     })
 
-    // ── 4. Build ledger entries (sales orders) ────────────────────────
+    // ── 4. Build ledger entries (Credit Saless) ────────────────────────
     const entries: LedgerEntry[] = []
 
     // ---- Active orders ----
@@ -443,7 +443,7 @@ export async function getLedgerStats(): Promise<{
     const user = await getAuthenticatedUser()
     const now  = new Date()
 
-    // ── 1. Sales orders (unpaid/partial) ──────────────────────────────
+    // ── 1. Credit Saless (unpaid/partial) ──────────────────────────────
     const unpaidOrders = await db.salesOrder.findMany({
       where: {
         orgId:         user.orgId,
@@ -478,7 +478,7 @@ export async function getLedgerStats(): Promise<{
       },
     })
 
-    // ── 3. Totals from sales orders ──────────────────────────────────
+    // ── 3. Totals from Credit Saless ──────────────────────────────────
     let totalOutstanding = 0
     let totalCollected   = 0
     let activeDebtorsSet = new Set<string>()
@@ -487,7 +487,7 @@ export async function getLedgerStats(): Promise<{
     let pendingCount     = 0
     let totalCreditGiven = 0
 
-    // Sales orders – calculate totals
+    // Credit Saless – calculate totals
     for (const o of unpaidOrders) {
       const paymentsSum = (o.payments as any[]).reduce((ps: number, p: any) => ps + Number(p.amount), 0) ?? 0
       const truePaid    = Math.max(Number(o.amountPaid ?? 0), paymentsSum)
@@ -505,7 +505,7 @@ export async function getLedgerStats(): Promise<{
       else pendingCount++
     }
 
-    // Total credit given from all non-cancelled sales orders
+    // Total credit given from all non-cancelled Credit Saless
     const allActiveOrders = await db.salesOrder.findMany({
       where: { orgId: user.orgId, source: "SALES_ORDER", status: { notIn: ["CANCELLED", "DRAFT"] } },
       select: { subtotal: true, taxAmount: true, shippingCost: true, discount: true },
@@ -544,7 +544,7 @@ export async function getLedgerStats(): Promise<{
     partialCount     += manualPartialCount
     pendingCount     += manualPendingCount
 
-    // ── 5. Cancelled/refunded (sales orders only, manual debts are separate) ──
+    // ── 5. Cancelled/refunded (Credit Saless only, manual debts are separate) ──
     const cancelledRefunded = await db.salesOrder.findMany({
       where: {
         orgId:         user.orgId,
@@ -557,7 +557,7 @@ export async function getLedgerStats(): Promise<{
     const totalCancelled = cancelledRefunded.reduce((s, o) => s + calcTotal(o), 0)
     const totalRefunded  = cancelledRefunded.reduce((s, o) => s + Number(o.amountPaid ?? 0), 0)
 
-    // ── 6. Overdue count (sales orders only, manual debts have no delivery date) ──
+    // ── 6. Overdue count (Credit Saless only, manual debts have no delivery date) ──
     const overdueCount = unpaidOrders.filter(o => {
       if (!o.deliveryDate) return false
       return new Date(o.deliveryDate) < now

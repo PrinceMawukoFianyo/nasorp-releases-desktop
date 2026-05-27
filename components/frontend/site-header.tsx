@@ -77,7 +77,7 @@ const features = [
   },
   {
     icon: ShoppingCart,
-    title: "Sales Order Processing",
+    title: "Credit Sales Processing",
     description:
       "Create and fulfill customer orders with order status tracking, customer management, and automated invoice generation.",
     href: "/features/sales-orders",

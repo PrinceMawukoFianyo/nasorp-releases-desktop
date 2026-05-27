@@ -10,7 +10,7 @@
  *  • Multi-day strip: Today · Tomorrow · Next 5 days  (click to select)
  *  • Date picker: select any date to jump to it
  *  • Selected-day breakdown:
- *      - Sales Orders  (with customer + items)
+ *      - Credit Saless  (with customer + items)
  *      - POS Sales     (cash/momo/card)
  *      - Credit Paid   (payments collected)
  *  • Summary KPI cards per day
@@ -222,7 +222,7 @@ function OrderRow({ order, accent="default" }: { order: DailySaleOrder; accent?:
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// SECTION: Sales Orders / POS / Credit
+// SECTION: Credit Saless / POS / Credit
 // ══════════════════════════════════════════════════════════════════════
 function SalesSection({
   title, icon: Icon, orders, total, accent, emptyMsg, onExport,
@@ -498,7 +498,7 @@ export default function DailySalesTab() {
       <div className="grid grid-cols-4 gap-3">
         {[
           { label:"Total Revenue",   value:selectedDay.totalRevenue,         accent:"green",   icon:TrendingUp,   sub:`${selectedDay.orderCount} orders` },
-          { label:"Sales Orders",    value:selectedDay.totalCreditInvoiced,  accent:"emerald", icon:ShoppingCart, sub:`${selectedDay.salesOrders.length} orders · ${fmt(selectedDay.totalCredit)} received` },
+          { label:"Credit Saless",    value:selectedDay.totalCreditInvoiced,  accent:"emerald", icon:ShoppingCart, sub:`${selectedDay.salesOrders.length} orders · ${fmt(selectedDay.totalCredit)} received` },
           { label:"POS / Cash",      value:selectedDay.totalPOS,             accent:"blue",    icon:Banknote,     sub:`${selectedDay.posOrders.length} transactions` },
           { label:"Credit Collected",value:selectedDay.totalCreditPaid,      accent:"amber",   icon:CreditCard,   sub:`${selectedDay.creditPaid.length} payments` },
         ].map((s,i) => (
@@ -598,7 +598,7 @@ export default function DailySalesTab() {
 
           {/* Legend */}
           <div className="flex gap-4 mt-3 text-[10px] text-muted-foreground justify-center">
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"/>Sales Orders</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"/>Credit Saless</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block"/>POS/Cash</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500 inline-block"/>Credit Collected</span>
           </div>
@@ -632,14 +632,14 @@ export default function DailySalesTab() {
         </Card>
       ) : (
         <>
-          {/* ── SALES ORDERS SECTION ─────────────────────────────── */}
+          {/* ── Credit SalesS SECTION ─────────────────────────────── */}
           <SalesSection
-            title="Sales Orders"
+            title="Credit Saless"
             icon={ShoppingCart}
             orders={selectedDay.salesOrders}
             total={selectedDay.totalCreditInvoiced}
             accent="green"
-            emptyMsg="No sales orders for this day"
+            emptyMsg="No Credit Saless for this day"
             onExport={() => exportSection(selectedDay.salesOrders, "sales-orders")}
           />
 
@@ -671,7 +671,7 @@ export default function DailySalesTab() {
               <CardContent className="pt-4 pb-4">
                 <div className="grid grid-cols-4 divide-x divide-border">
                   {[
-                    { label:"Orders Invoiced",  value:selectedDay.totalCreditInvoiced, cls:"text-emerald-700" },
+                    { label:"Credit Sales",  value:selectedDay.totalCreditInvoiced, cls:"text-emerald-700" },
                     { label:"Revenue from POS",    value:selectedDay.totalPOS,        cls:"text-blue-700" },
                     { label:"Credit Collected",    value:selectedDay.totalCreditPaid, cls:"text-amber-700" },
                     { label:"Total Revenue",       value:selectedDay.totalRevenue,    cls:"text-emerald-700 font-bold" },

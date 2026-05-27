@@ -82,8 +82,8 @@ export default function SalesOrderEmail(props: SalesOrderEmailProps){
     shippingAddress,
   } = props;
 
-  const replySubject = `RE: Sales Order ${salesOrder.orderNumber} - Inquiry`;
-  const replyBody = `Dear ${companyName},%0D%0A%0D%0AI have a question regarding Sales Order ${salesOrder.orderNumber}.%0D%0A%0D%0A[Please describe your inquiry here]%0D%0A%0D%0AThank you,%0D%0A${customer.name}`;
+  const replySubject = `RE: Credit Sales ${salesOrder.orderNumber} - Inquiry`;
+  const replyBody = `Dear ${companyName},%0D%0A%0D%0AI have a question regarding Credit Sales ${salesOrder.orderNumber}.%0D%0A%0D%0A[Please describe your inquiry here]%0D%0A%0D%0AThank you,%0D%0A${customer.name}`;
   const mailtoLink = `mailto:${companyEmail}?subject=${encodeURIComponent(replySubject)}&body=${replyBody}`;
 
   // Format date helper
@@ -124,7 +124,7 @@ export default function SalesOrderEmail(props: SalesOrderEmailProps){
             <Section className="bg-gradient-to-r from-blue-600 to-blue-700 px-[48px] py-[40px] relative">
               <div className="absolute top-0 right-0 w-[200px] h-[200px] bg-blue-500 opacity-10 rounded-full -mr-[100px] -mt-[100px]"></div>
               <Heading className="text-white text-[32px] font-bold m-0 tracking-tiUSt">
-                Sales Order
+                Credit Sales
               </Heading>
               <Text className="text-blue-50 text-[18px] m-0 mt-[12px] font-medium">
                 Order #{salesOrder.orderNumber}
@@ -138,7 +138,7 @@ export default function SalesOrderEmail(props: SalesOrderEmailProps){
               </Text>
 
               <Text className="text-gray-600 text-[16px] leading-[26px] mb-[32px]">
-                Thank you for your order! We are pleased to confirm your sales order as detailed below. 
+                Thank you for your order! We are pleased to confirm your Credit Sales as detailed below. 
                 Your order is being processed and will be shipped according to the timeline specified.
               </Text>
 

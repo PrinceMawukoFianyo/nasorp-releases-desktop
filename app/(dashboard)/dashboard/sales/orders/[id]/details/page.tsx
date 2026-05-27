@@ -253,14 +253,14 @@ export default function SalesOrderDetailsPage() {
       setIsLoading(true)
       const order = await getSalesOrderById(orderId)
       if (!order) {
-        toast.error("Sales order not found")
+        toast.error("Credit Sales not found")
         router.push("/dashboard/sales/orders")
         return
       }
       setSalesOrder(order)
       if (order.customer?.email) setEmailAddress(order.customer.email)
     } catch {
-      toast.error("Failed to load sales order")
+      toast.error("Failed to load Credit Sales")
       router.push("/dashboard/sales/orders")
     } finally {
       setIsLoading(false)
@@ -337,7 +337,7 @@ export default function SalesOrderDetailsPage() {
         <div className="max-w-6xl mx-auto px-6 py-4">
           <Button variant="ghost" onClick={() => router.push("/dashboard/sales/orders")} className="mb-4 -ml-2">
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Sales Orders
+            Credit Saless
           </Button>
 
           <div className="flex items-start justify-between flex-wrap gap-4">
