@@ -333,7 +333,7 @@ export async function getCreditLedger(filters?: {
         paymentStatus: debt.status === "PAID" ? "PAID" : (debt.amountPaid > 0 ? "PARTIAL" : "PENDING"),
         orderStatus:   "CONFIRMED",
         notes:         debt.notes,
-        recordedBy: (debt as any).createdBy?.name ?? null,
+        recordedBy:    null,
       })
 
       for (const pay of debt.payments) {
