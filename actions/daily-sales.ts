@@ -50,12 +50,12 @@ export type DaySummary = {
   isFuture:             boolean;
   salesOrders:          DailySaleOrder[];   // source = SALES_ORDER
   posOrders:            DailySaleOrder[];   // source = POS
-  creditPaid:           DailySaleOrder[];   // SalesOrderPayment records
+  creditPaid:           DailySaleOrder[];   // SalesOrderPayment + ManualDebtPayment records
   totalRevenue:         number;             // POS + upfront deposits + credit payments collected
   totalPOS:             number;
   totalCreditInvoiced:  number;             // full billed value of all Credit Saless (the invoice total)
   totalCredit:          number;             // cash actually received upfront from Credit Saless
-  totalCreditPaid:      number;             // credit payments collected on this day
+  totalCreditPaid:      number;             // credit payments collected on this day (including manual debts)
   orderCount:           number;
 };
 
@@ -134,7 +134,7 @@ export async function getDailySales(params: {
       orderBy: { createdAt: "asc" },
     });
 
-    // ── 2. Fetch all payments collected in the date range ─────────────────
+    // ── 2. Fetch all payments collected in the date range (Credit Sales) ──
     const payments = await db.salesOrderPayment.findMany({
       where: {
         orgId,
@@ -146,6 +146,23 @@ export async function getDailySales(params: {
           include: {
             customer: { select: { id: true, name: true, email: true, phone: true } },
             lines: { include: { item: { select: { name: true, sku: true } } } },
+          },
+        },
+        recordedBy: { select: { name: true } },
+      },
+      orderBy: { paidAt: "asc" },
+    });
+
+    // ── 2b. Fetch manual debt payments collected in the date range ─────────
+    const manualDebtPayments = await db.manualDebtPayment.findMany({
+      where: {
+        orgId,
+        paidAt: { gte: from, lte: to },
+      },
+      include: {
+        manualDebt: {
+          include: {
+            customer: { select: { id: true, name: true, email: true, phone: true } },
           },
         },
         recordedBy: { select: { name: true } },
@@ -207,12 +224,12 @@ export async function getDailySales(params: {
         // Credit order: only track the invoice value (not revenue)
         day.salesOrders.push(entry);
         day.totalCreditInvoiced += total;   // full invoice amount (info only)
-        // ✨ FIX: Do NOT add amountPaid here – payments will be added from the payment loop
+        // ✨ Do NOT add amountPaid here – payments will be added from the payment loop
       }
       day.orderCount++;
     }
 
-    // ── 5. Process payments (these are real cash collected) ───────────────
+    // ── 5. Process standard credit payments (SalesOrderPayment) ───────────────
     for (const pmt of payments) {
       const key = format(pmt.paidAt, "yyyy-MM-dd");
       const day = dayMap.get(key);
@@ -251,6 +268,40 @@ export async function getDailySales(params: {
       day.creditPaid.push(entry);
       day.totalCreditPaid += Number(pmt.amount);
       day.totalRevenue    += Number(pmt.amount); // revenue = only cash collected today
+    }
+
+    // ── 5b. Process manual debt payments ────────────────────────────────────
+    for (const pmt of manualDebtPayments) {
+      const key = format(pmt.paidAt, "yyyy-MM-dd");
+      const day = dayMap.get(key);
+      if (!day) continue;
+
+      const debt = pmt.manualDebt;
+      const customer = debt.customer;
+
+      const entry: DailySaleOrder = {
+        orderId:       `debt-${debt.id}`,
+        orderNumber:   `DEBT-${debt.id.slice(-8)}`,
+        customerName:  customer?.name ?? "Deleted Customer",
+        customerId:    customer?.id ?? "",
+        customerEmail: customer?.email ?? "",
+        customerPhone: customer?.phone ?? "",
+        type:          "CREDIT_PAYMENT",
+        status:        "PAID",
+        paymentStatus: "PAID",
+        total:         Number(pmt.amount),
+        amountPaid:    Number(pmt.amount),
+        amountOwing:   0,
+        paymentMethod: pmt.method,
+        createdAt:     pmt.paidAt.toISOString(),
+        time:          format(pmt.paidAt, "HH:mm"),
+        items:         [],   // manual debts have no line items
+        notes:         `Manual debt payment${pmt.reference ? ` (${pmt.reference})` : ""}${pmt.recordedBy ? ` · recorded by ${pmt.recordedBy.name}` : ""}`,
+      };
+
+      day.creditPaid.push(entry);
+      day.totalCreditPaid += Number(pmt.amount);
+      day.totalRevenue    += Number(pmt.amount);
     }
 
     // ── 6. Build result ───────────────────────────────────────────────────
