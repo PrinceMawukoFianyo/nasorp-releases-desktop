@@ -2,7 +2,6 @@
 "use server"
 
 import { db } from "@/prisma/db"
-import { Decimal } from "@prisma/client/runtime/library"
 import { PurchaseOrderStatus } from "@prisma/client"
 import { getAuthenticatedUser } from "@/config/useAuth"
 import { revalidatePath } from "next/cache"
@@ -20,6 +19,7 @@ interface CreatePOLineItem {
   quantity: number
   unitPrice: string | number
   taxRate: number
+  locationId?: string   // per‑line location (optional, used by LineItemsManager)
 }
 
 interface CreatePOData {
@@ -35,29 +35,24 @@ interface CreatePOData {
   paymentTerms?: string | null
   status?: PurchaseOrderStatus
   lineItems: CreatePOLineItem[]
+  // New payment fields
+  paymentStatus?: "UNPAID" | "PARTIAL" | "PAID"
+  amountPaid?: number
+  amountOwing?: number
 }
 
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
 
-// Helper function to generate unique PO number
 async function generateUniquePONumber(orgId: string): Promise<string> {
   const today = new Date()
   const year = today.getFullYear()
   const month = String(today.getMonth() + 1).padStart(2, '0')
   
-  // Get the last PO number for this month in this organization
   const lastPO = await db.purchaseOrder.findFirst({
-    where: {
-      orgId,
-      poNumber: {
-        startsWith: `PO-${year}${month}`
-      }
-    },
-    orderBy: {
-      poNumber: 'desc'
-    }
+    where: { orgId, poNumber: { startsWith: `PO-${year}${month}` } },
+    orderBy: { poNumber: 'desc' }
   })
 
   let sequence = 1
@@ -65,27 +60,15 @@ async function generateUniquePONumber(orgId: string): Promise<string> {
     const parts = lastPO.poNumber.split('-')
     if (parts.length === 3) {
       const lastSequence = parseInt(parts[2])
-      if (!isNaN(lastSequence)) {
-        sequence = lastSequence + 1
-      }
+      if (!isNaN(lastSequence)) sequence = lastSequence + 1
     }
   }
-
   return `PO-${year}${month}-${String(sequence).padStart(4, '0')}`
 }
 
-// Check if PO number already exists in the organization
-async function isPONumberUnique(
-  poNumber: string, 
-  orgId: string, 
-  excludeId?: string
-): Promise<boolean> {
+async function isPONumberUnique(poNumber: string, orgId: string, excludeId?: string): Promise<boolean> {
   const existing = await db.purchaseOrder.findFirst({
-    where: {
-      poNumber,
-      orgId,
-      ...(excludeId ? { id: { not: excludeId } } : {})
-    }
+    where: { poNumber, orgId, ...(excludeId ? { id: { not: excludeId } } : {}) }
   })
   return !existing
 }
@@ -96,249 +79,182 @@ async function isPONumberUnique(
 
 export async function createPurchaseOrder(data: CreatePOData) {
   try {
-    // Get authenticated user and org info
     const user = await getAuthenticatedUser()
     const orgId = user.orgId ?? ""
     const userId = user.id ?? ""
 
-    // Generate unique PO number if not provided or if it already exists
     let poNumber = data.poNumber?.trim()
-    
     if (!poNumber) {
       poNumber = await generateUniquePONumber(orgId)
     } else {
-      // Check if the provided PO number is unique
       const isUnique = await isPONumberUnique(poNumber, orgId)
       if (!isUnique) {
-        return {
-          success: false,
-          error: `PO Number "${poNumber}" already exists. Please use a different number or leave it blank to auto-generate.`
-        }
+        return { success: false, error: `PO Number "${poNumber}" already exists.` }
       }
     }
 
     // Calculate totals
     const subtotal = data.lineItems.reduce((sum, item) => {
-      const unitPrice = typeof item.unitPrice === "string" 
-        ? parseFloat(item.unitPrice) 
-        : item.unitPrice
+      const unitPrice = typeof item.unitPrice === "string" ? parseFloat(item.unitPrice) : item.unitPrice
       return sum + (item.quantity * unitPrice)
     }, 0)
 
     const taxAmount = data.lineItems.reduce((sum, item) => {
-      const unitPrice = typeof item.unitPrice === "string" 
-        ? parseFloat(item.unitPrice) 
-        : item.unitPrice
+      const unitPrice = typeof item.unitPrice === "string" ? parseFloat(item.unitPrice) : item.unitPrice
       const itemSubtotal = item.quantity * unitPrice
       return sum + (itemSubtotal * (item.taxRate / 100))
     }, 0)
 
-    const shippingCost = data.shippingCost 
-      ? parseFloat(data.shippingCost.toString()) 
-      : 0
+    const shippingCost = data.shippingCost ? parseFloat(data.shippingCost.toString()) : 0
+    const total = subtotal + taxAmount + shippingCost
 
-    // Create purchase order
+    // Determine payment amounts based on paymentStatus
+    let amountPaid = data.amountPaid ?? 0
+    let amountOwing = data.amountOwing ?? total
+    const paymentStatus = data.paymentStatus ?? "UNPAID"
+
+    if (paymentStatus === "PAID") {
+      amountPaid = total
+      amountOwing = 0
+    } else if (paymentStatus === "PARTIAL" && amountPaid === 0) {
+      // If partial but no amountPaid provided, default to 50% (can be overridden)
+      amountPaid = total / 2
+      amountOwing = total - amountPaid
+    }
+
     const purchaseOrder = await db.purchaseOrder.create({
       data: {
         poNumber,
         supplierId: data.supplierId,
         deliveryLocationId: data.deliveryLocationId,
         date: new Date(data.orderDate),
-        expectedDeliveryDate: data.expectedDeliveryDate 
-          ? new Date(data.expectedDeliveryDate) 
-          : null,
+        expectedDeliveryDate: data.expectedDeliveryDate ? new Date(data.expectedDeliveryDate) : null,
         address: data.deliveryAddress || "",
         notes: data.notes || null,
         paymentTerms: data.paymentTerms || null,
-        subtotal: subtotal,
-        taxAmount: taxAmount,
-        shippingCost: shippingCost,
+        subtotal,
+        taxAmount,
+        shippingCost,
         status: data.status || "DRAFT",
-        orgId: orgId,
+        paymentStatus,           // NEW
+        amountPaid,              // NEW
+        amountOwing,             // NEW
+        orgId,
         createdById: userId,
         lines: {
           create: data.lineItems.map((item) => {
-            const unitPrice = typeof item.unitPrice === "string" 
-              ? parseFloat(item.unitPrice) 
-              : item.unitPrice
+            const unitPrice = typeof item.unitPrice === "string" ? parseFloat(item.unitPrice) : item.unitPrice
             const itemSubtotal = item.quantity * unitPrice
             const itemTax = itemSubtotal * (item.taxRate / 100)
             const total = itemSubtotal + itemTax
-
             return {
-              item: {
-                connect: {
-                  id: item.itemId
-                }
-              },
+              itemId: item.itemId,
               quantity: item.quantity,
-              unitPrice: unitPrice,
+              unitPrice,
               taxRate: item.taxRate,
               taxAmount: itemTax,
-              total: total,
+              total,
               receivedQuantity: 0
             }
           })
         }
       },
-      include: {
-        lines: {
-          include: {
-            item: true
-          }
-        },
-        supplier: true,
-        deliveryLocation: true,
-        createdBy: {
-          select: {
-            name: true,
-          }
-        }
-      }
+      include: { lines: { include: { item: true } }, supplier: true, deliveryLocation: true, createdBy: { select: { name: true } } }
     })
 
     revalidatePath("/dashboard/purchases/purchase-orders")
-    
-    return {
-      success: true,
-      data: purchaseOrder
-    }
+    return { success: true, data: purchaseOrder }
   } catch (error) {
     console.error("Error creating purchase order:", error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to create purchase order"
-    }
+    return { success: false, error: error instanceof Error ? error.message : "Failed to create purchase order" }
   }
 }
 
-export async function updatePurchaseOrder(
-  id: string,
-  data: CreatePOData
-) {
+export async function updatePurchaseOrder(id: string, data: CreatePOData) {
   try {
     const user = await getAuthenticatedUser()
     const orgId = user.orgId ?? ""
 
-    // Check if PO number is unique (excluding current PO)
     const poNumber = data.poNumber?.trim()
-    if (!poNumber) {
-      return {
-        success: false,
-        error: "PO Number is required"
-      }
-    }
+    if (!poNumber) return { success: false, error: "PO Number is required" }
 
     const isUnique = await isPONumberUnique(poNumber, orgId, id)
-    if (!isUnique) {
-      return {
-        success: false,
-        error: `PO Number "${poNumber}" already exists. Please use a different number.`
-      }
-    }
+    if (!isUnique) return { success: false, error: `PO Number "${poNumber}" already exists.` }
 
-    // Calculate totals
     const subtotal = data.lineItems.reduce((sum, item) => {
-      const unitPrice = typeof item.unitPrice === "string" 
-        ? parseFloat(item.unitPrice) 
-        : item.unitPrice
+      const unitPrice = typeof item.unitPrice === "string" ? parseFloat(item.unitPrice) : item.unitPrice
       return sum + (item.quantity * unitPrice)
     }, 0)
 
     const taxAmount = data.lineItems.reduce((sum, item) => {
-      const unitPrice = typeof item.unitPrice === "string" 
-        ? parseFloat(item.unitPrice) 
-        : item.unitPrice
+      const unitPrice = typeof item.unitPrice === "string" ? parseFloat(item.unitPrice) : item.unitPrice
       const itemSubtotal = item.quantity * unitPrice
       return sum + (itemSubtotal * (item.taxRate / 100))
     }, 0)
 
-    const shippingCost = data.shippingCost 
-      ? parseFloat(data.shippingCost.toString()) 
-      : 0
+    const shippingCost = data.shippingCost ? parseFloat(data.shippingCost.toString()) : 0
+    const total = subtotal + taxAmount + shippingCost
 
-    // Delete existing lines
-    await db.purchaseOrderLine.deleteMany({
-      where: { purchaseOrderId: id }
-    })
+    let amountPaid = data.amountPaid ?? 0
+    let amountOwing = data.amountOwing ?? total
+    const paymentStatus = data.paymentStatus ?? "UNPAID"
 
-    // Update purchase order with new data
+    if (paymentStatus === "PAID") {
+      amountPaid = total
+      amountOwing = 0
+    } else if (paymentStatus === "PARTIAL" && amountPaid === 0) {
+      amountPaid = total / 2
+      amountOwing = total - amountPaid
+    }
+
+    await db.purchaseOrderLine.deleteMany({ where: { purchaseOrderId: id } })
+
     const purchaseOrder = await db.purchaseOrder.update({
-      where: { 
-        id,
-        orgId // Ensure user can only update their org's PO
-      },
+      where: { id, orgId },
       data: {
         poNumber,
         supplierId: data.supplierId,
         deliveryLocationId: data.deliveryLocationId,
         date: new Date(data.orderDate),
-        expectedDeliveryDate: data.expectedDeliveryDate 
-          ? new Date(data.expectedDeliveryDate) 
-          : null,
+        expectedDeliveryDate: data.expectedDeliveryDate ? new Date(data.expectedDeliveryDate) : null,
         address: data.deliveryAddress || "",
         notes: data.notes || null,
         paymentTerms: data.paymentTerms || null,
-        subtotal: subtotal,
-        taxAmount: taxAmount,
-        shippingCost: shippingCost,
+        subtotal,
+        taxAmount,
+        shippingCost,
+        paymentStatus,
+        amountPaid,
+        amountOwing,
         lines: {
           create: data.lineItems.map((item) => {
-            const unitPrice = typeof item.unitPrice === "string" 
-              ? parseFloat(item.unitPrice) 
-              : item.unitPrice
+            const unitPrice = typeof item.unitPrice === "string" ? parseFloat(item.unitPrice) : item.unitPrice
             const itemSubtotal = item.quantity * unitPrice
             const itemTax = itemSubtotal * (item.taxRate / 100)
             const total = itemSubtotal + itemTax
-
             return {
-              item: {
-                connect: {
-                  id: item.itemId
-                }
-              },
+              itemId: item.itemId,
               quantity: item.quantity,
-              unitPrice: unitPrice,
+              unitPrice,
               taxRate: item.taxRate,
               taxAmount: itemTax,
-              total: total,
+              total,
               receivedQuantity: 0
             }
           })
         }
       },
-      include: {
-        lines: {
-          include: {
-            item: true
-          }
-        },
-        supplier: true,
-        deliveryLocation: true,
-        createdBy: {
-          select: {
-            name: true,
-          }
-        }
-      }
+      include: { lines: { include: { item: true } }, supplier: true, deliveryLocation: true, createdBy: { select: { name: true } } }
     })
 
     revalidatePath("/dashboard/purchases/purchase-orders")
     revalidatePath(`/dashboard/purchases/purchase-orders/${id}`)
-    
-    return {
-      success: true,
-      data: purchaseOrder
-    }
+    return { success: true, data: purchaseOrder }
   } catch (error) {
     console.error("Error updating purchase order:", error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to update purchase order"
-    }
+    return { success: false, error: error instanceof Error ? error.message : "Failed to update purchase order" }
   }
 }
-
 export async function deletePurchaseOrder(id: string) {
   try {
     const user = await getAuthenticatedUser()

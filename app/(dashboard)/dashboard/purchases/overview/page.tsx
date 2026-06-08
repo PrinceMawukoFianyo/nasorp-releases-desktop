@@ -1,21 +1,22 @@
 import { Suspense } from "react";
-import { getSupplierPayables, getAPLedger, getCreditorsList } from "@/actions/supplier-payables";
+import { getSupplierPayables, getCreditorsList } from "@/actions/supplier-payables";
 import { getRecentPurchaseOrders } from "@/actions/purchase-order";
+import { getPurchaseOverviewData } from "@/actions/purchase-overview";
 import PurchaseOverview from "./purchase-overview";
 
 async function fetchOverviewData() {
-  const [payablesRes, ledgerRes, creditorsRes, recentPOsRes] = await Promise.all([
+  const [payablesRes, creditorsRes, recentPOsRes, overviewRes] = await Promise.all([
     getSupplierPayables(),
-    getAPLedger(),
     getCreditorsList(),
     getRecentPurchaseOrders(),
+    getPurchaseOverviewData(),
   ]);
 
   return {
     payables: payablesRes.success ? payablesRes.data ?? [] : [],
-    ledger: ledgerRes.success ? ledgerRes.data : null,
     creditors: creditorsRes.success ? creditorsRes.data ?? [] : [],
     recentPOs: recentPOsRes.success ? recentPOsRes.data : [],
+    overviewData: overviewRes, // the enhanced data
   };
 }
 

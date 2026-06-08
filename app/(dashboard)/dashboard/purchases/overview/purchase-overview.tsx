@@ -7,14 +7,16 @@ import { Progress } from "@/components/ui/progress";
 import Link from "next/link";
 import {
   DollarSign, CheckCircle2, CreditCard, AlertTriangle, Clock,
-  FileText, Package, Building2, Receipt
+  FileText, Package, Building2, Receipt, Calendar, TrendingUp,
+  Banknote, Users
 } from "lucide-react";
 import { formatCurrency, formatDate } from "../purchase-orders/po-utils";
 
-export default function PurchaseOverview({ payables, creditors, recentPOs }: any) {
-  const totalInvoiced = payables.reduce((s: number, p: any) => s + p.totalAmount, 0);
-  const totalPaid = payables.reduce((s: number, p: any) => s + p.amountPaid, 0);
-  const totalOwing = payables.reduce((s: number, p: any) => s + p.amountOwing, 0);
+export default function PurchaseOverview({ payables, creditors, recentPOs, overviewData }: any) {
+  // Use overviewData if provided (from new server action), else fallback to payables
+  const totalInvoiced = overviewData?.totals?.totalInvoiced ?? payables.reduce((s: number, p: any) => s + p.totalAmount, 0);
+  const totalPaid = overviewData?.totals?.totalPaid ?? payables.reduce((s: number, p: any) => s + p.amountPaid, 0);
+  const totalOwing = overviewData?.totals?.totalOwing ?? payables.reduce((s: number, p: any) => s + p.amountOwing, 0);
   const overdueCount = payables.filter((p: any) =>
     p.expectedDate && new Date(p.expectedDate) < new Date() && p.amountOwing > 0
   ).length;
@@ -32,6 +34,24 @@ export default function PurchaseOverview({ payables, creditors, recentPOs }: any
     }))
   ).slice(0, 5);
 
+  // Use data from overviewData if present
+  const aging = overviewData?.aging || [];
+  const upcomingPayments = overviewData?.upcomingPayments || [];
+  const recentPayments = overviewData?.recentPayments || [];
+  const topCreditors = overviewData?.topCreditors || creditors.slice(0, 5);
+  const unreceivedCreditPOs = recentPOs.filter(
+    po => po.status !== "RECEIVED" && po.paymentStatus === "UNPAID"
+  );
+  if (unreceivedCreditPOs.length > 0) {
+    return (
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+        <p className="text-sm text-amber-800">
+          ⚠️ {unreceivedCreditPOs.length} credit purchase order(s) have not been received.
+          Go to <Link href="/dashboard/purchases/purchase-orders" className="underline">Purchase Orders</Link> and use "Receive Inventory" to update stock.
+        </p>
+      </div>
+    );
+  }
   return (
     <div className="space-y-6 p-6">
       <div>
@@ -98,7 +118,7 @@ export default function PurchaseOverview({ payables, creditors, recentPOs }: any
               <div><p className="text-xs text-muted-foreground">Paid</p><p className="text-2xl font-bold text-green-700">{paidCount}</p></div>
               <CheckCircle2 className="h-6 w-6 text-green-500" />
             </div>
-            <Progress value={(paidCount / payables.length) * 100} className="mt-2" />
+            <Progress value={payables.length ? (paidCount / payables.length) * 100 : 0} className="mt-2" />
           </CardContent>
         </Card>
         <Card>
@@ -107,7 +127,7 @@ export default function PurchaseOverview({ payables, creditors, recentPOs }: any
               <div><p className="text-xs text-muted-foreground">Partial</p><p className="text-2xl font-bold text-blue-700">{partialCount}</p></div>
               <Clock className="h-6 w-6 text-blue-500" />
             </div>
-            <Progress value={(partialCount / payables.length) * 100} className="mt-2" />
+            <Progress value={payables.length ? (partialCount / payables.length) * 100 : 0} className="mt-2" />
           </CardContent>
         </Card>
         <Card>
@@ -116,14 +136,115 @@ export default function PurchaseOverview({ payables, creditors, recentPOs }: any
               <div><p className="text-xs text-muted-foreground">Unpaid</p><p className="text-2xl font-bold text-red-700">{unpaidCount}</p></div>
               <AlertTriangle className="h-6 w-6 text-red-500" />
             </div>
-            <Progress value={(unpaidCount / payables.length) * 100} className="mt-2" />
+            <Progress value={payables.length ? (unpaidCount / payables.length) * 100 : 0} className="mt-2" />
           </CardContent>
         </Card>
       </div>
 
-      {/* Two Column Layout */}
+      {/* Aging Analysis & Upcoming Payments */}
       <div className="grid md:grid-cols-2 gap-6">
-        {/* Recent Purchase Orders */}
+        <Card>
+          <CardHeader><CardTitle className="text-sm font-semibold flex items-center gap-2"><Calendar className="h-4 w-4" />Aging Analysis (Outstanding)</CardTitle></CardHeader>
+          <CardContent>
+            {aging.length === 0 || aging.every(a => a.amount === 0) ? (
+              <p className="text-sm text-muted-foreground">No outstanding payables</p>
+            ) : (
+              <div className="space-y-3">
+                {aging.map((bucket, i) => (
+                  <div key={i}>
+                    <div className="flex justify-between text-xs mb-1">
+                      <span>{bucket.bucket}</span>
+                      <span className="font-semibold">{formatCurrency(bucket.amount)}</span>
+                    </div>
+                    <Progress value={totalOwing ? (bucket.amount / totalOwing) * 100 : 0} className="h-2" />
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle className="text-sm font-semibold flex items-center gap-2"><Clock className="h-4 w-4" />Upcoming Payments (Next 7 Days)</CardTitle></CardHeader>
+          <CardContent>
+            {upcomingPayments.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No payments due soon</p>
+            ) : (
+              <div className="space-y-2">
+                {upcomingPayments.map((p, i) => (
+                  <div key={i} className="flex justify-between items-center p-2 border rounded-lg">
+                    <div>
+                      <p className="font-mono text-xs">{p.poNumber}</p>
+                      <p className="text-xs text-muted-foreground">{p.supplierName}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-amber-600">{formatCurrency(p.amountOwing)}</p>
+                      <p className="text-xs text-muted-foreground">Due {formatDate(p.dueDate)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <Link href="/dashboard/purchases/payables">
+              <Button variant="outline" size="sm" className="w-full mt-3">View Payables Tracker →</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recent Payments & Top Creditors */}
+      <div className="grid md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader><CardTitle className="text-sm font-semibold flex items-center gap-2"><Banknote className="h-4 w-4" />Recent Payments</CardTitle></CardHeader>
+          <CardContent>
+            {recentPayments.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No recent payments recorded</p>
+            ) : (
+              <div className="space-y-2">
+                {recentPayments.map((p, i) => (
+                  <div key={i} className="flex justify-between items-center p-2 border rounded-lg">
+                    <div>
+                      <p className="font-mono text-xs">{p.poNumber}</p>
+                      <p className="text-xs text-muted-foreground">{p.supplierName}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-green-600">{formatCurrency(p.amount)}</p>
+                      <p className="text-xs text-muted-foreground">{formatDate(p.paidAt)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle className="text-sm font-semibold flex items-center gap-2"><Users className="h-4 w-4" />Top Creditors (by amount owed)</CardTitle></CardHeader>
+          <CardContent>
+            {topCreditors.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No outstanding payables</p>
+            ) : (
+              <div className="space-y-2">
+                {topCreditors.map((c: any) => (
+                  <div key={c.id || c.supplierId} className="flex justify-between items-center p-2 border rounded-lg">
+                    <div>
+                      <p className="font-medium text-sm">{c.name || c.supplierName}</p>
+                      <p className="text-xs text-muted-foreground">{c.orderCount} orders</p>
+                    </div>
+                    <p className="text-sm font-semibold text-red-600">{formatCurrency(c.totalOwing)}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+            <Link href="/dashboard/purchases/payables?tab=creditors">
+              <Button variant="outline" size="sm" className="w-full mt-3">View All Creditors →</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Two Column Layout for Recent POs and Receipts */}
+      <div className="grid md:grid-cols-2 gap-6">
         <Card>
           <CardHeader><CardTitle className="text-sm font-semibold flex items-center gap-2"><FileText className="h-4 w-4" />Recent Purchase Orders</CardTitle></CardHeader>
           <CardContent>
@@ -143,7 +264,6 @@ export default function PurchaseOverview({ payables, creditors, recentPOs }: any
           </CardContent>
         </Card>
 
-        {/* Recent Goods Receipts */}
         <Card>
           <CardHeader><CardTitle className="text-sm font-semibold flex items-center gap-2"><Package className="h-4 w-4" />Recent Goods Receipts</CardTitle></CardHeader>
           <CardContent>
@@ -163,33 +283,6 @@ export default function PurchaseOverview({ payables, creditors, recentPOs }: any
           </CardContent>
         </Card>
       </div>
-
-      {/* Top Creditors */}
-      <Card>
-        <CardHeader><CardTitle className="text-sm font-semibold flex items-center gap-2"><Building2 className="h-4 w-4" />Top Creditors (by amount owed)</CardTitle></CardHeader>
-        <CardContent>
-          {creditors.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No outstanding payables</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50"><tr><th className="p-2 text-left">Supplier</th><th className="p-2 text-right">Outstanding</th><th className="p-2 text-center">Orders</th><th className="p-2 text-center">Overdue</th></tr></thead>
-                <tbody>
-                  {creditors.slice(0, 5).map((c: any) => (
-                    <tr key={c.supplierId} className="border-b">
-                      <td className="p-2 font-medium">{c.supplierName}</td>
-                      <td className="p-2 text-right text-red-600 font-semibold">{formatCurrency(c.totalOwing)}</td>
-                      <td className="p-2 text-center">{c.orderCount}</td>
-                      <td className="p-2 text-center">{c.overdueCount > 0 ? <Badge className="bg-red-100 text-red-700">{c.overdueCount}</Badge> : "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          <Link href="/dashboard/purchases/payables"><Button variant="outline" size="sm" className="w-full mt-3">Go to Payables Tracker →</Button></Link>
-        </CardContent>
-      </Card>
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

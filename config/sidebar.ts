@@ -210,6 +210,11 @@ export const sidebarLinks: ISidebarLink[] = [
       permission: "purchases.read",
     },
     {
+      title: "Payables Tracker",
+      href: "/dashboard/purchases/payables",
+      permission: "purchases.read",
+    },
+    {
       title: "Purchase Orders",
       href: "/dashboard/purchases/purchase-orders",
       permission: "purchases.read",
