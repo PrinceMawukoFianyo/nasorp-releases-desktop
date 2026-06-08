@@ -1030,3 +1030,38 @@ export async function completePurchaseOrder(id: string) {
     }
   }
 }
+
+export async function getRecentPurchaseOrders(limit = 5) {
+  try {
+    const user = await getAuthenticatedUser();
+    const orgId = user.orgId ?? "";
+    const orders = await db.purchaseOrder.findMany({
+      where: { orgId, status: { not: "DRAFT" } },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      select: {
+        id: true,
+        poNumber: true,
+        supplier: { select: { name: true } },
+        subtotal: true,
+        taxAmount: true,
+        shippingCost: true,
+        discount: true,
+        status: true,
+        createdAt: true,
+      },
+    });
+    const mapped = orders.map(po => ({
+      id: po.id,
+      poNumber: po.poNumber,
+      supplierName: po.supplier?.name ?? "Unknown",
+      total: po.subtotal + po.taxAmount + (po.shippingCost || 0) - (po.discount || 0),
+      status: po.status,
+      date: po.createdAt,
+    }));
+    return { success: true, data: mapped };
+  } catch (error) {
+    console.error("getRecentPurchaseOrders error:", error);
+    return { success: false, data: [], error: String(error) };
+  }
+}

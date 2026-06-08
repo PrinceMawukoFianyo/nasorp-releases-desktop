@@ -591,3 +591,31 @@ export async function recomputeItemSalesStats(orgId: string) {
     };
   }
 }
+
+export async function updateItemCostAndPrice(
+  itemId: string,
+  newCost: number,
+  newSelling: number
+) {
+  try {
+    const user = await getAuthenticatedUser()
+    if (!user?.orgId) return { success: false, error: "Not authenticated" }
+
+    const updated = await db.item.update({
+      where: { id: itemId, orgId: user.orgId },
+      data: {
+        costPrice: newCost,
+        sellingPrice: newSelling,
+        updatedAt: new Date(),
+      },
+    })
+
+    revalidatePath("/dashboard/inventory/items")
+    revalidatePath(`/dashboard/inventory/items/${itemId}`)
+    revalidatePath("/dashboard/pos")
+    return { success: true, data: updated }
+  } catch (error: any) {
+    console.error("updateItemCostAndPrice error:", error)
+    return { success: false, error: error.message }
+  }
+}

@@ -1,49 +1,64 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useCallback, useEffect, useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Trash2, Plus, Package, MapPin, Zap } from "lucide-react"
-import ItemSelector from "./item-selector"
-import { formatCurrency } from "../po-utils"
-import { Decimal } from "@prisma/client/runtime/library"
+import type React from "react";
+import { useCallback, useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Trash2, Plus, Package, MapPin, Zap, Info } from "lucide-react";
+import ItemSelector from "./item-selector";
+import { formatCurrency } from "../po-utils";
+import { Decimal } from "@prisma/client/runtime/library";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
+import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { updateItemCostAndPrice } from "@/actions/items";
 
 export interface LineItem {
-  id?: string
-  itemId: string
-  itemName: string
-  itemSku: string
-  quantity: number
-  unitPrice: string | number
-  taxRate: number
-  lineTotal: Decimal | number
-  // ── Per-row delivery location ──────────────────────────────────────────────
-  locationId?: string
-  locationName?: string
+  id?: string;
+  itemId: string;
+  itemName: string;
+  itemSku: string;
+  quantity: number;
+  unitPrice: string | number;
+  taxRate: number;
+  lineTotal: Decimal | number;
+  locationId?: string;
+  locationName?: string;
+  currentSellingPrice?: number; // fetched from DB
 }
 
 interface DeliveryLocation {
-  id: string
-  name: string
-  address?: string
+  id: string;
+  name: string;
+  address?: string;
 }
 
 interface LineItemsManagerProps {
-  lineItems: LineItem[]
-  onLineItemsChange: (items: LineItem[]) => void
-  availableItems: Array<{ id: string; name: string; sku: string; description?: string; unitCost?: number }>
-  locations: DeliveryLocation[]          // ← passed in from the form
-  disabled?: boolean
+  lineItems: LineItem[];
+  onLineItemsChange: (items: LineItem[]) => void;
+  availableItems: Array<{ id: string; name: string; sku: string; description?: string; unitCost?: number; sellingPrice?: number }>;
+  locations: DeliveryLocation[];
+  disabled?: boolean;
+}
+
+// Helper to fetch current selling price for an item
+async function fetchItemSellingPrice(itemId: string): Promise<number | null> {
+  try {
+    const res = await fetch(`/api/items/${itemId}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.sellingPrice ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export default function LineItemsManager({
@@ -53,125 +68,248 @@ export default function LineItemsManager({
   locations,
   disabled = false,
 }: LineItemsManagerProps) {
-  const [localItems, setLocalItems] = useState<LineItem[]>(lineItems)
-  const [bulkLocationId, setBulkLocationId] = useState<string>("")
+  const [localItems, setLocalItems] = useState<LineItem[]>(lineItems);
+  const [bulkLocationId, setBulkLocationId] = useState<string>("");
+  const [sellingPriceDialog, setSellingPriceDialog] = useState<{
+    open: boolean;
+    index: number;
+    itemId: string;
+    itemName: string;
+    currentCost: number;
+    newCost: number;
+    oldSelling: number;
+    suggestedSelling: number;
+  } | null>(null);
 
-  // Sync when parent updates lineItems (e.g. from receipt scanner)
   useEffect(() => {
-    setLocalItems(lineItems)
-  }, [lineItems])
+    setLocalItems(lineItems);
+  }, [lineItems]);
+
+  // Fetch old price data when dialog opens, to compute suggested selling price
+  useEffect(() => {
+    if (sellingPriceDialog?.open && sellingPriceDialog?.itemId) {
+      const fetchItemData = async () => {
+        try {
+          const res = await fetch(`/api/items/${sellingPriceDialog.itemId}`);
+          if (res.ok) {
+            const data = await res.json();
+            const oldCost = data.costPrice;
+            const oldSelling = data.sellingPrice;
+            // Suggested = newCost * (oldSelling / oldCost) if oldCost > 0, else newCost * 1.25
+            const factor = oldCost > 0 ? oldSelling / oldCost : 1.25;
+            const suggested = sellingPriceDialog.newCost * factor;
+            setSellingPriceDialog((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    oldSelling,
+                    suggestedSelling: Math.round(suggested * 100) / 100,
+                  }
+                : null
+            );
+          }
+        } catch (err) {
+          console.error("Failed to fetch item data for price suggestion", err);
+        }
+      };
+      fetchItemData();
+    }
+  }, [sellingPriceDialog?.open, sellingPriceDialog?.itemId, sellingPriceDialog?.newCost]);
 
   const calculateLineTotal = useCallback(
     (quantity: number, unitPrice: string | number, taxRate: number) => {
-      const price = typeof unitPrice === "string" ? parseFloat(unitPrice) : unitPrice
-      const subtotal = quantity * (isNaN(price) ? 0 : price)
-      const tax = subtotal * (taxRate / 100)
-      return subtotal + tax
+      const price = typeof unitPrice === "string" ? parseFloat(unitPrice) : unitPrice;
+      const subtotal = quantity * (isNaN(price) ? 0 : price);
+      const tax = subtotal * (taxRate / 100);
+      return subtotal + tax;
     },
     []
-  )
+  );
 
   const sync = (updated: LineItem[]) => {
-    setLocalItems(updated)
-    onLineItemsChange(updated)
-  }
+    setLocalItems(updated);
+    onLineItemsChange(updated);
+  };
 
-  // ── Bulk-apply a location to every row ───────────────────────────────────
   const applyBulkLocation = (locationId: string) => {
-    setBulkLocationId(locationId)
-    if (!locationId) return
-    const loc = locations.find(l => l.id === locationId)
-    sync(localItems.map(item => ({
-      ...item,
-      locationId:   loc?.id   ?? "",
-      locationName: loc?.name ?? "",
-    })))
-  }
+    setBulkLocationId(locationId);
+    if (!locationId) return;
+    const loc = locations.find((l) => l.id === locationId);
+    sync(
+      localItems.map((item) => ({
+        ...item,
+        locationId: loc?.id ?? "",
+        locationName: loc?.name ?? "",
+      }))
+    );
+    toast.success(`Location "${loc?.name}" applied to all ${localItems.length} items`);
+  };
 
   const addLineItem = () => {
-    // Pre-fill with bulk location if one is already selected
-    const loc = locations.find(l => l.id === bulkLocationId)
+    const loc = locations.find((l) => l.id === bulkLocationId);
     sync([
       ...localItems,
       {
-        id:           `new-${Date.now()}`,
-        itemId:       "",
-        itemName:     "",
-        itemSku:      "",
-        quantity:     1,
-        unitPrice:    0,
-        taxRate:      0,
-        lineTotal:    0,
-        locationId:   loc?.id   ?? "",
+        id: `new-${Date.now()}-${Math.random()}`,
+        itemId: "",
+        itemName: "",
+        itemSku: "",
+        quantity: 1,
+        unitPrice: 0,
+        taxRate: 0,
+        lineTotal: 0,
+        locationId: loc?.id ?? "",
         locationName: loc?.name ?? "",
+        currentSellingPrice: undefined,
       },
-    ])
-  }
+    ]);
+  };
 
   const removeLineItem = (index: number) => {
-    sync(localItems.filter((_, i) => i !== index))
-  }
+    sync(localItems.filter((_, i) => i !== index));
+  };
 
   const updateLineItem = (index: number, field: keyof LineItem, value: any) => {
-    const updated = [...localItems]
-    updated[index] = { ...updated[index], [field]: value }
+    const updated = [...localItems];
+    updated[index] = { ...updated[index], [field]: value };
     if (["quantity", "unitPrice", "taxRate"].includes(field as string)) {
       updated[index].lineTotal = calculateLineTotal(
         updated[index].quantity,
         updated[index].unitPrice,
         updated[index].taxRate
-      )
+      );
     }
-    sync(updated)
-  }
+    sync(updated);
+  };
 
-  const handleItemSelect = (index: number, item: any) => {
-    const updated = [...localItems]
+  const handleItemSelect = async (index: number, item: any) => {
+    const updated = [...localItems];
     updated[index] = {
       ...updated[index],
-      itemId:    item.id,
-      itemName:  item.name,
-      itemSku:   item.sku,
+      itemId: item.id,
+      itemName: item.name,
+      itemSku: item.sku,
       unitPrice: item.unitCost ?? updated[index].unitPrice,
-    }
+    };
     if (item.unitCost !== undefined) {
       updated[index].lineTotal = calculateLineTotal(
         updated[index].quantity,
         item.unitCost,
         updated[index].taxRate
-      )
+      );
     }
-    sync(updated)
-  }
+
+    // Fetch current selling price
+    const sellingPrice = await fetchItemSellingPrice(item.id);
+    if (sellingPrice !== null) {
+      updated[index].currentSellingPrice = sellingPrice;
+    }
+
+    // Auto‑assign location
+    if (!updated[index].locationId) {
+      try {
+        const prefLocRes = await fetch(`/api/items/preferred-location?itemId=${item.id}`);
+        const prefLoc = await prefLocRes.json();
+        if (prefLoc.location) {
+          updated[index].locationId = prefLoc.location.id;
+          updated[index].locationName = prefLoc.location.name;
+          toast.info(`Location auto-assigned: ${prefLoc.location.name}`, { duration: 2000 });
+        }
+      } catch (err) {
+        console.error("Failed to fetch preferred location", err);
+      }
+    }
+
+    sync(updated);
+  };
 
   const handleLocationSelect = (index: number, locationId: string) => {
-    const loc = locations.find(l => l.id === locationId)
-    updateLineItem(index, "locationId",   loc?.id   ?? "")
-    // updateLineItem calls sync after setting one field — update name separately
-    setLocalItems(prev => {
-      const updated = [...prev]
-      updated[index] = {
-        ...updated[index],
-        locationId:   loc?.id   ?? "",
-        locationName: loc?.name ?? "",
-      }
-      onLineItemsChange(updated)
-      return updated
-    })
-  }
+    const loc = locations.find((l) => l.id === locationId);
+    const updated = [...localItems];
+    updated[index] = {
+      ...updated[index],
+      locationId: loc?.id ?? "",
+      locationName: loc?.name ?? "",
+    };
+    sync(updated);
+  };
+
+  const handleUpdateSellingPrice = async (
+    itemId: string,
+    newCost: number,
+    newSelling: number,
+    index: number
+  ) => {
+    try {
+      await updateItemCostAndPrice(itemId, newCost, newSelling);
+      const updated = [...localItems];
+      updated[index].currentSellingPrice = newSelling;
+      sync(updated);
+      toast.success(
+        `Selling price for ${updated[index].itemName} updated to ${formatCurrency(newSelling)}`
+      );
+      return true;
+    } catch (err) {
+      toast.error("Failed to update selling price");
+      return false;
+    }
+  };
 
   const toNumber = (v: any): number => {
-    if (typeof v === "number") return v
-    if (typeof v === "string") return parseFloat(v) || 0
-    if (v && typeof v.toNumber === "function") return v.toNumber()
-    return 0
-  }
+    if (typeof v === "number") return v;
+    if (typeof v === "string") return parseFloat(v) || 0;
+    if (v && typeof v.toNumber === "function") return v.toNumber();
+    return 0;
+  };
 
-  const calculateTotal = () =>
-    localItems.reduce((sum, item) => sum + toNumber(item.lineTotal), 0)
+  const calculateTotal = () => localItems.reduce((sum, item) => sum + toNumber(item.lineTotal), 0);
+  const unassignedCount = localItems.filter((i) => !i.locationId).length;
 
-  // Stats for the bulk-apply button label
-  const unassignedCount = localItems.filter(i => !i.locationId).length
+  // Clickable SellingPriceHint component
+  const SellingPriceHint = ({
+    cost,
+    selling,
+    itemId,
+    itemName,
+    index,
+  }: {
+    cost: number;
+    selling?: number;
+    itemId: string;
+    itemName: string;
+    index: number;
+  }) => {
+    if (!selling || selling <= 0) return null;
+    const diff = selling - cost;
+    const margin = cost > 0 ? (selling / cost) * 100 : 0;
+    const isLoss = diff < 0;
+
+    const handleClick = () => {
+      setSellingPriceDialog({
+        open: true,
+        index,
+        itemId,
+        itemName,
+        currentCost: cost,
+        newCost: cost, // cost as currently set in the row
+        oldSelling: selling,
+        suggestedSelling: selling, // will be updated by the useEffect
+      });
+    };
+
+    return (
+      <div
+        className="text-[10px] text-muted-foreground flex items-center gap-1 mt-1 cursor-pointer hover:underline"
+        onClick={handleClick}
+        title="Click to adjust selling price"
+      >
+        <Info className="h-2.5 w-2.5" />
+        Current selling: {formatCurrency(selling)}
+        {!isLoss && <span className="text-green-600"> (margin {margin.toFixed(0)}%)</span>}
+        {isLoss && <span className="text-red-600"> (below cost)</span>}
+      </div>
+    );
+  };
 
   return (
     <Card>
@@ -193,19 +331,18 @@ export default function LineItemsManager({
             disabled={disabled}
             className="gap-2"
           >
-            <Plus className="h-4 w-4" />
-            Add Item
+            <Plus className="h-4 w-4" /> Add Item
           </Button>
         </CardTitle>
 
-        {/* ── Bulk location setter ────────────────────────────────────────── */}
+        {/* Bulk location setter */}
         {localItems.length > 0 && locations.length > 0 && (
           <div className="mt-3 flex items-center gap-2 p-3 rounded-lg border border-dashed border-primary/40 bg-primary/5">
             <MapPin className="h-4 w-4 text-primary shrink-0" />
             <span className="text-xs font-medium text-primary">Apply location to all rows:</span>
             <Select
               value={bulkLocationId || "__none__"}
-              onValueChange={v => applyBulkLocation(v === "__none__" ? "" : v)}
+              onValueChange={(v) => setBulkLocationId(v === "__none__" ? "" : v)}
               disabled={disabled}
             >
               <SelectTrigger className="h-8 flex-1 text-xs">
@@ -213,8 +350,10 @@ export default function LineItemsManager({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none__">— Select location —</SelectItem>
-                {locations.map(l => (
-                  <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                {locations.map((l) => (
+                  <SelectItem key={l.id} value={l.id}>
+                    {l.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -250,13 +389,14 @@ export default function LineItemsManager({
         ) : (
           <>
             {localItems.map((item, index) => {
-              const hasItem           = !!item.itemId
-              const hasUnmatchedName  = !item.itemId && !!item.itemName
-              const hasLocation       = !!item.locationId
+              const hasItem = !!item.itemId;
+              const hasUnmatchedName = !item.itemId && !!item.itemName;
+              const hasLocation = !!item.locationId;
+              const stableKey = item.id && !item.id.startsWith("new-") ? item.id : `item-${index}`;
 
               return (
                 <div
-                  key={item.id || index}
+                  key={stableKey}
                   className="relative rounded-xl border transition-all"
                   style={{
                     borderColor: hasItem
@@ -271,7 +411,6 @@ export default function LineItemsManager({
                       : "hsl(var(--card))",
                   }}
                 >
-                  {/* Row number badge */}
                   <div
                     className="absolute -top-2.5 -left-2.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm"
                     style={{
@@ -283,18 +422,18 @@ export default function LineItemsManager({
                   </div>
 
                   <div className="p-4 space-y-3">
-                    {/* Unmatched warning */}
                     {hasUnmatchedName && (
                       <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                         <span className="flex-shrink-0">⚠</span>
                         <span>
-                          Scanner found <strong>"{item.itemName}"</strong> — select the correct item below
+                          Scanner found <strong>"{item.itemName}"</strong> — select the correct item
+                          below
                         </span>
                       </div>
                     )}
 
-                    {/* Item selector */}
                     <ItemSelector
+                      key={`item-selector-${index}-${item.itemId}`}
                       items={availableItems}
                       selectedItemId={item.itemId}
                       onItemSelect={(selectedItem) => handleItemSelect(index, selectedItem)}
@@ -302,7 +441,6 @@ export default function LineItemsManager({
                       disabled={disabled}
                     />
 
-                    {/* ── Delivery Location per row ─────────────────────── */}
                     {locations.length > 0 && (
                       <div className="space-y-1.5">
                         <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
@@ -311,23 +449,31 @@ export default function LineItemsManager({
                         </Label>
                         <Select
                           value={item.locationId || "__none__"}
-                          onValueChange={v => handleLocationSelect(index, v === "__none__" ? "" : v)}
+                          onValueChange={(v) =>
+                            handleLocationSelect(index, v === "__none__" ? "" : v)
+                          }
                           disabled={disabled}
                         >
                           <SelectTrigger
                             className="h-9 text-sm"
-                            style={hasLocation ? {
-                              borderColor: "#1D9E75",
-                              background: "#E1F5EE",
-                              color: "#085041",
-                            } : undefined}
+                            style={
+                              hasLocation
+                                ? {
+                                    borderColor: "#1D9E75",
+                                    background: "#E1F5EE",
+                                    color: "#085041",
+                                  }
+                                : undefined
+                            }
                           >
                             <SelectValue placeholder="Select location…" />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="__none__">— No location —</SelectItem>
-                            {locations.map(l => (
-                              <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                            {locations.map((l) => (
+                              <SelectItem key={l.id} value={l.id}>
+                                {l.name}
+                              </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -339,7 +485,6 @@ export default function LineItemsManager({
                       </div>
                     )}
 
-                    {/* Quantity + Unit Price */}
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
                         <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -349,7 +494,7 @@ export default function LineItemsManager({
                           type="number"
                           min="1"
                           value={item.quantity}
-                          onChange={e =>
+                          onChange={(e) =>
                             updateLineItem(index, "quantity", parseInt(e.target.value) || 1)
                           }
                           disabled={disabled}
@@ -359,22 +504,30 @@ export default function LineItemsManager({
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                          Unit Price
+                          Unit Price (Cost)
                         </Label>
                         <Input
                           type="number"
                           step="0.01"
                           min="0"
                           value={item.unitPrice}
-                          onChange={e => updateLineItem(index, "unitPrice", e.target.value)}
+                          onChange={(e) => updateLineItem(index, "unitPrice", e.target.value)}
                           disabled={disabled}
                           placeholder="0.00"
                           className="h-9"
                         />
+                        {item.currentSellingPrice !== undefined && item.currentSellingPrice > 0 && (
+                          <SellingPriceHint
+                            cost={Number(item.unitPrice)}
+                            selling={item.currentSellingPrice}
+                            itemId={item.itemId}
+                            itemName={item.itemName}
+                            index={index}
+                          />
+                        )}
                       </div>
                     </div>
 
-                    {/* Tax Rate + Line Total */}
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
                         <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -386,7 +539,7 @@ export default function LineItemsManager({
                           min="0"
                           max="100"
                           value={item.taxRate}
-                          onChange={e =>
+                          onChange={(e) =>
                             updateLineItem(index, "taxRate", parseFloat(e.target.value) || 0)
                           }
                           disabled={disabled}
@@ -394,7 +547,6 @@ export default function LineItemsManager({
                           className="h-9"
                         />
                       </div>
-
                       <div className="space-y-1.5">
                         <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                           Line Total
@@ -414,7 +566,6 @@ export default function LineItemsManager({
                       </div>
                     </div>
 
-                    {/* Remove button */}
                     <div className="flex justify-end pt-1">
                       <Button
                         type="button"
@@ -430,10 +581,9 @@ export default function LineItemsManager({
                     </div>
                   </div>
                 </div>
-              )
+              );
             })}
 
-            {/* Subtotal */}
             <div className="flex justify-end pt-2 border-t">
               <div className="flex items-baseline gap-3">
                 <span className="text-sm text-muted-foreground">Subtotal</span>
@@ -443,6 +593,81 @@ export default function LineItemsManager({
           </>
         )}
       </CardContent>
+
+      {/* Selling Price Adjustment Dialog */}
+      <Dialog
+        open={sellingPriceDialog?.open ?? false}
+        onOpenChange={(open) => !open && setSellingPriceDialog(null)}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Adjust Selling Price</DialogTitle>
+          </DialogHeader>
+          {sellingPriceDialog && (
+            <div className="space-y-4">
+              <div className="bg-muted/30 p-3 rounded-lg space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span>Item:</span>
+                  <span className="font-semibold">{sellingPriceDialog.itemName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Current cost price:</span>
+                  <span className="font-mono">{formatCurrency(sellingPriceDialog.currentCost)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Current selling price:</span>
+                  <span className="font-mono">{formatCurrency(sellingPriceDialog.oldSelling)}</span>
+                </div>
+                <div className="border-t my-2"></div>
+                <div className="flex justify-between">
+                  <span>Suggested selling price:</span>
+                  <span className="font-mono font-bold text-emerald-600">
+                    {formatCurrency(sellingPriceDialog.suggestedSelling)}
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="customSelling" className="text-xs">
+                    Or enter custom:
+                  </Label>
+                  <Input
+                    id="customSelling"
+                    type="number"
+                    step="0.01"
+                    defaultValue={sellingPriceDialog.suggestedSelling}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      if (!isNaN(val)) {
+                        setSellingPriceDialog((prev) =>
+                          prev ? { ...prev, suggestedSelling: val } : null
+                        );
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setSellingPriceDialog(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={async () => {
+                    if (!sellingPriceDialog) return;
+                    const success = await handleUpdateSellingPrice(
+                      sellingPriceDialog.itemId,
+                      sellingPriceDialog.currentCost,
+                      sellingPriceDialog.suggestedSelling,
+                      sellingPriceDialog.index
+                    );
+                    if (success) setSellingPriceDialog(null);
+                  }}
+                >
+                  Update Selling Price
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
-  )
+  );
 }

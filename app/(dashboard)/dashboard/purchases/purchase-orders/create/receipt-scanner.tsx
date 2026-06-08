@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useCallback, DragEvent, ChangeEvent } from "react"
+import { useState, useRef, useCallback, DragEvent, ChangeEvent, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
@@ -27,19 +27,25 @@ import {
   ChevronRight,
 } from "lucide-react"
 import { toast } from "sonner"
+import { getPricingTiersForItems } from "@/actions/pricing-tiers"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface ScannedLineItem {
-  itemId:       string
-  itemName:     string
-  itemSku:      string
-  quantity:     number
-  unitPrice:    number
-  taxRate:      number
-  lineTotal:    number
-  locationId?:  string   // Added - optional
-  locationName?: string   // Added - optional
+  itemId:           string
+  itemName:         string
+  itemSku:          string
+  quantity:         number
+  unitPrice:        number
+  taxRate:          number
+  lineTotal:        number
+  locationId?:      string
+  locationName?:    string
+  packagingTierId?: string
+  packQuantity?:    number
+  unitsPerPack?:    number
+  wholesalePricePerPack?: number
 }
 
 export interface ScannedPOData {
@@ -83,6 +89,9 @@ interface ReceiptScannerProps {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+const fmtCurrency = (n: number) =>
+  new Intl.NumberFormat("en-GH", { style: "currency", currency: "GHS", minimumFractionDigits: 2 }).format(n)
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -154,7 +163,6 @@ RETURN this exact JSON shape (no extra fields, no markdown):
 }`
 }
 
-// ── Robust JSON extractor ─────────────────────────────────────────────────────
 function extractJSON(raw: string): ScannedPOData {
   let cleaned = raw
     .replace(/```json\s*/gi, "")
@@ -179,7 +187,6 @@ function extractJSON(raw: string): ScannedPOData {
   }
 }
 
-// ── API call ──────────────────────────────────────────────────────────────────
 async function callScanAPI(
   prompt:       string,
   imageBase64?: string,
@@ -213,20 +220,16 @@ async function callScanAPI(
   }
 
   const data = await response.json()
-
-  // The route returns choices[0].message.content — may be string or object
   const content = data.choices?.[0]?.message?.content
   if (!content) throw new Error("Empty response from AI")
 
-  // Parse if string, use directly if already object
   if (typeof content === "string") {
     return extractJSON(content)
   }
   return content as ScannedPOData
 }
 
-// ── Preview Card ──────────────────────────────────────────────────────────────
-
+// ── Preview Card (unchanged, but uses fmtCurrency) ────────────────────────────
 function PreviewCard({
   data,
   suppliers,
@@ -250,12 +253,9 @@ function PreviewCard({
     : "— (select manually)"
 
   const total = data.lineItems.reduce((s, l) => s + (l.lineTotal || 0), 0)
-  const fmt   = (n: number) =>
-    new Intl.NumberFormat("en-GH", { style: "currency", currency: "GHS", minimumFractionDigits: 2 }).format(n)
 
   return (
     <div className="space-y-4">
-      {/* Header */}
       <div className="flex items-center gap-2">
         <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
           <CheckCircle2 className="w-4 h-4 text-emerald-600" />
@@ -269,7 +269,6 @@ function PreviewCard({
         </div>
       </div>
 
-      {/* Meta grid */}
       <div className="grid grid-cols-2 gap-2 text-xs">
         {[
           { label: "Supplier",   value: supplierName || "—",      warn: !data.supplierId },
@@ -284,7 +283,6 @@ function PreviewCard({
         ))}
       </div>
 
-      {/* Items */}
       <div className="border rounded-lg overflow-hidden">
         <div className="px-3 py-2 bg-muted/30 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground flex justify-between">
           <span>Items ({data.lineItems.length})</span>
@@ -298,22 +296,21 @@ function PreviewCard({
                 <div className="min-w-0">
                   <p className="font-medium truncate">{item.itemName}</p>
                   <p className="text-muted-foreground">
-                    Qty {item.quantity} × {fmt(item.unitPrice)}
+                    Qty {item.quantity} × {fmtCurrency(item.unitPrice)}
                     {!item.itemId && <span className="text-amber-600 ml-1">(select manually)</span>}
                   </p>
                 </div>
               </div>
-              <span className="font-semibold ml-2 flex-shrink-0">{fmt(item.lineTotal || 0)}</span>
+              <span className="font-semibold ml-2 flex-shrink-0">{fmtCurrency(item.lineTotal || 0)}</span>
             </div>
           ))}
         </div>
         <div className="px-3 py-2 bg-muted/20 flex justify-between text-xs font-bold border-t">
           <span>Estimated Total</span>
-          <span>{fmt(total)}</span>
+          <span>{fmtCurrency(total)}</span>
         </div>
       </div>
 
-      {/* Warnings */}
       {(unmatchedItems.length > 0 || !data.supplierId) && (
         <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">
           <AlertCircle className="w-3.5 h-3.5 text-amber-600 flex-shrink-0 mt-0.5" />
@@ -325,7 +322,6 @@ function PreviewCard({
         </div>
       )}
 
-      {/* Actions */}
       <div className="flex gap-2">
         <Button variant="outline" size="sm" className="flex-1" onClick={onDiscard}>
           <X className="w-3.5 h-3.5 mr-1.5" />Discard
@@ -336,6 +332,93 @@ function PreviewCard({
         </Button>
       </div>
     </div>
+  )
+}
+
+// ── Packaging Wizard Modal (new) ──────────────────────────────────────────────
+function PackagingWizardModal({
+  open,
+  onOpenChange,
+  items,
+  tiersMap,
+  onConfirm,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  items: ScannedLineItem[]
+  tiersMap: Record<string, any[]>
+  onConfirm: (updatedItems: ScannedLineItem[]) => void
+}) {
+  const [localItems, setLocalItems] = useState(items)
+
+  useEffect(() => {
+    setLocalItems(items)
+  }, [items])
+
+  const handleSelectTier = (idx: number, tierId: string) => {
+    const selected = tiersMap[localItems[idx].itemId]?.find(t => t.id === tierId)
+    if (!selected) return
+    const newItems = [...localItems]
+    const original = localItems[idx]
+    newItems[idx] = {
+      ...original,
+      packagingTierId: selected.id,
+      packQuantity: original.quantity,
+      unitsPerPack: selected.unitsPerPack,
+      wholesalePricePerPack: selected.wholesalePrice,
+      quantity: original.quantity * selected.unitsPerPack,
+      unitPrice: selected.wholesalePrice / selected.unitsPerPack,
+      lineTotal: (original.quantity * selected.unitsPerPack) * (selected.wholesalePrice / selected.unitsPerPack)
+    }
+    setLocalItems(newItems)
+  }
+
+  const hasAnyTier = localItems.some(item => (tiersMap[item.itemId]?.length || 0) > 0)
+
+  if (!hasAnyTier) return null
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Confirm Packaging Units</DialogTitle>
+          <DialogDescription>
+            Some items are sold in packs (boxes, sacks, etc.). Please confirm the pack type.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 max-h-96 overflow-y-auto">
+          {localItems.map((item, idx) => {
+            const tiers = tiersMap[item.itemId] || []
+            if (tiers.length === 0) return null
+            return (
+              <div key={idx} className="border rounded-lg p-3">
+                <p className="font-semibold">{item.itemName}</p>
+                <p className="text-sm text-muted-foreground">AI detected quantity: {item.quantity}</p>
+                <div className="mt-2">
+                  <label className="text-xs font-medium">Select pack type:</label>
+                  <Select onValueChange={(val) => handleSelectTier(idx, val)}>
+                    <SelectTrigger className="w-full mt-1">
+                      <SelectValue placeholder="Choose pack size" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tiers.map(t => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.packagingUnitName} – {t.unitsPerPack} units @ {fmtCurrency(t.wholesalePrice)}/pack
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={() => onConfirm(localItems)}>Confirm & Continue</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -358,7 +441,10 @@ export default function ReceiptScanner({
   const [scanError, setScanError]           = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // ── Image handling ──────────────────────────────────────────────────────────
+  // Packaging wizard state
+  const [packagingModalOpen, setPackagingModalOpen] = useState(false)
+  const [packagingItems, setPackagingItems] = useState<ScannedLineItem[]>([])
+  const [tiersMap, setTiersMap] = useState<Record<string, any[]>>({})
 
   const handleFile = useCallback((file: File) => {
     if (!file.type.startsWith("image/")) {
@@ -382,8 +468,6 @@ export default function ReceiptScanner({
     const file = e.target.files?.[0]
     if (file) handleFile(file)
   }, [handleFile])
-
-  // ── Scan ────────────────────────────────────────────────────────────────────
 
   const handleScan = async () => {
     const hasText  = tab === "paste"  && pastedText.trim().length > 5
@@ -413,8 +497,23 @@ export default function ReceiptScanner({
       }
 
       if (!parsed.lineItems) parsed.lineItems = []
-      setScannedData(parsed)
 
+      // Fetch pricing tiers for items that have itemId
+      const itemIds = parsed.lineItems.map(li => li.itemId).filter(Boolean)
+      let tiers: Record<string, any[]> = {}
+      if (itemIds.length > 0) {
+        tiers = await getPricingTiersForItems(itemIds)
+        setTiersMap(tiers)
+      }
+
+      // Check if any item has packaging tiers
+      const hasTiers = parsed.lineItems.some(li => (tiers[li.itemId]?.length || 0) > 0)
+      if (hasTiers) {
+        setPackagingItems(parsed.lineItems)
+        setPackagingModalOpen(true)
+      } else {
+        setScannedData(parsed)
+      }
     } catch (err: any) {
       console.error("[ReceiptScanner]", err)
       setScanError(err?.message ?? "Failed to extract data. Please try again or use a clearer image.")
@@ -423,11 +522,20 @@ export default function ReceiptScanner({
     }
   }
 
-  // ── Confirm & fill form ─────────────────────────────────────────────────────
+  const handlePackagingConfirm = (updatedItems: ScannedLineItem[]) => {
+    if (scannedData) {
+      const finalData = { ...scannedData, lineItems: updatedItems }
+      setScannedData(finalData)
+    } else {
+      // This case shouldn't happen, but fallback
+      setScannedData({ supplierName: "", supplierId: "", deliveryLocationId: "", orderDate: "", expectedDeliveryDate: "", deliveryAddress: "", paymentTerms: "", shippingCost: "0", notes: "", lineItems: updatedItems })
+    }
+    setPackagingModalOpen(false)
+  }
 
   const handleConfirm = () => {
     if (!scannedData) return
-    onExtracted(scannedData)  // ← sends ALL data to parent form
+    onExtracted(scannedData)
     setOpen(false)
     toast.success(`Form filled! ${scannedData.lineItems.length} items extracted.`, {
       description: "Review and adjust any unmatched items or supplier.",
@@ -437,6 +545,8 @@ export default function ReceiptScanner({
     setImageFile(null)
     setImagePreview(null)
     setScannedData(null)
+    setPackagingItems([])
+    setTiersMap({})
   }
 
   const handleDiscard = () => {
@@ -448,9 +558,8 @@ export default function ReceiptScanner({
     setOpen(false)
     setScannedData(null)
     setScanError(null)
+    setPackagingModalOpen(false)
   }
-
-  // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
     <>
@@ -611,6 +720,14 @@ export default function ReceiptScanner({
           )}
         </DialogContent>
       </Dialog>
+
+      <PackagingWizardModal
+        open={packagingModalOpen}
+        onOpenChange={setPackagingModalOpen}
+        items={packagingItems}
+        tiersMap={tiersMap}
+        onConfirm={handlePackagingConfirm}
+      />
     </>
   )
 }

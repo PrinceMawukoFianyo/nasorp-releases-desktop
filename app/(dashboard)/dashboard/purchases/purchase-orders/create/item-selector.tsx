@@ -30,10 +30,10 @@ export default function ItemSelector({
   label = "Select Item",
   disabled = false,
 }: ItemSelectorProps) {
-  const [open, setOpen]     = useState(false)
+  const [open, setOpen] = useState(false)
   const [search, setSearch] = useState("")
-  const containerRef        = useRef<HTMLDivElement>(null)
-  const searchRef           = useRef<HTMLInputElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const searchRef = useRef<HTMLInputElement>(null)
 
   const selectedItem = useMemo(
     () => items.find(i => i.id === selectedItemId),
@@ -84,7 +84,6 @@ export default function ItemSelector({
     <div className="w-full space-y-2 relative" ref={containerRef}>
       <Label className="text-sm font-medium">{label}</Label>
 
-      {/* ── Trigger button ── */}
       <button
         type="button"
         disabled={disabled}
@@ -93,7 +92,6 @@ export default function ItemSelector({
           "w-full flex items-center justify-between rounded-md border px-3 py-2 text-sm transition-all",
           "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1",
           disabled && "opacity-50 cursor-not-allowed",
-          // ── SELECTED state: teal background + teal border ──
           isSelected
             ? "border-[#1D9E75] border-[1.5px] bg-[#E1F5EE] dark:bg-[#085041] dark:border-[#5DCAA5]"
             : "border-border bg-background hover:bg-muted/50",
@@ -139,10 +137,8 @@ export default function ItemSelector({
         </div>
       </button>
 
-      {/* ── Dropdown ── */}
       {open && (
         <div className="absolute z-50 w-full rounded-md border border-border bg-popover shadow-lg mt-1">
-          {/* Search */}
           <div className="p-2 border-b border-border">
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -160,7 +156,6 @@ export default function ItemSelector({
             </div>
           </div>
 
-          {/* List */}
           <div className="max-h-60 overflow-y-auto py-1">
             {filtered.length === 0 ? (
               <div className="px-3 py-4 text-center text-sm text-muted-foreground">
@@ -176,7 +171,6 @@ export default function ItemSelector({
                     onClick={() => handleSelect(item)}
                     className={cn(
                       "w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors",
-                      // ── SELECTED row in dropdown: teal left border + teal bg ──
                       active
                         ? "bg-[#E1F5EE] dark:bg-[#085041] border-l-[3px] border-l-[#1D9E75] dark:border-l-[#5DCAA5]"
                         : "hover:bg-accent hover:text-accent-foreground border-l-[3px] border-l-transparent"
@@ -213,7 +207,6 @@ export default function ItemSelector({
             )}
           </div>
 
-          {/* Footer */}
           {filtered.length > 0 && (
             <div className="border-t border-border px-3 py-1.5 text-[10px] text-muted-foreground">
               {filtered.length} of {items.length} items · Enter to select first

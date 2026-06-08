@@ -196,37 +196,41 @@ export const sidebarLinks: ISidebarLink[] = [
     ],
   },
 
-  // ── Purchases ──────────────────────────────────────────────────────────────
-  {
-    title: "Purchases",
-    icon: ShoppingBag,
-    dropdown: true,
-    href: "/dashboard/purchases",
-    permission: "purchases.read",
-    dropdownMenu: [
-      {
-        title: "Purchase Orders",
-        href: "/dashboard/purchases/purchase-orders",
-        permission: "purchases.read",
-      },
-      {
-        title: "Goods Receipt",
-        href: "/dashboard/purchases/goods-receipt",
-        permission: "goods.receipts.read",
-      },
-      {
-        title: "Create Receipt",
-        href: "/dashboard/purchases/goods-receipt/create",
-        permission: "goods_receipt.create",
-      },
-      {
-        title: "Suppliers",
-        href: "/dashboard/purchases/suppliers",
-        permission: "suppliers.read",
-      },
-    ],
-  },
-
+// ── Purchases ──────────────────────────────────────────────────────────────
+{
+  title: "Purchases",
+  icon: ShoppingBag,
+  dropdown: true,
+  href: "/dashboard/purchases",
+  permission: "purchases.read",
+  dropdownMenu: [
+    {
+      title: "Overview",             
+      href: "/dashboard/purchases/overview",
+      permission: "purchases.read",
+    },
+    {
+      title: "Purchase Orders",
+      href: "/dashboard/purchases/purchase-orders",
+      permission: "purchases.read",
+    },
+    {
+      title: "Goods Receipt",
+      href: "/dashboard/purchases/goods-receipt",
+      permission: "goods.receipts.read",
+    },
+    {
+      title: "Create Receipt",
+      href: "/dashboard/purchases/goods-receipt/create",
+      permission: "goods_receipt.create",
+    },
+    {
+      title: "Suppliers",
+      href: "/dashboard/purchases/suppliers",
+      permission: "suppliers.read",
+    },
+  ],
+},
   // ── Sales ──────────────────────────────────────────────────────────────────
   {
     title: "Sales",

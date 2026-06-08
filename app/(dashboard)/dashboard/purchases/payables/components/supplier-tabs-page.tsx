@@ -8,12 +8,13 @@
 // Routes "Pay Now" from CreditorsView back to the tracker.
 // ============================================================
 
-import { useState }    from "react"
+import { useState } from "react"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { CreditCard, Building2, BookOpen } from "lucide-react"
+import { CreditCard, Building2, BookOpen, BarChart3 } from "lucide-react"
 
 import CreditorsView          from "./creditors-view"
 import APLedgerView           from "./ap-ledger-view"
+import SupplierOverview       from "./supplier-overview"
 import type { SupplierPayable }                         from "@/actions/supplier-payables"
 import type { APLedgerEntry, APLedgerSummary, APCsvRow, CreditorSummary } from "@/actions/supplier-payables"
 import SupplierPaymentTracker from "./supplier-payment-tracker"
@@ -33,7 +34,7 @@ export default function SupplierTabsPage({
   ledgerExportRows,
   creditors,
 }: SupplierTabsPageProps) {
-  const [activeTab,          setActiveTab]          = useState("tracker")
+  const [activeTab, setActiveTab] = useState("tracker")
   const [pendingPayPayableId, setPendingPayPayableId] = useState<string | null>(null)
 
   // When "Pay Now" is clicked in Creditors tab, switch to Tracker and open dialog
@@ -48,6 +49,10 @@ export default function SupplierTabsPage({
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
       <TabsList className="h-10">
+        <TabsTrigger value="overview" className="gap-2 px-4">
+          <BarChart3 className="w-4 h-4" />
+          Overview
+        </TabsTrigger>
         <TabsTrigger value="tracker" className="gap-2 px-4">
           <CreditCard className="w-4 h-4" />
           Payables Tracker
@@ -71,6 +76,10 @@ export default function SupplierTabsPage({
           Full AP Ledger
         </TabsTrigger>
       </TabsList>
+
+      <TabsContent value="overview" className="mt-0">
+        <SupplierOverview payables={payables} creditors={creditors} />
+      </TabsContent>
 
       <TabsContent value="tracker" className="mt-0">
         <SupplierPaymentTracker

@@ -7,7 +7,7 @@
  * – All other tabs (Overview, Expenses, Payroll, etc.) unchanged
  */
 
-import React, { useState, useEffect, useTransition, useMemo  } from "react";
+import React, { useState, useEffect, useTransition, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ import {
   MapPin, Users, CreditCard, Layers, AlertTriangle, CheckCircle2,
   Clock, Ban, ArrowUpRight, Package2, Receipt, Building2,
   Smartphone, WalletCards, Banknote, Calendar, Printer,
-  PieChart, FileText, Settings, ShieldCheck, Zap,
+  PieChart, FileText, Settings, ShieldCheck, Zap, ShoppingBag, // ← added ShoppingBag
 } from "lucide-react";
 import { toast } from "sonner";
 import { createExpense, createPayrollEntry, markPayrollPaid, deletePayrollEntry } from "@/actions/accounting";
@@ -56,6 +56,14 @@ type DashboardData = {
   salesByCategory: { category: string; value: number }[];
   salesTimeline?: { label: string; sales: number; orders: number }[];
   inventoryValueAtRetail?: number;
+  recentPurchaseOrders?: {                           // ← new field
+    id: string;
+    poNumber: string;
+    supplierName: string;
+    total: number;
+    status: string;
+    date: string | Date;
+  }[];
 };
 type Financials = { totalSales: number; totalPurchases: number; grossMargin: number; taxLiability: number };
 type CreditSummary = { totalOutstanding: number; totalCollected: number; activeDebtors: number; overdueCount: number; paidCount: number; partialCount: number; pendingCount: number };
@@ -74,7 +82,6 @@ type Props = {
   initialPayroll?: PayrollRecord[];
   initialTab?: TabId;
 };
-
 // ══════════════════════════════════════════════════════════════════════
 // HELPERS
 // ══════════════════════════════════════════════════════════════════════
@@ -881,6 +888,15 @@ const totalSupplierOwing = useMemo(() => {
               <StatCard label="Outstanding Credit" value={fmt(outstandingCredit)} sub={`${creditSummary?.activeDebtors ?? 0} debtors`} accent="orange" icon={CreditCard} href="/dashboard/sales/orders/credit" />
               <StatCard label="Tax Collected" value={fmt(taxCollected)} sub="VAT & other taxes" accent="purple" icon={Receipt} />
               <StatCard label="COGS / Purchases" value={fmt(cogs)} sub="Cost of goods / purchases" accent="red" icon={TrendingDown} href="/dashboard/purchases/purchase-orders" />
+              {/* NEW: Total Purchases (30d) KPI */}
+              <StatCard
+                label="Total Purchases (30d)"
+                value={fmt(financials?.totalPurchases ?? 0)}
+                sub="Purchase Orders"
+                accent="red"
+                icon={ShoppingBag}
+                href="/dashboard/purchases/purchase-orders"
+              />
             </div>
 
             {/* Revenue split + chart */}
@@ -923,7 +939,7 @@ const totalSupplierOwing = useMemo(() => {
             {/* Recent orders + top products */}
             <div className="grid grid-cols-2 gap-4">
               <Card>
-                <CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-sm font-semibold">Recent Credit Saless</CardTitle><Link href="/dashboard/sales/orders" className="text-xs text-emerald-600 hover:underline">View all →</Link></div></CardHeader>
+                <CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-sm font-semibold">Recent Credit Sales</CardTitle><Link href="/dashboard/sales/orders" className="text-xs text-emerald-600 hover:underline">View all →</Link></div></CardHeader>
                 <CardContent>
                   <div className="overflow-x-auto">
                     <table className="w-full">
@@ -938,6 +954,8 @@ const totalSupplierOwing = useMemo(() => {
                   </div>
                 </CardContent>
               </Card>
+              <Link href="/dashboard/sales/orders" className="text-xs text-emerald-600 hover:underline">View all →</Link>
+
               <Card>
                 <CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-sm font-semibold">Top Selling Products</CardTitle><Link href="/dashboard/inventory/items" className="text-xs text-emerald-600 hover:underline">View all →</Link></div></CardHeader>
                 <CardContent className="space-y-2">
