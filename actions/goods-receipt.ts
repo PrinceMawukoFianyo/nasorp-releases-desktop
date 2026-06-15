@@ -252,9 +252,6 @@ export async function createGoodsReceipt(data: CreateGoodsReceiptRequest) {
       }
 
       // ── Create / update supplier payable ──────────────────────────────────
-      // When goods are received, a liability is created: we owe the supplier.
-      // We use the PO total as the payable amount. Subsequent calls to
-      // recordSupplierPayment() will reduce amountOwing.
       const poTotal =
         Number(purchaseOrder.subtotal     ?? 0) +
         Number(purchaseOrder.taxAmount    ?? 0) +
@@ -264,7 +261,6 @@ export async function createGoodsReceipt(data: CreateGoodsReceiptRequest) {
       const amountOwing  = Math.max(0, poTotal - paidSoFar)
       const paymentStatus = amountOwing <= 0.01 ? "PAID" : paidSoFar > 0 ? "PARTIAL" : "UNPAID"
 
-      // Update PO status and payable fields together
       await tx.purchaseOrder.update({
         where: { id: data.purchaseOrderId },
         data: {
@@ -296,6 +292,7 @@ export async function createGoodsReceipt(data: CreateGoodsReceiptRequest) {
     revalidatePath(`/dashboard/purchases/purchase-orders/${data.purchaseOrderId}`)
     revalidatePath('/dashboard/purchases/purchase-orders')
     revalidatePath('/dashboard/purchases/payables')
+    revalidatePath('/dashboard/purchases/overview')   // ✅ Added
     revalidatePath('/dashboard/inventory')
     revalidatePath('/dashboard')
 

@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -9,14 +10,21 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { MoreVertical, Edit, FileText, Printer, XCircle, Building2, Calendar, Clock, CreditCard, Package, Phone, Mail, User, Send, PackageCheck } from "lucide-react"
 import { formatCurrency, formatDate } from "../po-utils"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useSession } from "next-auth/react"
 import { usePurchaseOrderItems } from "@/hooks/usePurchaseOrderQueries"
-import { useState, useMemo } from "react"
+import { useMemo } from "react"
 import { toast } from "sonner"
-import { sendPOToSupplier } from "@/actions/purchase-order"
+import { sendPOToSupplier, updatePurchaseOrderStatus } from "@/actions/purchase-order"
 
 interface PurchaseOrderDetailViewProps {
   purchaseOrder: any
@@ -34,10 +42,12 @@ export default function PurchaseOrderDetailView({
   onCancel,
   onPrint,
   onExport,
+  onRefresh,
   onReceiveInventory,
 }: PurchaseOrderDetailViewProps) {
   // State management
   const [isLoading, setIsLoading] = useState(false)
+  const [updatingStatus, setUpdatingStatus] = useState(false)
 
   // Safely calculate total with fallbacks
   const subtotal = purchaseOrder.subtotal || 0
@@ -47,10 +57,10 @@ export default function PurchaseOrderDetailView({
 
   // Support both 'supplier' and 'supplier' fields for compatibility
   const supplierInfo = purchaseOrder.supplier || purchaseOrder.supplier
-  const {data:session} = useSession()
+  const { data: session } = useSession()
   const website = process.env.NEXT_PUBLIC_BASE_URL
   const user = session?.user ?? ""
-  const {lines = []} = usePurchaseOrderItems(purchaseOrder.itemId);
+  const { lines = [] } = usePurchaseOrderItems(purchaseOrder.itemId)
 
   // Calculate received status for each line
   const linesWithReceivedStatus = useMemo(() => {
@@ -83,24 +93,38 @@ export default function PurchaseOrderDetailView({
 
   // Button visibility logic based on status
   const canEdit = useMemo(() => {
-    return ["DRAFT"].includes(purchaseOrder.status);
-  }, [purchaseOrder.status]);
+    return ["DRAFT"].includes(purchaseOrder.status)
+  }, [purchaseOrder.status])
 
   const canSendEmail = useMemo(() => {
-    return !["CANCELLED"].includes(purchaseOrder.status);
-  }, [purchaseOrder.status]);
+    return !["CANCELLED"].includes(purchaseOrder.status)
+  }, [purchaseOrder.status])
 
   const canReceive = useMemo(() => {
-    return ["SUBMITTED", "PARTIALLY_RECEIVED"].includes(purchaseOrder.status) && !allItemsReceived;
-  }, [purchaseOrder.status, allItemsReceived]);
-
-  const canApprove = useMemo(() => {
-    return ["SUBMITTED"].includes(purchaseOrder.status);
-  }, [purchaseOrder.status]);
+    return ["SUBMITTED", "PARTIALLY_RECEIVED"].includes(purchaseOrder.status) && !allItemsReceived
+  }, [purchaseOrder.status, allItemsReceived])
 
   const canCancel = useMemo(() => {
-    return !["CANCELLED", "CLOSED"].includes(purchaseOrder.status);
-  }, [purchaseOrder.status]);
+    return !["CANCELLED", "CLOSED"].includes(purchaseOrder.status)
+  }, [purchaseOrder.status])
+
+  // Handler to change workflow status
+  const handleStatusChange = async (newStatus: string) => {
+    setUpdatingStatus(true)
+    try {
+      const result = await updatePurchaseOrderStatus(purchaseOrder.id, newStatus as any)
+      if (result.success) {
+        toast.success(`Status changed to ${newStatus}`)
+        onRefresh()
+      } else {
+        toast.error(result.error || "Failed to update status")
+      }
+    } catch (error) {
+      toast.error("An error occurred while updating status")
+    } finally {
+      setUpdatingStatus(false)
+    }
+  }
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
@@ -120,40 +144,31 @@ export default function PurchaseOrderDetailView({
 
   // Email handler function
   const handleSendEmail = async () => {
-    // Validate supplier email before attempting to send
     if (!supplierInfo?.email) {
-      toast.error("Supplier email address is not available");
-      return;
+      toast.error("Supplier email address is not available")
+      return
     }
 
-    setIsLoading(true);
-    
+    setIsLoading(true)
     try {
-      // Call the server action with just the PO number
-      const result = await sendPOToSupplier(purchaseOrder.poNumber);
-      
+      const result = await sendPOToSupplier(purchaseOrder.poNumber)
       if (result.success) {
-        toast.success(
-          `Purchase Order ${purchaseOrder.poNumber} sent successfully to ${supplierInfo.name}`,
-          {
-            description: `Email delivered to ${supplierInfo.email}`
-          }
-        );
-        
-        // Refresh the page or update the status locally
+        toast.success(`Purchase Order ${purchaseOrder.poNumber} sent successfully to ${supplierInfo.name}`, {
+          description: `Email delivered to ${supplierInfo.email}`
+        })
         setTimeout(() => {
-          window.location.reload();
-        }, 1500);
+          window.location.reload()
+        }, 1500)
       } else {
-        toast.error(result.error || "Failed to send purchase order");
+        toast.error(result.error || "Failed to send purchase order")
       }
     } catch (error) {
-      console.error("Error sending email:", error);
-      toast.error("An unexpected error occurred while sending the email");
+      console.error("Error sending email:", error)
+      toast.error("An unexpected error occurred while sending the email")
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   return (
     <div className="h-full flex flex-col">
@@ -171,7 +186,35 @@ export default function PurchaseOrderDetailView({
               {purchaseOrder.status || 'DRAFT'}
             </Badge>
             
-            {/* Receive Inventory Button - Only show when items need receiving */}
+            {/* Payment status badge if paid */}
+            {purchaseOrder.paymentStatus === "PAID" && (
+              <Badge className="bg-green-100 text-green-700">Paid</Badge>
+            )}
+            {purchaseOrder.paymentStatus === "PARTIAL" && (
+              <Badge className="bg-amber-100 text-amber-700">Partial Payment</Badge>
+            )}
+
+            {/* Status dropdown - allows manual status change */}
+            {(purchaseOrder.status === "DRAFT" || purchaseOrder.status === "SUBMITTED" || purchaseOrder.status === "PARTIALLY_RECEIVED") && (
+              <Select
+                value={purchaseOrder.status}
+                onValueChange={handleStatusChange}
+                disabled={updatingStatus}
+              >
+                <SelectTrigger className="w-36 h-9">
+                  <SelectValue placeholder="Change status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="DRAFT">Draft</SelectItem>
+                  <SelectItem value="SUBMITTED">Submitted</SelectItem>
+                  <SelectItem value="PARTIALLY_RECEIVED">Partially Received</SelectItem>
+                  <SelectItem value="RECEIVED">Received</SelectItem>
+                  <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+            
+            {/* Receive Inventory Button */}
             {onReceiveInventory && canReceive && (
               <Button
                 variant="default"
@@ -184,7 +227,7 @@ export default function PurchaseOrderDetailView({
               </Button>
             )}
 
-            {/* Send Email Button - Hide for CANCELLED */}
+            {/* Send Email Button */}
             {canSendEmail && (
               <Button
                 variant="outline"
@@ -198,7 +241,7 @@ export default function PurchaseOrderDetailView({
               </Button>
             )}
 
-            {/* Three dots menu - Always visible */}
+            {/* Three dots menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="h-9 w-9 p-0">
@@ -206,36 +249,24 @@ export default function PurchaseOrderDetailView({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                {/* Edit - Only show for DRAFT */}
                 {canEdit && (
                   <DropdownMenuItem onClick={() => onEdit(purchaseOrder)}>
                     <Edit className="h-4 w-4 mr-2" />
                     Edit
                   </DropdownMenuItem>
                 )}
-                
-                {/* Send Mail - Hide for CANCELLED */}
                 {canSendEmail && (
-                  <DropdownMenuItem 
-                    onClick={handleSendEmail}
-                    disabled={isLoading || !supplierInfo?.email}
-                  >
+                  <DropdownMenuItem onClick={handleSendEmail} disabled={isLoading || !supplierInfo?.email}>
                     <Send className="h-4 w-4 mr-2" />
                     {isLoading ? "Sending..." : "Send Mail"}
                   </DropdownMenuItem>
                 )}
-                
-                {/* Cancel Order - Hide for CANCELLED & CLOSED */}
                 {canCancel && (
-                  <DropdownMenuItem 
-                    onClick={() => onCancel(purchaseOrder)} 
-                    className="text-red-600"
-                  >
+                  <DropdownMenuItem onClick={() => onCancel(purchaseOrder)} className="text-red-600">
                     <XCircle className="h-4 w-4 mr-2" />
                     Cancel Order
                   </DropdownMenuItem>
                 )}
-                
                 <DropdownMenuItem onClick={onPrint}>
                   <Printer className="h-4 w-4 mr-2" />
                   Print
@@ -256,7 +287,7 @@ export default function PurchaseOrderDetailView({
           {/* Two Column Layout */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
-            {/* Supplier Card - Enhanced */}
+            {/* Supplier Card */}
             <div className="group relative bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden border border-slate-200/60">
               <div className="relative p-4">
                 <div className="flex items-center gap-2 mb-4">
@@ -297,7 +328,7 @@ export default function PurchaseOrderDetailView({
               </div>
             </div>
 
-            {/* Order Details Card - Enhanced */}
+            {/* Order Details Card */}
             <div className="group relative bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden border border-slate-200/60">
               <div className="relative p-4">
                 <div className="flex items-center gap-2 mb-4">
@@ -438,9 +469,7 @@ export default function PurchaseOrderDetailView({
                   {shippingCost > 0 && (
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Shipping:</span>
-                      <span className="font-semibold">
-                        {formatCurrency(shippingCost)}
-                      </span>
+                      <span className="font-semibold">{formatCurrency(shippingCost)}</span>
                     </div>
                   )}
                   <div className="flex justify-between border-t pt-2">

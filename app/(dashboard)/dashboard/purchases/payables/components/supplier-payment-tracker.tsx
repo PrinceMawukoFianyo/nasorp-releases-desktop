@@ -10,6 +10,7 @@
 // ============================================================
 
 import { useState, useEffect, useMemo, useTransition } from "react"
+import { useRouter } from "next/navigation"           // <-- ADD THIS
 import { Badge }    from "@/components/ui/badge"
 import { Button }   from "@/components/ui/button"
 import { Card }     from "@/components/ui/card"
@@ -88,7 +89,7 @@ interface PayDialogProps {
   payable:  SupplierPayable | null
   open:     boolean
   onClose:  () => void
-  onPaid:   () => void
+  onPaid:   () => void   // ← will call router.refresh()
 }
 
 function PayNowDialog({ payable, open, onClose, onPaid }: PayDialogProps) {
@@ -98,7 +99,6 @@ function PayNowDialog({ payable, open, onClose, onPaid }: PayDialogProps) {
   const [notes,     setNotes]     = useState("")
   const [isPending, startTransition] = useTransition()
 
-  // Reset form when a new payable is opened
   useEffect(() => {
     if (payable) {
       setAmount(payable.amountOwing.toFixed(2))
@@ -130,7 +130,7 @@ function PayNowDialog({ payable, open, onClose, onPaid }: PayDialogProps) {
       })
       if (res.success) {
         toast.success(`Payment of ${fmt(amtNum)} recorded for ${payable.poNumber}`)
-        onPaid()
+        onPaid()   // ← triggers refresh in parent
         onClose()
       } else {
         toast.error(res.error ?? "Failed to record payment")
@@ -151,7 +151,6 @@ function PayNowDialog({ payable, open, onClose, onPaid }: PayDialogProps) {
           </DialogDescription>
         </DialogHeader>
 
-        {/* Supplier & PO summary */}
         <div className="rounded-lg border bg-muted/30 p-3 space-y-2 text-sm">
           <div className="flex items-center gap-2">
             <Building2 className="w-4 h-4 text-muted-foreground" />
@@ -180,7 +179,6 @@ function PayNowDialog({ payable, open, onClose, onPaid }: PayDialogProps) {
           <p className="text-[11px] text-muted-foreground text-right">{paidPct}% paid</p>
         </div>
 
-        {/* Payment form */}
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -239,7 +237,6 @@ function PayNowDialog({ payable, open, onClose, onPaid }: PayDialogProps) {
           </div>
         </div>
 
-        {/* Past payments */}
         {payable.payments.length > 0 && (
           <div className="rounded-lg border bg-muted/20 p-3 space-y-2">
             <p className="text-xs font-semibold uppercase text-muted-foreground flex items-center gap-1">
@@ -247,10 +244,7 @@ function PayNowDialog({ payable, open, onClose, onPaid }: PayDialogProps) {
             </p>
             <div className="space-y-1.5 max-h-32 overflow-y-auto">
               {payable.payments.map(p => (
-                <div
-                  key={p.id}
-                  className="flex items-center justify-between text-xs rounded border px-2.5 py-1.5 bg-background"
-                >
+                <div key={p.id} className="flex items-center justify-between text-xs rounded border px-2.5 py-1.5 bg-background">
                   <span className="text-muted-foreground">{fmtDate(p.paidAt)}</span>
                   <span className="font-medium">{METHOD_LABELS[p.method] ?? p.method}</span>
                   {p.reference && <span className="text-muted-foreground font-mono">{p.reference}</span>}
@@ -303,7 +297,6 @@ function PayableRow({
           }`}
           onClick={() => setOpen(o => !o)}
         >
-          {/* Expand toggle */}
           <TableCell className="w-8 pr-0">
             <CollapsibleTrigger asChild>
               <span>
@@ -314,7 +307,6 @@ function PayableRow({
             </CollapsibleTrigger>
           </TableCell>
 
-          {/* Supplier */}
           <TableCell>
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-full bg-rose-100 flex items-center justify-center flex-shrink-0">
@@ -338,36 +330,23 @@ function PayableRow({
             </div>
           </TableCell>
 
-          {/* PO # */}
           <TableCell className="font-mono text-xs">{payable.poNumber}</TableCell>
-
-          {/* PO Total */}
           <TableCell className="text-right text-sm">{fmt(payable.totalAmount)}</TableCell>
-
-          {/* Paid */}
           <TableCell className="text-right font-medium text-green-700">{fmt(payable.amountPaid)}</TableCell>
-
-          {/* Owing */}
           <TableCell className="text-right font-bold">
             <span className={payable.amountOwing > 0 ? "text-red-600" : "text-green-600"}>
               {payable.amountOwing > 0 ? fmt(payable.amountOwing) : "Settled ✓"}
             </span>
           </TableCell>
-
-          {/* Progress */}
           <TableCell className="w-28">
             <div className="space-y-1">
               <Progress value={paidPct} className="h-1.5" />
               <p className="text-[10px] text-muted-foreground text-right">{paidPct}%</p>
             </div>
           </TableCell>
-
-          {/* Status */}
           <TableCell>
             <StatusBadge status={payable.paymentStatus} overdue={isOverdue} />
           </TableCell>
-
-          {/* Due date */}
           <TableCell>
             {payable.expectedDate
               ? <span className={`text-sm flex items-center gap-1 ${isOverdue ? "text-red-600 font-medium" : "text-muted-foreground"}`}>
@@ -377,8 +356,6 @@ function PayableRow({
                 </span>
               : <span className="text-muted-foreground text-sm">—</span>}
           </TableCell>
-
-          {/* Actions */}
           <TableCell onClick={e => e.stopPropagation()}>
             <div className="flex gap-1">
               {payable.paymentStatus !== "PAID" && (
@@ -412,13 +389,10 @@ function PayableRow({
           </TableCell>
         </TableRow>
 
-        {/* Expanded: payment history + receipts */}
         <CollapsibleContent asChild>
           <TableRow className="bg-muted/10 hover:bg-muted/10">
             <TableCell colSpan={10} className="p-0">
               <div className="px-8 py-3 space-y-3">
-
-                {/* Receipt numbers */}
                 {payable.receiptNumbers.length > 0 && (
                   <div>
                     <p className="text-[11px] uppercase font-semibold text-muted-foreground mb-1.5 flex items-center gap-1">
@@ -431,8 +405,6 @@ function PayableRow({
                     </div>
                   </div>
                 )}
-
-                {/* Payment history */}
                 {payable.payments.length > 0 ? (
                   <div>
                     <p className="text-[11px] uppercase font-semibold text-muted-foreground mb-1.5 flex items-center gap-1">
@@ -440,21 +412,12 @@ function PayableRow({
                     </p>
                     <div className="space-y-1.5">
                       {payable.payments.map(p => (
-                        <div
-                          key={p.id}
-                          className="flex items-center gap-4 rounded-lg border px-3 py-2 text-sm bg-background"
-                        >
+                        <div key={p.id} className="flex items-center gap-4 rounded-lg border px-3 py-2 text-sm bg-background">
                           <span className="text-muted-foreground text-xs w-24">{fmtDate(p.paidAt)}</span>
                           <Badge variant="outline" className="text-xs">{METHOD_LABELS[p.method] ?? p.method}</Badge>
-                          {p.reference && (
-                            <span className="font-mono text-xs text-muted-foreground">{p.reference}</span>
-                          )}
-                          {p.notes && (
-                            <span className="text-xs text-muted-foreground italic truncate max-w-[160px]">{p.notes}</span>
-                          )}
-                          {p.recordedBy && (
-                            <span className="text-xs text-muted-foreground ml-auto">by {p.recordedBy}</span>
-                          )}
+                          {p.reference && <span className="font-mono text-xs text-muted-foreground">{p.reference}</span>}
+                          {p.notes && <span className="text-xs text-muted-foreground italic truncate max-w-[160px]">{p.notes}</span>}
+                          {p.recordedBy && <span className="text-xs text-muted-foreground ml-auto">by {p.recordedBy}</span>}
                           <span className="font-semibold text-green-700 ml-auto">{fmt(p.amount)}</span>
                         </div>
                       ))}
@@ -485,6 +448,7 @@ export default function SupplierPaymentTracker({
   autoOpenPayableId,
   onAutoOpenHandled,
 }: SupplierPaymentTrackerProps) {
+  const router = useRouter()                         // <-- ADD THIS
   const [search,       setSearch]       = useState("")
   const [statusFilter, setStatusFilter] = useState("ALL")
   const [selectedPO,   setSelectedPO]   = useState<SupplierPayable | null>(null)
@@ -503,173 +467,80 @@ export default function SupplierPaymentTracker({
     }
   }, [autoOpenPayableId])
 
-  // ── Due-date toast alerts — 3-day reminder system ────────────────────────────
-  //
-  // BEHAVIOUR:
-  //   • When a PO is due (today, overdue, or within 3 days) a toast fires on
-  //     page load.
-  //   • If the user closes/dismisses it, it fires again the NEXT day.
-  //   • After it has been shown on 3 separate calendar days, it stops forever
-  //     for that PO — no more popups.
-  //   • Once the PO is PAID it is never shown again.
-  //
-  // STORAGE:  localStorage key per PO → "ap-alert-<payableId>"
-  //           Value: JSON array of ISO date-strings on which the toast was shown
-  //           e.g.  ["2026-04-11","2026-04-12","2026-04-13"]
-  //
-  // WHY localStorage: lives in the browser, persists across sessions, zero
-  //   server cost, and naturally scopes to the device/staff member who sees it.
-  // ─────────────────────────────────────────────────────────────────────────────
+  // Due‑date toast alerts (unchanged)
   useEffect(() => {
     const STORAGE_PREFIX = "ap-alert-"
     const MAX_SHOW_DAYS  = 3
-    const todayISO = new Date().toISOString().slice(0, 10)   // "YYYY-MM-DD"
+    const todayISO = new Date().toISOString().slice(0, 10)
 
-    /** Load shown-dates array for a payable (returns [] if never shown) */
     function loadRecord(payableId: string): string[] {
-      try {
-        const raw = localStorage.getItem(STORAGE_PREFIX + payableId)
-        return raw ? (JSON.parse(raw) as string[]) : []
-      } catch {
-        return []
-      }
+      try { const raw = localStorage.getItem(STORAGE_PREFIX + payableId); return raw ? JSON.parse(raw) : [] } catch { return [] }
     }
-
-    /** Persist the updated shown-dates array */
     function saveRecord(payableId: string, dates: string[]) {
-      try {
-        localStorage.setItem(STORAGE_PREFIX + payableId, JSON.stringify(dates))
-      } catch { /* storage full — silently ignore */ }
+      try { localStorage.setItem(STORAGE_PREFIX + payableId, JSON.stringify(dates)) } catch {}
     }
-
-    /**
-     * Decide if a toast should fire for this payable today.
-     * Returns true and stamps today if allowed; returns false otherwise.
-     */
     function shouldShow(payableId: string): boolean {
       const dates = loadRecord(payableId)
-      // Already shown 3 different days → permanently silent
       if (dates.length >= MAX_SHOW_DAYS) return false
-      // Already shown today → wait until tomorrow
       if (dates.includes(todayISO)) return false
-      // Green-light: record today and proceed
       saveRecord(payableId, [...dates, todayISO])
       return true
     }
-
-    /** How many show-days remain for badge display */
-    function daysRemaining(payableId: string): number {
-      return MAX_SHOW_DAYS - loadRecord(payableId).length
-    }
+    function daysRemaining(payableId: string): number { return MAX_SHOW_DAYS - loadRecord(payableId).length }
 
     const now = new Date()
-
     const timer = setTimeout(() => {
-      const unpaid = payables.filter(
-        p => p.paymentStatus !== "PAID" && p.amountOwing > 0 && p.expectedDate
-      )
-
-      // ── 1. Overdue POs ──────────────────────────────────────────────────────
-      unpaid
-        .filter(p => new Date(p.expectedDate!) < now)
-        .forEach(p => {
-          if (!shouldShow(p.id)) return
-
-          const daysLate = Math.floor(
-            (now.getTime() - new Date(p.expectedDate!).getTime()) / 86_400_000
-          )
-          const reminders = daysRemaining(p.id)   // already decremented above
-
-          toast.error(
-            `⚠ Overdue: ${p.poNumber} — ${p.supplierName}`,
-            {
-              description: `${fmt(p.amountOwing)} outstanding · ${daysLate} day${daysLate === 1 ? "" : "s"} overdue · ${reminders} reminder${reminders === 1 ? "" : "s"} left`,
-              duration:    Infinity,   // stays until manually closed
-              action: {
-                label:   "Pay Now",
-                onClick: () => { setSelectedPO(p); setDialogOpen(true) },
-              },
-            }
-          )
+      const unpaid = payables.filter(p => p.paymentStatus !== "PAID" && p.amountOwing > 0 && p.expectedDate)
+      unpaid.filter(p => new Date(p.expectedDate!) < now).forEach(p => {
+        if (!shouldShow(p.id)) return
+        const daysLate = Math.floor((now.getTime() - new Date(p.expectedDate!).getTime()) / 86_400_000)
+        const reminders = daysRemaining(p.id)
+        toast.error(`⚠ Overdue: ${p.poNumber} — ${p.supplierName}`, {
+          description: `${fmt(p.amountOwing)} outstanding · ${daysLate} day${daysLate === 1 ? "" : "s"} overdue · ${reminders} reminder${reminders === 1 ? "" : "s"} left`,
+          duration: Infinity,
+          action: { label: "Pay Now", onClick: () => { setSelectedPO(p); setDialogOpen(true) } },
         })
-
-      // ── 2. Due today ────────────────────────────────────────────────────────
-      unpaid
-        .filter(p => new Date(p.expectedDate!).toISOString().slice(0, 10) === todayISO)
-        .forEach(p => {
-          if (!shouldShow(p.id)) return
-
-          const reminders = daysRemaining(p.id)
-
-          toast.warning(
-            `📅 Payment due TODAY: ${p.poNumber} — ${p.supplierName}`,
-            {
-              description: `${fmt(p.amountOwing)} due today · ${reminders} reminder${reminders === 1 ? "" : "s"} left`,
-              duration:    Infinity,
-              action: {
-                label:   "Pay Now",
-                onClick: () => { setSelectedPO(p); setDialogOpen(true) },
-              },
-            }
-          )
+      })
+      unpaid.filter(p => new Date(p.expectedDate!).toISOString().slice(0, 10) === todayISO).forEach(p => {
+        if (!shouldShow(p.id)) return
+        const reminders = daysRemaining(p.id)
+        toast.warning(`📅 Payment due TODAY: ${p.poNumber} — ${p.supplierName}`, {
+          description: `${fmt(p.amountOwing)} due today · ${reminders} reminder${reminders === 1 ? "" : "s"} left`,
+          duration: Infinity,
+          action: { label: "Pay Now", onClick: () => { setSelectedPO(p); setDialogOpen(true) } },
         })
-
-      // ── 3. Due in the next 1–3 days ─────────────────────────────────────────
-      unpaid
-        .filter(p => {
-          const dueDate = new Date(p.expectedDate!)
-          const dueISO  = dueDate.toISOString().slice(0, 10)
-          const diff    = Math.ceil((dueDate.getTime() - now.getTime()) / 86_400_000)
-          return diff > 0 && diff <= 3 && dueISO !== todayISO
+      })
+      unpaid.filter(p => {
+        const dueDate = new Date(p.expectedDate!)
+        const dueISO = dueDate.toISOString().slice(0, 10)
+        const diff = Math.ceil((dueDate.getTime() - now.getTime()) / 86_400_000)
+        return diff > 0 && diff <= 3 && dueISO !== todayISO
+      }).forEach(p => {
+        if (!shouldShow(p.id)) return
+        const diff = Math.ceil((new Date(p.expectedDate!).getTime() - now.getTime()) / 86_400_000)
+        const reminders = daysRemaining(p.id)
+        toast.info(`🔔 Payment due in ${diff} day${diff === 1 ? "" : "s"}: ${p.poNumber} — ${p.supplierName}`, {
+          description: `${fmt(p.amountOwing)} due ${fmtDate(p.expectedDate)} · ${reminders} reminder${reminders === 1 ? "" : "s"} left`,
+          duration: 8000,
+          action: { label: "Pay Now", onClick: () => { setSelectedPO(p); setDialogOpen(true) } },
         })
-        .forEach(p => {
-          if (!shouldShow(p.id)) return
-
-          const diff      = Math.ceil((new Date(p.expectedDate!).getTime() - now.getTime()) / 86_400_000)
-          const reminders = daysRemaining(p.id)
-
-          toast.info(
-            `🔔 Payment due in ${diff} day${diff === 1 ? "" : "s"}: ${p.poNumber} — ${p.supplierName}`,
-            {
-              description: `${fmt(p.amountOwing)} due ${fmtDate(p.expectedDate)} · ${reminders} reminder${reminders === 1 ? "" : "s"} left`,
-              duration:    8000,
-              action: {
-                label:   "Pay Now",
-                onClick: () => { setSelectedPO(p); setDialogOpen(true) },
-              },
-            }
-          )
-        })
-
+      })
     }, 600)
-
     return () => clearTimeout(timer)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])   // intentionally runs once on mount only
+  }, [payables])
 
   const filtered = useMemo(() => payables.filter(p => {
     const q = search.toLowerCase()
-    const matchSearch =
-      p.supplierName.toLowerCase().includes(q) ||
-      p.poNumber.toLowerCase().includes(q)     ||
-      (p.supplierPhone ?? "").includes(q)
-    const isOverdue = p.expectedDate
-      ? new Date(p.expectedDate) < new Date() && p.amountOwing > 0
-      : false
-    const matchStatus =
-      statusFilter === "ALL"     ? true :
-      statusFilter === "OVERDUE" ? isOverdue :
-      p.paymentStatus === statusFilter
+    const matchSearch = p.supplierName.toLowerCase().includes(q) || p.poNumber.toLowerCase().includes(q) || (p.supplierPhone ?? "").includes(q)
+    const isOverdue = p.expectedDate ? new Date(p.expectedDate) < new Date() && p.amountOwing > 0 : false
+    const matchStatus = statusFilter === "ALL" ? true : statusFilter === "OVERDUE" ? isOverdue : p.paymentStatus === statusFilter
     return matchSearch && matchStatus
   }), [payables, search, statusFilter])
 
-  // Summary stats
   const totalOwing   = payables.reduce((s, p) => s + p.amountOwing, 0)
   const totalPaid    = payables.reduce((s, p) => s + p.amountPaid, 0)
   const totalInvoice = payables.reduce((s, p) => s + p.totalAmount, 0)
-  const overdueCount = payables.filter(p =>
-    p.expectedDate && new Date(p.expectedDate) < new Date() && p.amountOwing > 0
-  ).length
+  const overdueCount = payables.filter(p => p.expectedDate && new Date(p.expectedDate) < new Date() && p.amountOwing > 0).length
   const unpaidCount  = payables.filter(p => p.paymentStatus === "UNPAID").length
   const partialCount = payables.filter(p => p.paymentStatus === "PARTIAL").length
   const paidCount    = payables.filter(p => p.paymentStatus === "PAID").length
@@ -680,14 +551,14 @@ export default function SupplierPaymentTracker({
   }
 
   const handlePaid = () => {
-    // Trigger a soft re-render key to re-filter; actual data refresh comes from revalidatePath
+    // Force a fresh fetch of all server data
+    router.refresh()
+    // Also bump local key to re-render (optional)
     setRefreshKey(k => k + 1)
   }
 
   return (
     <div className="space-y-4">
-
-      {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {[
           { label: "Total Invoiced",  value: fmt(totalInvoice), color: "text-foreground" },
@@ -703,33 +574,20 @@ export default function SupplierPaymentTracker({
         ))}
       </div>
 
-      {/* Status pill counts */}
       <div className="flex gap-2 flex-wrap">
         <Badge className="bg-red-50 text-red-700 border-red-200">{unpaidCount} Unpaid</Badge>
         <Badge className="bg-blue-50 text-blue-700 border-blue-200">{partialCount} Partial</Badge>
         <Badge className="bg-green-50 text-green-700 border-green-200">{paidCount} Paid</Badge>
-        {overdueCount > 0 && (
-          <Badge className="bg-orange-50 text-orange-700 border-orange-200">
-            <AlertCircle className="w-3 h-3 mr-1" />{overdueCount} Overdue
-          </Badge>
-        )}
+        {overdueCount > 0 && <Badge className="bg-orange-50 text-orange-700 border-orange-200"><AlertCircle className="w-3 h-3 mr-1" />{overdueCount} Overdue</Badge>}
       </div>
 
-      {/* Toolbar */}
       <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search supplier, PO…"
-            className="pl-8"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
+          <Input placeholder="Search supplier, PO…" className="pl-8" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Filter status" />
-          </SelectTrigger>
+          <SelectTrigger className="w-40"><SelectValue placeholder="Filter status" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">All Status</SelectItem>
             <SelectItem value="UNPAID">Unpaid</SelectItem>
@@ -738,72 +596,43 @@ export default function SupplierPaymentTracker({
             <SelectItem value="OVERDUE">Overdue</SelectItem>
           </SelectContent>
         </Select>
-        <span className="text-sm text-muted-foreground ml-auto">
-          {filtered.length} of {payables.length} POs
-        </span>
+        <span className="text-sm text-muted-foreground ml-auto">{filtered.length} of {payables.length} POs</span>
       </div>
 
-      {/* Payables table */}
       <Card>
         <ScrollArea className="max-h-[620px]">
           <Table key={refreshKey}>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-8" />
-                <TableHead>Supplier</TableHead>
-                <TableHead>PO #</TableHead>
-                <TableHead className="text-right">PO Total</TableHead>
-                <TableHead className="text-right">Paid</TableHead>
-                <TableHead className="text-right">Owing</TableHead>
-                <TableHead className="w-28">Progress</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Due Date</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead className="w-8" /><TableHead>Supplier</TableHead><TableHead>PO #</TableHead>
+                <TableHead className="text-right">PO Total</TableHead><TableHead className="text-right">Paid</TableHead>
+                <TableHead className="text-right">Owing</TableHead><TableHead className="w-28">Progress</TableHead>
+                <TableHead>Status</TableHead><TableHead>Due Date</TableHead><TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
-                    {payables.length === 0
-                      ? "No payables found — all supplier invoices are settled 🎉"
-                      : "No results match your search or filter."}
-                  </TableCell>
-                </TableRow>
+                <TableRow><TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
+                  {payables.length === 0 ? "No payables found — all supplier invoices are settled 🎉" : "No results match your search or filter."}
+                </TableCell></TableRow>
               )}
               {filtered.map(payable => (
-                <PayableRow
-                  key={payable.id}
-                  payable={payable}
-                  onPayNow={handlePayNow}
-                />
+                <PayableRow key={payable.id} payable={payable} onPayNow={handlePayNow} />
               ))}
             </TableBody>
           </Table>
         </ScrollArea>
-
-        {/* Footer totals */}
         <div className="border-t px-4 py-3 flex flex-wrap gap-4 text-sm bg-muted/20">
-          <span className="text-muted-foreground">
-            Showing <strong>{filtered.length}</strong> of <strong>{payables.length}</strong> payables
-          </span>
-          <span className="font-semibold text-red-600 ml-auto">
-            Outstanding: {fmt(filtered.reduce((s, p) => s + p.amountOwing, 0))}
-          </span>
-          <span className="font-semibold text-green-600">
-            Paid: {fmt(filtered.reduce((s, p) => s + p.amountPaid, 0))}
-          </span>
+          <span className="text-muted-foreground">Showing <strong>{filtered.length}</strong> of <strong>{payables.length}</strong> payables</span>
+          <span className="font-semibold text-red-600 ml-auto">Outstanding: {fmt(filtered.reduce((s, p) => s + p.amountOwing, 0))}</span>
+          <span className="font-semibold text-green-600">Paid: {fmt(filtered.reduce((s, p) => s + p.amountPaid, 0))}</span>
         </div>
       </Card>
 
-      {/* Pay Now dialog */}
       <PayNowDialog
         payable={selectedPO}
         open={dialogOpen}
-        onClose={() => {
-          setDialogOpen(false)
-          setSelectedPO(null)
-        }}
+        onClose={() => { setDialogOpen(false); setSelectedPO(null) }}
         onPaid={handlePaid}
       />
     </div>

@@ -32,7 +32,8 @@ export interface LineItem {
   lineTotal: Decimal | number;
   locationId?: string;
   locationName?: string;
-  currentSellingPrice?: number; // fetched from DB
+  currentSellingPrice?: number;
+  receivedQuantity?: number;   // <-- ADDED – fixes TypeScript error
 }
 
 interface DeliveryLocation {
@@ -95,7 +96,6 @@ export default function LineItemsManager({
             const data = await res.json();
             const oldCost = data.costPrice;
             const oldSelling = data.sellingPrice;
-            // Suggested = newCost * (oldSelling / oldCost) if oldCost > 0, else newCost * 1.25
             const factor = oldCost > 0 ? oldSelling / oldCost : 1.25;
             const suggested = sellingPriceDialog.newCost * factor;
             setSellingPriceDialog((prev) =>
@@ -161,6 +161,7 @@ export default function LineItemsManager({
         locationId: loc?.id ?? "",
         locationName: loc?.name ?? "",
         currentSellingPrice: undefined,
+        receivedQuantity: 0,   // initialise to 0
       },
     ]);
   };
@@ -199,13 +200,11 @@ export default function LineItemsManager({
       );
     }
 
-    // Fetch current selling price
     const sellingPrice = await fetchItemSellingPrice(item.id);
     if (sellingPrice !== null) {
       updated[index].currentSellingPrice = sellingPrice;
     }
 
-    // Auto‑assign location
     if (!updated[index].locationId) {
       try {
         const prefLocRes = await fetch(`/api/items/preferred-location?itemId=${item.id}`);
@@ -265,7 +264,6 @@ export default function LineItemsManager({
   const calculateTotal = () => localItems.reduce((sum, item) => sum + toNumber(item.lineTotal), 0);
   const unassignedCount = localItems.filter((i) => !i.locationId).length;
 
-  // Clickable SellingPriceHint component
   const SellingPriceHint = ({
     cost,
     selling,
@@ -291,9 +289,9 @@ export default function LineItemsManager({
         itemId,
         itemName,
         currentCost: cost,
-        newCost: cost, // cost as currently set in the row
+        newCost: cost,
         oldSelling: selling,
-        suggestedSelling: selling, // will be updated by the useEffect
+        suggestedSelling: selling,
       });
     };
 
@@ -335,7 +333,6 @@ export default function LineItemsManager({
           </Button>
         </CardTitle>
 
-        {/* Bulk location setter */}
         {localItems.length > 0 && locations.length > 0 && (
           <div className="mt-3 flex items-center gap-2 p-3 rounded-lg border border-dashed border-primary/40 bg-primary/5">
             <MapPin className="h-4 w-4 text-primary shrink-0" />
@@ -594,7 +591,6 @@ export default function LineItemsManager({
         )}
       </CardContent>
 
-      {/* Selling Price Adjustment Dialog */}
       <Dialog
         open={sellingPriceDialog?.open ?? false}
         onOpenChange={(open) => !open && setSellingPriceDialog(null)}

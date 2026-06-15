@@ -1,4 +1,3 @@
-// actions/supplier-payables.ts
 "use server"
 
 import { db }                   from "@/prisma/db"
@@ -120,7 +119,6 @@ export interface APCsvRow {
 }
 
 // ── Internal typed shape returned by findMany queries ────────────────────────
-// These mirror exactly what Prisma returns after the migration + generate.
 
 type POWithRelations = {
   id:                   string
@@ -134,11 +132,9 @@ type POWithRelations = {
   notes:                string | null
   expectedDeliveryDate: Date | null
   createdAt:            Date
-  // NEW fields — present after migration
   amountPaid:           number
   amountOwing:          number
   paymentStatus:        string
-  // Relations
   supplier: {
     id:    string
     name:  string
@@ -189,7 +185,6 @@ function resolvePaymentStatus(owing: number, paid: number): "UNPAID" | "PARTIAL"
 }
 
 // ── Shared Prisma include shape ───────────────────────────────────────────────
-// Written as a plain object so we get type inference on results.
 
 const PO_AP_INCLUDE = {
   supplier: {
@@ -217,7 +212,6 @@ export async function recordSupplierPayment(input: {
     const user = await getAuthenticatedUser()
     if (!user?.orgId) return { success: false, error: "Not authenticated" }
 
-    // Fetch PO with new fields — cast result since Prisma types update after generate
     const poRaw = await db.purchaseOrder.findUnique({
       where:   { id: input.purchaseOrderId, orgId: user.orgId },
       include: PO_AP_INCLUDE,
@@ -233,12 +227,11 @@ export async function recordSupplierPayment(input: {
       return { success: false, error: `Cannot pay more than outstanding balance (${maxOwing.toFixed(2)})` }
     }
 
-    const dbClient = db as any   // supplierPayment model — added after migration
+    const dbClient = db as any
 
     const payment = await db.$transaction(async (tx) => {
       const txClient = tx as any
 
-      // Create the SupplierPayment row
       const pmt = await txClient.supplierPayment.create({
         data: {
           purchaseOrderId: input.purchaseOrderId,
@@ -252,7 +245,6 @@ export async function recordSupplierPayment(input: {
         },
       })
 
-      // Update running totals on PO
       const newPaid   = paidSoFar + input.amount
       const newOwing  = Math.max(0, poTotal - newPaid)
       const newStatus = resolvePaymentStatus(newOwing, newPaid)
@@ -263,7 +255,7 @@ export async function recordSupplierPayment(input: {
           amountPaid:    newPaid,
           amountOwing:   newOwing,
           paymentStatus: newStatus,
-        } as any,    // paymentStatus field — added after migration
+        } as any,
       })
 
       return pmt
@@ -271,6 +263,7 @@ export async function recordSupplierPayment(input: {
 
     revalidatePath("/dashboard/purchases/payables")
     revalidatePath("/dashboard/purchases/purchase-orders")
+    revalidatePath("/dashboard/purchases/overview")
     revalidatePath("/dashboard")
 
     return { success: true, data: payment }
@@ -294,13 +287,13 @@ export async function getSupplierPayables(): Promise<{
     const rawPOs = await db.purchaseOrder.findMany({
       where: {
         orgId:  user.orgId,
-        status: { in: ["RECEIVED", "PARTIALLY_RECEIVED", "COMPLETED"] },
+        // ✅ Include SUBMITTED status so that POs sent to suppliers (or auto‑promoted from DRAFT when PAID) appear
+        status: { in: ["SUBMITTED", "RECEIVED", "PARTIALLY_RECEIVED", "COMPLETED"] },
       },
       include: PO_AP_INCLUDE,
       orderBy: { createdAt: "desc" },
     })
 
-    // Cast to our typed shape — safe once prisma generate has run
     const pos = rawPOs as unknown as POWithRelations[]
 
     const payables: SupplierPayable[] = pos.map(po => {
@@ -361,7 +354,7 @@ export async function getAPLedger(): Promise<{
     const rawPOs = await db.purchaseOrder.findMany({
       where: {
         orgId:  user.orgId,
-        status: { in: ["RECEIVED", "PARTIALLY_RECEIVED", "COMPLETED", "CANCELLED"] },
+        status: { in: ["SUBMITTED", "RECEIVED", "PARTIALLY_RECEIVED", "COMPLETED", "CANCELLED"] },
       },
       include: PO_AP_INCLUDE,
       orderBy: { createdAt: "desc" },
@@ -376,7 +369,6 @@ export async function getAPLedger(): Promise<{
       const paidSum = po.payments.reduce((s, p) => s + Number(p.amount), 0)
       const owing   = computeOwing({ ...po, amountPaid: paidSum, amountOwing: Math.max(0, poTotal - paidSum) })
 
-      // One "GOODS_RECEIVED" entry per goods receipt
       const receipts = po.goodsReceipts
       if (receipts.length > 0) {
         for (const gr of receipts) {
@@ -424,7 +416,6 @@ export async function getAPLedger(): Promise<{
         })
       }
 
-      // One "PAYMENT_MADE" entry per payment
       for (const pmt of po.payments) {
         entries.push({
           id:            `pmt-${pmt.id}`,
@@ -451,7 +442,6 @@ export async function getAPLedger(): Promise<{
 
     entries.sort((a, b) => b.rawDate.getTime() - a.rawDate.getTime())
 
-    // Summary
     const active    = pos.filter(p => p.status !== "CANCELLED")
     const cancelled = pos.filter(p => p.status === "CANCELLED")
 

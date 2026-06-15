@@ -1,8 +1,8 @@
 "use client"
 
 import { Badge } from "@/components/ui/badge"
-import { formatCurrency, formatDate } from "../po-utils"
 import { FileText } from "lucide-react"
+import { formatCurrency, formatDate } from "../po-utils"
 
 interface PurchaseOrderCardProps {
   purchaseOrder: any
@@ -51,7 +51,15 @@ export default function PurchaseOrderCard({ purchaseOrder, isSelected, onClick }
 
       <div className="flex items-center justify-between gap-2 mb-3">
         <span className="text-xs text-slate-500">{formatDate(purchaseOrder.orderDate)}</span>
-        <Badge className={`${statusColor.badge} text-xs font-medium px-2 py-1`}>{statusLabel}</Badge>
+        <div className="flex items-center gap-2">
+          <Badge className={`${statusColor.badge} text-xs font-medium px-2 py-1`}>{statusLabel}</Badge>
+          {purchaseOrder.paymentStatus === "PAID" && (
+            <Badge className="bg-green-100 text-green-700 text-xs px-2 py-1">✓ Paid</Badge>
+          )}
+          {purchaseOrder.paymentStatus === "PARTIAL" && (
+            <Badge className="bg-amber-100 text-amber-700 text-xs px-2 py-1">Partial Payment</Badge>
+          )}
+        </div>
       </div>
 
       <div className="pt-2 border-t border-slate-200">

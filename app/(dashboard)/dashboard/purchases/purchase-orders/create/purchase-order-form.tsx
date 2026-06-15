@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import LineItemsManager, { type LineItem } from "./line-items-manager";
 import {
   Select,
@@ -25,12 +26,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createPurchaseOrder, updatePurchaseOrder, sendPOToSupplier } from "@/actions/purchase-order";
+import { createPurchaseOrder, updatePurchaseOrder, sendPOToSupplier, getPurchaseOrderById } from "@/actions/purchase-order";
 import { createGoodsReceipt } from "@/actions/goods-receipt";
 import { updateItemCostAndPrice } from "@/actions/items";
 import { formatCurrency } from "../po-utils";
 import ReceiptScanner, { ScannedPOData } from "./receipt-scanner";
-import { Send, Mail, MessageCircle, SendHorizonal } from "lucide-react";
+import { Send, Mail, MessageCircle, SendHorizonal, PackageCheck } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -91,6 +92,15 @@ interface PriceUpdateItem {
   suggestedSelling: number;
 }
 
+interface ReceiveItem {
+  lineId: string;        // temporary id or real id
+  itemId: string;
+  itemName: string;
+  quantity: number;      // ordered quantity
+  receiveNow: number;    // quantity to receive now
+  locationId: string;
+}
+
 // ── Component ──────────────────────────────────────────────────────────────────
 
 export default function PurchaseOrderForm({
@@ -122,11 +132,25 @@ export default function PurchaseOrderForm({
   const [autoReceiveGoods, setAutoReceiveGoods] = useState(false);
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
   const [sending, setSending] = useState(false);
+  const [activeTab, setActiveTab] = useState<"order" | "receive">("order");
+
+  // Receive quantities state (lineId -> receiveNow)
+  const [receiveQuantities, setReceiveQuantities] = useState<Record<string, number>>({});
 
   // Price update queue
   const [priceUpdateQueue, setPriceUpdateQueue] = useState<PriceUpdateItem[]>([]);
   const [currentPriceUpdate, setCurrentPriceUpdate] = useState<PriceUpdateItem | null>(null);
   const [priceModalOpen, setPriceModalOpen] = useState(false);
+
+  // When lineItems change, reset receive quantities
+  useEffect(() => {
+    const newQuantities: Record<string, number> = {};
+    lineItems.forEach((item) => {
+      const existing = receiveQuantities[item.id || item.itemId];
+      newQuantities[item.id || item.itemId] = existing !== undefined ? existing : 0;
+    });
+    setReceiveQuantities(newQuantities);
+  }, [lineItems]);
 
   // Helper: fetch current item prices
   const fetchItemPrices = async (itemId: string) => {
@@ -292,7 +316,19 @@ export default function PurchaseOrderForm({
     return subtotal + (parseFloat(formData.shippingCost) || 0);
   };
 
-  // Submit handler with auto‑receive goods
+  // Update receive quantity for a line
+  const updateReceiveQuantity = (lineId: string, value: number) => {
+    const line = lineItems.find(l => (l.id || l.itemId) === lineId);
+    if (!line) return;
+    const max = line.quantity;
+    const newValue = Math.min(Math.max(0, value), max);
+    setReceiveQuantities(prev => ({ ...prev, [lineId]: newValue }));
+  };
+
+  // Check if any item will be received
+  const hasItemsToReceive = Object.values(receiveQuantities).some(q => q > 0);
+
+  // Submit handler with immediate receive
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -338,9 +374,18 @@ export default function PurchaseOrderForm({
         formData.paymentStatus === "PAID"
           ? totalAmount
           : formData.paymentStatus === "PARTIAL"
-          ? totalAmount * 0.5 // example – you can customise
+          ? totalAmount * 0.5
           : 0;
       const owingAmount = totalAmount - paidAmount;
+
+      const serverLineItems = itemsWithLocation.map((item) => ({
+        id: item.id && !item.id.startsWith("scanned-") ? item.id : undefined,
+        itemId: item.itemId,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        taxRate: item.taxRate,
+        locationId: item.locationId,
+      }));
 
       const data = {
         poNumber: formData.poNumber,
@@ -356,42 +401,99 @@ export default function PurchaseOrderForm({
         paymentStatus: formData.paymentStatus,
         amountPaid: paidAmount,
         amountOwing: owingAmount,
-        lineItems: itemsWithLocation.map((item) => ({
-          itemId: item.itemId,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          taxRate: item.taxRate,
-          locationId: item.locationId,
-        })),
+        lineItems: serverLineItems,
       };
 
       let result;
       if (initialData?.id) {
         result = await updatePurchaseOrder(initialData.id, data);
-        toast.success("Purchase Order updated successfully");
+        if (result.success) {
+          toast.success("Purchase Order updated successfully");
+        } else {
+          throw new Error(result.error || "Update failed");
+        }
       } else {
         result = await createPurchaseOrder(data);
-        toast.success("Purchase Order created successfully");
+        if (result.success) {
+          toast.success("Purchase Order created successfully");
+        } else {
+          throw new Error(result.error || "Creation failed");
+        }
       }
 
-      // Auto‑receive goods if checkbox is ticked and we have a PO id
-      if (autoReceiveGoods && result.success && result.data?.id) {
-        const locationId = itemsWithLocation[0]?.locationId || formData.deliveryLocationId;
-        const grResult = await createGoodsReceipt({
-          purchaseOrderId: result.data.id,
-          locationId: locationId,
-          notes: `Auto‑generated from credit purchase (${formData.paymentStatus})`,
-          items: itemsWithLocation.map((item) => ({
-            purchaseOrderLineId: item.id, // note: this requires line IDs from the created PO – you may need to fetch after creation
-            itemId: item.itemId,
-            receivedQuantity: item.quantity,
-            notes: "",
-          })),
-        });
-        if (grResult.success) {
-          toast.success("Stock updated for received goods");
-        } else {
-          toast.warning("PO saved but stock update failed: " + grResult.error);
+      // Handle immediate receiving (if any quantities entered in Receive tab)
+      if (result.success && result.data?.id && hasItemsToReceive) {
+        const freshPO = await getPurchaseOrderById(result.data.id);
+        if (freshPO && freshPO.lines.length > 0) {
+          const lineIdMap = new Map();
+          freshPO.lines.forEach((line: any) => {
+            // map by itemId (assuming unique item per line)
+            lineIdMap.set(line.itemId, line.id);
+          });
+
+          // Build receipt items from receiveQuantities
+          const receiptItems: any[] = [];
+          for (const line of lineItems) {
+            const key = line.id || line.itemId;
+            const receiveNow = receiveQuantities[key] || 0;
+            if (receiveNow <= 0) continue;
+            const realLineId = lineIdMap.get(line.itemId);
+            if (!realLineId) {
+              console.warn(`Could not find line id for item ${line.itemId}`);
+              continue;
+            }
+            receiptItems.push({
+              purchaseOrderLineId: realLineId,
+              itemId: line.itemId,
+              receivedQuantity: receiveNow,
+              notes: "",
+            });
+          }
+
+          if (receiptItems.length > 0) {
+            const locationId = itemsWithLocation[0]?.locationId || formData.deliveryLocationId;
+            const grResult = await createGoodsReceipt({
+              purchaseOrderId: result.data.id,
+              locationId: locationId,
+              notes: `Immediate receipt from ${formData.paymentStatus === "UNPAID" ? "credit" : "paid"} purchase`,
+              items: receiptItems,
+            });
+            if (grResult.success) {
+              toast.success(`Received ${receiptItems.length} item(s) – stock updated`);
+            } else {
+              toast.warning("PO saved but stock update failed: " + grResult.error);
+            }
+          }
+        }
+      } else if (autoReceiveGoods && result.success && result.data?.id) {
+        // Legacy auto-receive all items (full quantity)
+        const freshPO = await getPurchaseOrderById(result.data.id);
+        if (freshPO && freshPO.lines.length > 0) {
+          const lineIdMap = new Map();
+          freshPO.lines.forEach((line: any) => lineIdMap.set(line.itemId, line.id));
+          const receiptItems = lineItems
+            .filter(item => item.quantity > 0)
+            .map((item) => {
+              const realLineId = lineIdMap.get(item.itemId);
+              if (!realLineId) return null;
+              return {
+                purchaseOrderLineId: realLineId,
+                itemId: item.itemId,
+                receivedQuantity: item.quantity,
+                notes: "",
+              };
+            })
+            .filter(Boolean) as any[];
+          if (receiptItems.length > 0) {
+            const locationId = itemsWithLocation[0]?.locationId || formData.deliveryLocationId;
+            await createGoodsReceipt({
+              purchaseOrderId: result.data.id,
+              locationId: locationId,
+              notes: `Auto‑generated from ${formData.paymentStatus === "UNPAID" ? "credit" : "paid"} purchase`,
+              items: receiptItems,
+            });
+            toast.success("All goods received – stock updated");
+          }
         }
       }
 
@@ -457,182 +559,250 @@ export default function PurchaseOrderForm({
             <p className="text-xs text-muted-foreground">
               Fill manually, or use{" "}
               <span className="font-medium text-emerald-600">Scan Receipt / Invoice</span>{" "}
-              to auto-fill from a photo or pasted text.
+              to auto-fill.
             </p>
           </CardHeader>
 
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* PO Number */}
-              <div className="space-y-2">
-                <Label htmlFor="poNumber">PO Number</Label>
-                <Input
-                  id="poNumber" name="poNumber"
-                  value={formData.poNumber}
-                  onChange={handleInputChange}
-                  placeholder="PO-00001"
-                  disabled
-                  className="bg-muted"
-                />
-              </div>
+          <CardContent>
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-4">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="order">Order Details</TabsTrigger>
+                <TabsTrigger value="receive" className="gap-2">
+                  <PackageCheck className="h-4 w-4" />
+                  Receive Items {hasItemsToReceive && `(${Object.values(receiveQuantities).reduce((a,b)=>a+b,0)} qty)`}
+                </TabsTrigger>
+              </TabsList>
 
-              {/* Supplier */}
-              <div className="space-y-2">
-                <Label htmlFor="supplierId">Supplier *</Label>
-                <Select
-                  value={formData.supplierId}
-                  onValueChange={v => handleSelectChange("supplierId", v)}
+              {/* Order Details Tab */}
+              <TabsContent value="order" className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* PO Number */}
+                  <div className="space-y-2">
+                    <Label htmlFor="poNumber">PO Number</Label>
+                    <Input
+                      id="poNumber" name="poNumber"
+                      value={formData.poNumber}
+                      onChange={handleInputChange}
+                      disabled
+                      className="bg-muted"
+                    />
+                  </div>
+
+                  {/* Supplier */}
+                  <div className="space-y-2">
+                    <Label htmlFor="supplierId">Supplier *</Label>
+                    <Select
+                      value={formData.supplierId}
+                      onValueChange={v => handleSelectChange("supplierId", v)}
+                      disabled={isSubmitting || isLoading}
+                    >
+                      <SelectTrigger id="supplierId">
+                        <SelectValue placeholder="Select supplier…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <div className="p-2 border-b sticky top-0 bg-background z-50">
+                          <Input
+                            placeholder="Search suppliers…"
+                            value={supplierSearch}
+                            onChange={e => setSupplierSearch(e.target.value)}
+                            onClick={e => e.stopPropagation()}
+                            className="h-8"
+                          />
+                        </div>
+                        {suppliers
+                          .filter(s => s.name.toLowerCase().includes(supplierSearch.toLowerCase()))
+                          .map(s => (
+                            <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                          ))}
+                        {suppliers.filter(s =>
+                          s.name.toLowerCase().includes(supplierSearch.toLowerCase())
+                        ).length === 0 && (
+                          <div className="p-4 text-center text-sm text-muted-foreground">No suppliers found</div>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Default Delivery Location */}
+                  <div className="space-y-2">
+                    <Label htmlFor="deliveryLocationId">Default Delivery Location</Label>
+                    <Select
+                      value={formData.deliveryLocationId || "__none__"}
+                      onValueChange={v => handleSelectChange("deliveryLocationId", v === "__none__" ? "" : v)}
+                      disabled={isSubmitting || isLoading}
+                    >
+                      <SelectTrigger id="deliveryLocationId">
+                        <SelectValue placeholder="Select default location…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">— None (set per line item) —</SelectItem>
+                        {deliveryLocations.map(l => (
+                          <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      You can override per line item or use "Apply to all".
+                    </p>
+                  </div>
+
+                  {/* Order Date */}
+                  <div className="space-y-2">
+                    <Label htmlFor="orderDate">Order Date</Label>
+                    <Input
+                      id="orderDate" name="orderDate" type="date"
+                      value={formData.orderDate}
+                      onChange={handleInputChange}
+                      disabled={isSubmitting || isLoading}
+                    />
+                  </div>
+
+                  {/* Expected Delivery Date */}
+                  <div className="space-y-2">
+                    <Label htmlFor="expectedDeliveryDate">Expected Delivery Date</Label>
+                    <Input
+                      id="expectedDeliveryDate" name="expectedDeliveryDate" type="date"
+                      value={formData.expectedDeliveryDate}
+                      onChange={handleInputChange}
+                      disabled={isSubmitting || isLoading}
+                    />
+                  </div>
+
+                  {/* Payment Status */}
+                  <div className="space-y-2">
+                    <Label htmlFor="paymentStatus">Payment Status</Label>
+                    <Select
+                      value={formData.paymentStatus}
+                      onValueChange={(v) => handleSelectChange("paymentStatus", v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select payment status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="UNPAID">Unpaid (Credit)</SelectItem>
+                        <SelectItem value="PARTIAL">Partially Paid</SelectItem>
+                        <SelectItem value="PAID">Paid</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Delivery Address */}
+                <div className="space-y-2">
+                  <Label htmlFor="deliveryAddress">Delivery Address</Label>
+                  <Textarea
+                    id="deliveryAddress" name="deliveryAddress"
+                    value={formData.deliveryAddress}
+                    onChange={handleInputChange}
+                    placeholder="Enter delivery address…"
+                    disabled={isSubmitting || isLoading}
+                    rows={3}
+                  />
+                </div>
+
+                {/* Notes */}
+                <div className="space-y-2">
+                  <Label htmlFor="notes">Notes</Label>
+                  <Textarea
+                    id="notes" name="notes"
+                    value={formData.notes}
+                    onChange={handleInputChange}
+                    placeholder="Add any additional notes…"
+                    disabled={isSubmitting || isLoading}
+                    rows={2}
+                  />
+                </div>
+
+                {/* Auto‑receive goods checkbox */}
+                <div className="flex items-center space-x-2 pt-2">
+                  <Checkbox
+                    id="autoReceive"
+                    checked={autoReceiveGoods}
+                    onCheckedChange={(checked) => setAutoReceiveGoods(!!checked)}
+                  />
+                  <Label htmlFor="autoReceive" className="cursor-pointer">
+                    Receive ALL goods immediately (full quantity)
+                  </Label>
+                </div>
+
+                {/* Line Items Manager */}
+                <LineItemsManager
+                  lineItems={lineItems}
+                  onLineItemsChange={setLineItems}
+                  availableItems={items}
+                  locations={deliveryLocations}
                   disabled={isSubmitting || isLoading}
-                >
-                  <SelectTrigger id="supplierId">
-                    <SelectValue placeholder="Select supplier…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <div className="p-2 border-b sticky top-0 bg-background z-50">
-                      <Input
-                        placeholder="Search suppliers…"
-                        value={supplierSearch}
-                        onChange={e => setSupplierSearch(e.target.value)}
-                        onClick={e => e.stopPropagation()}
-                        className="h-8"
-                      />
+                />
+              </TabsContent>
+
+              {/* Receive Items Tab */}
+              <TabsContent value="receive" className="space-y-4">
+                {lineItems.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No line items added yet. Go to Order Details to add items.
+                  </div>
+                ) : (
+                  <>
+                    <div className="rounded-lg border overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted/50">
+                          <tr>
+                            <th className="px-4 py-3 text-left">Item</th>
+                            <th className="px-4 py-3 text-center">Ordered</th>
+                            <th className="px-4 py-3 text-center">Previously Received</th>
+                            <th className="px-4 py-3 text-center">Receive Now</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {lineItems.map((item) => {
+                            const key = item.id || item.itemId;
+                            const receiveNow = receiveQuantities[key] || 0;
+                            const alreadyReceived = item.receivedQuantity || 0;
+                            const remaining = item.quantity - alreadyReceived;
+                            return (
+                              <tr key={key} className="border-t">
+                                <td className="px-4 py-3">
+                                  <p className="font-medium">{item.itemName}</p>
+                                  <p className="text-xs text-muted-foreground">{item.itemSku}</p>
+                                </td>
+                                <td className="px-4 py-3 text-center font-semibold">{item.quantity}</td>
+                                <td className="px-4 py-3 text-center text-amber-600">{alreadyReceived}</td>
+                                <td className="px-4 py-3 text-center">
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    max={remaining}
+                                    value={receiveNow}
+                                    onChange={(e) => updateReceiveQuantity(key, parseInt(e.target.value) || 0)}
+                                    className="w-24 mx-auto text-center"
+                                    disabled={isSubmitting}
+                                  />
+                                  <p className="text-xs text-muted-foreground mt-1">Max {remaining}</p>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     </div>
-                    {suppliers
-                      .filter(s => s.name.toLowerCase().includes(supplierSearch.toLowerCase()))
-                      .map(s => (
-                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                      ))}
-                    {suppliers.filter(s =>
-                      s.name.toLowerCase().includes(supplierSearch.toLowerCase())
-                    ).length === 0 && (
-                      <div className="p-4 text-center text-sm text-muted-foreground">No suppliers found</div>
+
+                    {hasItemsToReceive && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <p className="text-sm text-blue-800">
+                          <PackageCheck className="inline h-4 w-4 mr-1" />
+                          You will receive {Object.values(receiveQuantities).reduce((a,b)=>a+b,0)} item(s) immediately.
+                          Stock will be updated and PO status will change to "Partially Received" or "Received".
+                        </p>
+                      </div>
                     )}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Default Delivery Location */}
-              <div className="space-y-2">
-                <Label htmlFor="deliveryLocationId">
-                  Default Delivery Location
-                  <span className="ml-1 text-xs text-muted-foreground font-normal">
-                    (applied to line items with no location set)
-                  </span>
-                </Label>
-                <Select
-                  value={formData.deliveryLocationId || "__none__"}
-                  onValueChange={v => handleSelectChange("deliveryLocationId", v === "__none__" ? "" : v)}
-                  disabled={isSubmitting || isLoading}
-                >
-                  <SelectTrigger id="deliveryLocationId">
-                    <SelectValue placeholder="Select default location…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">— None (set per line item) —</SelectItem>
-                    {deliveryLocations.map(l => (
-                      <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  You can also override the location per line item below, or use "Apply to all".
-                </p>
-              </div>
-
-              {/* Order Date */}
-              <div className="space-y-2">
-                <Label htmlFor="orderDate">Order Date</Label>
-                <Input
-                  id="orderDate" name="orderDate" type="date"
-                  value={formData.orderDate}
-                  onChange={handleInputChange}
-                  disabled={isSubmitting || isLoading}
-                />
-              </div>
-
-              {/* Expected Delivery Date */}
-              <div className="space-y-2">
-                <Label htmlFor="expectedDeliveryDate">Expected Delivery Date</Label>
-                <Input
-                  id="expectedDeliveryDate" name="expectedDeliveryDate" type="date"
-                  value={formData.expectedDeliveryDate}
-                  onChange={handleInputChange}
-                  disabled={isSubmitting || isLoading}
-                />
-              </div>
-
-              {/* Payment Status (NEW) */}
-              <div className="space-y-2">
-                <Label htmlFor="paymentStatus">Payment Status</Label>
-                <Select
-                  value={formData.paymentStatus}
-                  onValueChange={(v) => handleSelectChange("paymentStatus", v)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select payment status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="UNPAID">Unpaid (Credit)</SelectItem>
-                    <SelectItem value="PARTIAL">Partially Paid</SelectItem>
-                    <SelectItem value="PAID">Paid</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  Select "Unpaid" if goods are taken on credit. Stock will be updated immediately if you tick "Receive goods immediately".
-                </p>
-              </div>
-            </div>
-
-            {/* Delivery Address */}
-            <div className="space-y-2">
-              <Label htmlFor="deliveryAddress">Delivery Address</Label>
-              <Textarea
-                id="deliveryAddress" name="deliveryAddress"
-                value={formData.deliveryAddress}
-                onChange={handleInputChange}
-                placeholder="Enter delivery address…"
-                disabled={isSubmitting || isLoading}
-                rows={3}
-              />
-            </div>
-
-            {/* Notes */}
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notes</Label>
-              <Textarea
-                id="notes" name="notes"
-                value={formData.notes}
-                onChange={handleInputChange}
-                placeholder="Add any additional notes…"
-                disabled={isSubmitting || isLoading}
-                rows={2}
-              />
-            </div>
-
-            {/* Auto‑receive goods checkbox */}
-            <div className="flex items-center space-x-2 pt-2">
-              <Checkbox
-                id="autoReceive"
-                checked={autoReceiveGoods}
-                onCheckedChange={(checked) => setAutoReceiveGoods(!!checked)}
-              />
-              <Label htmlFor="autoReceive" className="cursor-pointer">
-                Receive goods immediately (update stock)
-              </Label>
-            </div>
+                  </>
+                )}
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
 
-        {/* Line Items */}
-        <LineItemsManager
-          lineItems={lineItems}
-          onLineItemsChange={setLineItems}
-          availableItems={items}
-          locations={deliveryLocations}
-          disabled={isSubmitting || isLoading}
-        />
-
-        {/* Additional Info */}
+        {/* Additional Info (outside tabs) */}
         <Card>
           <CardHeader><CardTitle>Additional Information</CardTitle></CardHeader>
           <CardContent className="space-y-4">
@@ -734,13 +904,6 @@ export default function PurchaseOrderForm({
                   {formatCurrency(currentPriceUpdate?.suggestedSelling || 0)}
                 </span>
               </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                Based on your previous margin (
-                {currentPriceUpdate?.oldCost && currentPriceUpdate?.oldSelling
-                  ? ((currentPriceUpdate.oldSelling / currentPriceUpdate.oldCost) * 100).toFixed(0)
-                  : "125"}
-                %).
-              </p>
             </div>
           </div>
           <DialogFooter className="gap-2">

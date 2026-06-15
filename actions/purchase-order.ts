@@ -1,4 +1,3 @@
-// FILE: actions/purchase-order.ts
 "use server"
 
 import { db } from "@/prisma/db"
@@ -8,18 +7,19 @@ import { revalidatePath } from "next/cache"
 import { Resend } from "resend"
 import PurchaseOrderEmail, { PurchaseOrderEmailProps } from "@/components/email-templates/purchase-order-email"
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
 interface CreatePOLineItem {
+  id?: string
   itemId: string
   quantity: number
   unitPrice: string | number
   taxRate: number
-  locationId?: string   // per‑line location (optional, used by LineItemsManager)
+  locationId?: string
 }
 
 interface CreatePOData {
@@ -35,33 +35,27 @@ interface CreatePOData {
   paymentTerms?: string | null
   status?: PurchaseOrderStatus
   lineItems: CreatePOLineItem[]
-  // New payment fields
   paymentStatus?: "UNPAID" | "PARTIAL" | "PAID"
   amountPaid?: number
   amountOwing?: number
 }
 
 // ============================================================================
-// HELPER FUNCTIONS
+// HELPERS
 // ============================================================================
 
 async function generateUniquePONumber(orgId: string): Promise<string> {
   const today = new Date()
   const year = today.getFullYear()
   const month = String(today.getMonth() + 1).padStart(2, '0')
-  
   const lastPO = await db.purchaseOrder.findFirst({
     where: { orgId, poNumber: { startsWith: `PO-${year}${month}` } },
     orderBy: { poNumber: 'desc' }
   })
-
   let sequence = 1
   if (lastPO) {
     const parts = lastPO.poNumber.split('-')
-    if (parts.length === 3) {
-      const lastSequence = parseInt(parts[2])
-      if (!isNaN(lastSequence)) sequence = lastSequence + 1
-    }
+    if (parts.length === 3) sequence = parseInt(parts[2]) + 1
   }
   return `PO-${year}${month}-${String(sequence).padStart(4, '0')}`
 }
@@ -74,7 +68,7 @@ async function isPONumberUnique(poNumber: string, orgId: string, excludeId?: str
 }
 
 // ============================================================================
-// MAIN CRUD OPERATIONS
+// CREATE
 // ============================================================================
 
 export async function createPurchaseOrder(data: CreatePOData) {
@@ -84,31 +78,20 @@ export async function createPurchaseOrder(data: CreatePOData) {
     const userId = user.id ?? ""
 
     let poNumber = data.poNumber?.trim()
-    if (!poNumber) {
-      poNumber = await generateUniquePONumber(orgId)
-    } else {
+    if (!poNumber) poNumber = await generateUniquePONumber(orgId)
+    else {
       const isUnique = await isPONumberUnique(poNumber, orgId)
-      if (!isUnique) {
-        return { success: false, error: `PO Number "${poNumber}" already exists.` }
-      }
+      if (!isUnique) return { success: false, error: `PO Number "${poNumber}" already exists.` }
     }
 
-    // Calculate totals
-    const subtotal = data.lineItems.reduce((sum, item) => {
-      const unitPrice = typeof item.unitPrice === "string" ? parseFloat(item.unitPrice) : item.unitPrice
-      return sum + (item.quantity * unitPrice)
-    }, 0)
-
+    const subtotal = data.lineItems.reduce((sum, item) => sum + (item.quantity * Number(item.unitPrice)), 0)
     const taxAmount = data.lineItems.reduce((sum, item) => {
-      const unitPrice = typeof item.unitPrice === "string" ? parseFloat(item.unitPrice) : item.unitPrice
-      const itemSubtotal = item.quantity * unitPrice
+      const itemSubtotal = item.quantity * Number(item.unitPrice)
       return sum + (itemSubtotal * (item.taxRate / 100))
     }, 0)
-
-    const shippingCost = data.shippingCost ? parseFloat(data.shippingCost.toString()) : 0
+    const shippingCost = Number(data.shippingCost) || 0
     const total = subtotal + taxAmount + shippingCost
 
-    // Determine payment amounts based on paymentStatus
     let amountPaid = data.amountPaid ?? 0
     let amountOwing = data.amountOwing ?? total
     const paymentStatus = data.paymentStatus ?? "UNPAID"
@@ -117,9 +100,14 @@ export async function createPurchaseOrder(data: CreatePOData) {
       amountPaid = total
       amountOwing = 0
     } else if (paymentStatus === "PARTIAL" && amountPaid === 0) {
-      // If partial but no amountPaid provided, default to 50% (can be overridden)
       amountPaid = total / 2
       amountOwing = total - amountPaid
+    }
+
+    // Auto‑promote workflow status when paid upfront
+    let workflowStatus = data.status || "DRAFT"
+    if (paymentStatus === "PAID" && workflowStatus === "DRAFT") {
+      workflowStatus = "SUBMITTED"
     }
 
     const purchaseOrder = await db.purchaseOrder.create({
@@ -135,26 +123,25 @@ export async function createPurchaseOrder(data: CreatePOData) {
         subtotal,
         taxAmount,
         shippingCost,
-        status: data.status || "DRAFT",
-        paymentStatus,           // NEW
-        amountPaid,              // NEW
-        amountOwing,             // NEW
+        status: workflowStatus,
+        paymentStatus,
+        amountPaid,
+        amountOwing,
         orgId,
         createdById: userId,
         lines: {
           create: data.lineItems.map((item) => {
-            const unitPrice = typeof item.unitPrice === "string" ? parseFloat(item.unitPrice) : item.unitPrice
+            const unitPrice = Number(item.unitPrice)
             const itemSubtotal = item.quantity * unitPrice
             const itemTax = itemSubtotal * (item.taxRate / 100)
-            const total = itemSubtotal + itemTax
             return {
               itemId: item.itemId,
               quantity: item.quantity,
               unitPrice,
               taxRate: item.taxRate,
               taxAmount: itemTax,
-              total,
-              receivedQuantity: 0
+              total: itemSubtotal + itemTax,
+              receivedQuantity: 0,
             }
           })
         }
@@ -163,12 +150,17 @@ export async function createPurchaseOrder(data: CreatePOData) {
     })
 
     revalidatePath("/dashboard/purchases/purchase-orders")
+    revalidatePath("/dashboard/purchases/payables")
     return { success: true, data: purchaseOrder }
   } catch (error) {
     console.error("Error creating purchase order:", error)
     return { success: false, error: error instanceof Error ? error.message : "Failed to create purchase order" }
   }
 }
+
+// ============================================================================
+// UPDATE
+// ============================================================================
 
 export async function updatePurchaseOrder(id: string, data: CreatePOData) {
   try {
@@ -177,27 +169,29 @@ export async function updatePurchaseOrder(id: string, data: CreatePOData) {
 
     const poNumber = data.poNumber?.trim()
     if (!poNumber) return { success: false, error: "PO Number is required" }
-
     const isUnique = await isPONumberUnique(poNumber, orgId, id)
     if (!isUnique) return { success: false, error: `PO Number "${poNumber}" already exists.` }
 
-    const subtotal = data.lineItems.reduce((sum, item) => {
-      const unitPrice = typeof item.unitPrice === "string" ? parseFloat(item.unitPrice) : item.unitPrice
-      return sum + (item.quantity * unitPrice)
-    }, 0)
+    const existingPO = await db.purchaseOrder.findUnique({
+      where: { id, orgId },
+      include: { lines: true }
+    })
+    if (!existingPO) return { success: false, error: "Purchase order not found" }
 
+    const existingLineMap = new Map()
+    existingPO.lines.forEach(line => existingLineMap.set(line.itemId, line))
+
+    const subtotal = data.lineItems.reduce((sum, item) => sum + (item.quantity * Number(item.unitPrice)), 0)
     const taxAmount = data.lineItems.reduce((sum, item) => {
-      const unitPrice = typeof item.unitPrice === "string" ? parseFloat(item.unitPrice) : item.unitPrice
-      const itemSubtotal = item.quantity * unitPrice
+      const itemSubtotal = item.quantity * Number(item.unitPrice)
       return sum + (itemSubtotal * (item.taxRate / 100))
     }, 0)
-
-    const shippingCost = data.shippingCost ? parseFloat(data.shippingCost.toString()) : 0
+    const shippingCost = Number(data.shippingCost) || 0
     const total = subtotal + taxAmount + shippingCost
 
-    let amountPaid = data.amountPaid ?? 0
-    let amountOwing = data.amountOwing ?? total
-    const paymentStatus = data.paymentStatus ?? "UNPAID"
+    let amountPaid = data.amountPaid ?? existingPO.amountPaid ?? 0
+    let amountOwing = data.amountOwing ?? total - amountPaid
+    const paymentStatus = data.paymentStatus ?? existingPO.paymentStatus ?? "UNPAID"
 
     if (paymentStatus === "PAID") {
       amountPaid = total
@@ -207,7 +201,30 @@ export async function updatePurchaseOrder(id: string, data: CreatePOData) {
       amountOwing = total - amountPaid
     }
 
+    // Auto‑promote if needed
+    let workflowStatus = existingPO.status
+    if (paymentStatus === "PAID" && workflowStatus === "DRAFT") {
+      workflowStatus = "SUBMITTED"
+    }
+
     await db.purchaseOrderLine.deleteMany({ where: { purchaseOrderId: id } })
+
+    const newLines = data.lineItems.map((item) => {
+      const unitPrice = Number(item.unitPrice)
+      const itemSubtotal = item.quantity * unitPrice
+      const itemTax = itemSubtotal * (item.taxRate / 100)
+      const existingLine = existingLineMap.get(item.itemId)
+      const receivedQty = existingLine?.receivedQuantity || 0
+      return {
+        itemId: item.itemId,
+        quantity: item.quantity,
+        unitPrice,
+        taxRate: item.taxRate,
+        taxAmount: itemTax,
+        total: itemSubtotal + itemTax,
+        receivedQuantity: receivedQty
+      }
+    })
 
     const purchaseOrder = await db.purchaseOrder.update({
       where: { id, orgId },
@@ -223,61 +240,39 @@ export async function updatePurchaseOrder(id: string, data: CreatePOData) {
         subtotal,
         taxAmount,
         shippingCost,
+        status: workflowStatus,
         paymentStatus,
         amountPaid,
         amountOwing,
-        lines: {
-          create: data.lineItems.map((item) => {
-            const unitPrice = typeof item.unitPrice === "string" ? parseFloat(item.unitPrice) : item.unitPrice
-            const itemSubtotal = item.quantity * unitPrice
-            const itemTax = itemSubtotal * (item.taxRate / 100)
-            const total = itemSubtotal + itemTax
-            return {
-              itemId: item.itemId,
-              quantity: item.quantity,
-              unitPrice,
-              taxRate: item.taxRate,
-              taxAmount: itemTax,
-              total,
-              receivedQuantity: 0
-            }
-          })
-        }
+        lines: { create: newLines }
       },
       include: { lines: { include: { item: true } }, supplier: true, deliveryLocation: true, createdBy: { select: { name: true } } }
     })
 
     revalidatePath("/dashboard/purchases/purchase-orders")
     revalidatePath(`/dashboard/purchases/purchase-orders/${id}`)
+    revalidatePath("/dashboard/purchases/payables")
     return { success: true, data: purchaseOrder }
   } catch (error) {
     console.error("Error updating purchase order:", error)
     return { success: false, error: error instanceof Error ? error.message : "Failed to update purchase order" }
   }
 }
+
+// ============================================================================
+// DELETE
+// ============================================================================
+
 export async function deletePurchaseOrder(id: string) {
   try {
     const user = await getAuthenticatedUser()
     const orgId = user.orgId ?? ""
-
-    await db.purchaseOrder.delete({
-      where: { 
-        id,
-        orgId // Ensure user can only delete their org's PO
-      }
-    })
-
+    await db.purchaseOrder.delete({ where: { id, orgId } })
     revalidatePath("/dashboard/purchases/purchase-orders")
-    
-    return {
-      success: true
-    }
+    return { success: true }
   } catch (error) {
     console.error("Error deleting purchase order:", error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to delete purchase order"
-    }
+    return { success: false, error: error instanceof Error ? error.message : "Failed to delete purchase order" }
   }
 }
 
@@ -289,42 +284,19 @@ export async function getPurchaseOrders(supplierFilter?: string) {
   try {
     const user = await getAuthenticatedUser()
     const orgId = user.orgId ?? ""
-
-    const whereClause: any = {
-      orgId,
-    }
-
-    if (supplierFilter) {
-      whereClause.supplierId = supplierFilter
-    }
-
+    const whereClause: any = { orgId }
+    if (supplierFilter) whereClause.supplierId = supplierFilter
     const purchaseOrders = await db.purchaseOrder.findMany({
       where: whereClause,
       include: {
         supplier: true,
         deliveryLocation: true,
-        lines: {
-          include: {
-            item: true
-          }
-        },
-        createdBy: {
-          select: {
-            name: true,
-          }
-        }
+        lines: { include: { item: true } },
+        createdBy: { select: { name: true } }
       },
-      orderBy: {
-        createdAt: 'desc'
-      }
+      orderBy: { createdAt: 'desc' }
     })
-
-    // Transform the data to match expected format
-    return purchaseOrders.map(po => ({
-      ...po,
-      orderDate: po.date,
-      supplier: po.supplier,
-    }))
+    return purchaseOrders.map(po => ({ ...po, orderDate: po.date }))
   } catch (error) {
     console.error("Error fetching purchase orders:", error)
     return []
@@ -335,66 +307,36 @@ export async function getPurchaseOrderById(id: string) {
   try {
     const user = await getAuthenticatedUser()
     const orgId = user.orgId ?? ""
-
     const purchaseOrder = await db.purchaseOrder.findUnique({
-      where: { 
-        id,
-        orgId // Ensure user can only access their org's PO
-      },
+      where: { id, orgId },
       include: {
         supplier: true,
         deliveryLocation: true,
-        lines: {
-          include: {
-            item: true
-          }
-        },
-        createdBy: {
-          select: {
-            name: true,
-          }
-        }
+        lines: { include: { item: true } },
+        createdBy: { select: { name: true } }
       }
     })
-
     if (!purchaseOrder) return null
-
-    // Transform the data to match expected format
-    return {
-      ...purchaseOrder,
-      orderDate: purchaseOrder.date,
-      supplier: purchaseOrder.supplier,
-    }
+    return { ...purchaseOrder, orderDate: purchaseOrder.date }
   } catch (error) {
     console.error("Error fetching purchase order:", error)
     return null
   }
 }
 
+export async function getPurchaseOrder(id: string) {
+  return getPurchaseOrderById(id)
+}
 
 export async function getSuppliers() {
   try {
     const user = await getAuthenticatedUser()
     const orgId = user.orgId ?? ""
-
-    const suppliers = await db.supplier.findMany({
-      where: { 
-        orgId
-      },
-      orderBy: {
-        name: "asc",
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        contactPerson: true,
-        phone: true,
-        address: true,
-      }
+    return await db.supplier.findMany({
+      where: { orgId },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, email: true, contactPerson: true, phone: true, address: true }
     })
-
-    return suppliers
   } catch (error) {
     console.error("Error fetching suppliers:", error)
     return []
@@ -405,22 +347,11 @@ export async function getLocations() {
   try {
     const user = await getAuthenticatedUser()
     const orgId = user.orgId ?? ""
-
-    const locations = await db.location.findMany({
-      where: { 
-        orgId
-      },
-      orderBy: {
-        name: "asc",
-      },
-      select: {
-        id: true,
-        name: true,
-        address: true,
-      }
+    return await db.location.findMany({
+      where: { orgId },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, address: true }
     })
-
-    return locations
   } catch (error) {
     console.error("Error fetching locations:", error)
     return []
@@ -431,73 +362,32 @@ export async function getItems() {
   try {
     const user = await getAuthenticatedUser()
     const orgId = user.orgId ?? ""
-
-    const items = await db.item.findMany({
-      where: { 
-        orgId,
-        isActive: true // Only get active items
-      },
-      orderBy: {
-        name: "asc",
-      },
-      select: {
-        id: true,
-        name: true,
-        sku: true,
-        description: true,
-        // Remove unitCost if it doesn't exist in your schema
-        // unitCost: true,
-      }
+    return await db.item.findMany({
+      where: { orgId, isActive: true },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, sku: true, description: true }
     })
-
-    return items
   } catch (error) {
     console.error("Error fetching items:", error)
     return []
   }
 }
 
-
-export async function updatePurchaseOrderStatus(
-  id: string,
-  status: PurchaseOrderStatus
-) {
+export async function updatePurchaseOrderStatus(id: string, status: PurchaseOrderStatus) {
   try {
     const user = await getAuthenticatedUser()
     const orgId = user.orgId ?? ""
-
     const purchaseOrder = await db.purchaseOrder.update({
-      where: { 
-        id,
-        orgId
-      },
-      data: {
-        status
-      },
-      include: {
-        supplier: true,
-        deliveryLocation: true,
-        lines: {
-          include: {
-            item: true
-          }
-        }
-      }
+      where: { id, orgId },
+      data: { status },
+      include: { supplier: true, deliveryLocation: true, lines: { include: { item: true } } }
     })
-
     revalidatePath("/dashboard/purchases/purchase-orders")
     revalidatePath(`/dashboard/purchases/purchase-orders/${id}`)
-
-    return {
-      success: true,
-      data: purchaseOrder
-    }
+    return { success: true, data: purchaseOrder }
   } catch (error) {
     console.error("Error updating purchase order status:", error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to update status"
-    }
+    return { success: false, error: error instanceof Error ? error.message : "Failed to update status" }
   }
 }
 
@@ -505,41 +395,17 @@ export async function receivePOGoods(id: string, receivedDate?: string) {
   try {
     const user = await getAuthenticatedUser()
     const orgId = user.orgId ?? ""
-
     const purchaseOrder = await db.purchaseOrder.update({
-      where: { 
-        id,
-        orgId
-      },
-      data: {
-        status: "RECEIVED",
-        // Add receivedDate if your schema has this field
-        // receivedDate: receivedDate ? new Date(receivedDate) : new Date(),
-      },
-      include: {
-        supplier: true,
-        deliveryLocation: true,
-        lines: {
-          include: {
-            item: true
-          }
-        }
-      }
+      where: { id, orgId },
+      data: { status: "RECEIVED" },
+      include: { supplier: true, deliveryLocation: true, lines: { include: { item: true } } }
     })
-
     revalidatePath("/dashboard/purchases/purchase-orders")
     revalidatePath(`/dashboard/purchases/purchase-orders/${id}`)
-
-    return {
-      success: true,
-      data: purchaseOrder
-    }
+    return { success: true, data: purchaseOrder }
   } catch (error) {
     console.error("Error receiving goods:", error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to receive goods"
-    }
+    return { success: false, error: error instanceof Error ? error.message : "Failed to receive goods" }
   }
 }
 
@@ -547,61 +413,39 @@ export async function cancelPurchaseOrder(id: string, reason?: string) {
   try {
     const user = await getAuthenticatedUser()
     const orgId = user.orgId ?? ""
-
-    // First fetch the current PO to get existing notes
-    const currentPO = await db.purchaseOrder.findUnique({
-      where: { id, orgId },
-      select: { notes: true }
-    })
-
-    // Build the notes string
+    const currentPO = await db.purchaseOrder.findUnique({ where: { id, orgId }, select: { notes: true } })
     let updatedNotes = reason ? `CANCELLED: ${reason}` : 'CANCELLED'
-    if (currentPO?.notes) {
-      updatedNotes += `\n\nOriginal notes: ${currentPO.notes}`
-    }
-
-    // Update the purchase order
+    if (currentPO?.notes) updatedNotes += `\n\nOriginal notes: ${currentPO.notes}`
     const purchaseOrder = await db.purchaseOrder.update({
-      where: { 
-        id,
-        orgId
-      },
-      data: {
-        status: "CANCELLED",
-        notes: updatedNotes
-      },
-      include: {
-        supplier: true,
-        deliveryLocation: true,
-        lines: {
-          include: {
-            item: true
-          }
-        }
-      }
+      where: { id, orgId },
+      data: { status: "CANCELLED", notes: updatedNotes },
+      include: { supplier: true, deliveryLocation: true, lines: { include: { item: true } } }
     })
-
     revalidatePath("/dashboard/purchases/purchase-orders")
     revalidatePath(`/dashboard/purchases/purchase-orders/${id}`)
-
-    return {
-      success: true,
-      data: purchaseOrder
-    }
+    return { success: true, data: purchaseOrder }
   } catch (error) {
     console.error("Error cancelling purchase order:", error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to cancel purchase order"
-    }
+    return { success: false, error: error instanceof Error ? error.message : "Failed to cancel purchase order" }
   }
 }
 
-
-
-// Alias for getPurchaseOrderById
-export async function getPurchaseOrder(id: string) {
-  return getPurchaseOrderById(id)
+export async function completePurchaseOrder(id: string) {
+  try {
+    const user = await getAuthenticatedUser()
+    const orgId = user.orgId ?? ""
+    const purchaseOrder = await db.purchaseOrder.update({
+      where: { id, orgId },
+      data: { status: PurchaseOrderStatus.COMPLETED },
+      include: { supplier: true, lines: { include: { item: true } } }
+    })
+    revalidatePath("/dashboard/purchases/purchase-orders")
+    revalidatePath(`/dashboard/purchases/purchase-orders/${id}`)
+    return { success: true, data: purchaseOrder }
+  } catch (error) {
+    console.error("Error completing purchase order:", error)
+    return { success: false, error: error instanceof Error ? error.message : "Failed to complete purchase order" }
+  }
 }
 
 export async function generatePONumber(): Promise<string> {
@@ -610,31 +454,14 @@ export async function generatePONumber(): Promise<string> {
   const month = String(today.getMonth() + 1).padStart(2, '0')
   const day = String(today.getDate()).padStart(2, '0')
   const datePrefix = `${year}${month}${day}`
-  
   const startOfDay = new Date(today.setHours(0, 0, 0, 0))
   const endOfDay = new Date(today.setHours(23, 59, 59, 999))
-  
   try {
-    const todayPOCount = await db.purchaseOrder.count({
-      where: {
-        createdAt: {
-          gte: startOfDay,
-          lte: endOfDay
-        }
-      }
-    })
-    
+    const todayPOCount = await db.purchaseOrder.count({ where: { createdAt: { gte: startOfDay, lte: endOfDay } } })
     const sequence = String(todayPOCount + 1).padStart(4, '0')
     const poNumber = `PO-${datePrefix}-${sequence}`
-    
-    const existingPO = await db.purchaseOrder.findUnique({
-      where: { poNumber }
-    })
-    
-    if (existingPO) {
-      return generatePONumber()
-    }
-    
+    const existing = await db.purchaseOrder.findUnique({ where: { poNumber } })
+    if (existing) return generatePONumber()
     return poNumber
   } catch (error) {
     console.error("Error generating PO number:", error)
@@ -646,132 +473,74 @@ export async function generatePONumber(): Promise<string> {
 
 export async function getPurchaseOrderLineItems(purchaseOrderId: string) {
   try {
-    const lineItems = await db.purchaseOrderLine.findMany({
-      where: {
-        purchaseOrderId: purchaseOrderId
-      },
-      include: {
-        item: true // Include item details
-      }
-    });
-    
-    return lineItems;
+    return await db.purchaseOrderLine.findMany({
+      where: { purchaseOrderId },
+      include: { item: true }
+    })
   } catch (error) {
-    console.error("Error fetching line items:", error);
-    throw error;
+    console.error("Error fetching line items:", error)
+    throw error
   }
 }
-/* export async function sendPOToSupplier(data: PurchaseOrderEmailProps): Promise<{ success: boolean; error?: string }> {
+
+export async function getRecentPurchaseOrders(limit = 5) {
   try {
-    const res = await resend.emails.send({
-      from: "Business Inventory <noreply@rich83ventures.inventpmf.com>",
-      to: data.purchaseOrder.supplier.email || "email@example.com",
-      subject: `Purchase Order ${data.purchaseOrder.poNumber}`,
-      react: PurchaseOrderEmail(data), // Changed from PurchaseOrderEmail({props})
-    });
-    
-    return { 
-      success: true,
-    };
-  } catch (error) {
-    console.error("Error sending PO to supplier:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to send email",
-    };
-  }
-} */
-
-/* export async function sendPurchaseOrderEmail(
-  data: PurchaseOrderEmailProps, 
-  email: string
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    // Update purchase order status
-    await db.purchaseOrder.update({
-      where: {
-        poNumber: data.purchaseOrder.poNumber,
+    const user = await getAuthenticatedUser()
+    const orgId = user.orgId ?? ""
+    const orders = await db.purchaseOrder.findMany({
+      where: { orgId, status: { not: "DRAFT" } },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      select: {
+        id: true,
+        poNumber: true,
+        supplier: { select: { name: true } },
+        subtotal: true,
+        taxAmount: true,
+        shippingCost: true,
+        discount: true,
+        status: true,
+        createdAt: true,
       },
-      data: {
-        status: PurchaseOrderStatus.SUBMITTED, // Changed from { set: "SUBMITTED" }
-      },
-    });
-
-    // Send email
-    const res = await resend.emails.send({
-      from: "Business Inventory <noreply@rich83ventures.inventpmf.com>",
-      to: email,
-      subject: `New Purchase Order from ${data.companyName}`,
-      react: PurchaseOrderEmail(data), // Changed from PurchaseOrderEmail(props)
-    });
-
-    revalidatePath("/dashboard/purchases/purchase-orders");
-    
-    return {
-      success: true,
-    };
+    })
+    const mapped = orders.map(po => ({
+      id: po.id,
+      poNumber: po.poNumber,
+      supplierName: po.supplier?.name ?? "Unknown",
+      total: po.subtotal + po.taxAmount + (po.shippingCost || 0) - (po.discount || 0),
+      status: po.status,
+      date: po.createdAt,
+    }))
+    return { success: true, data: mapped }
   } catch (error) {
-    console.error("Error sending purchase order email:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to send email",
-    };
+    console.error("getRecentPurchaseOrders error:", error)
+    return { success: false, data: [], error: String(error) }
   }
-} */
+}
 
+// ============================================================================
+// EMAIL FUNCTIONS
+// ============================================================================
 
-  // Helper function to prepare email data
 async function preparePurchaseOrderEmailData(poNumber: string) {
   const user = await getAuthenticatedUser()
   const orgId = user.orgId ?? ""
-
-  // Fetch purchase order with all necessary relations
   const purchaseOrder = await db.purchaseOrder.findUnique({
-    where: { 
-      poNumber,
-      orgId 
-    },
+    where: { poNumber, orgId },
     include: {
       supplier: true,
       deliveryLocation: true,
-      lines: {
-        include: {
-          item: true,
-        },
-      },
-      createdBy: {
-        select: {
-          name: true,
-        },
-      },
-    },
-  });
-
-  if (!purchaseOrder) {
-    throw new Error("Purchase order not found");
-  }
-
-  // Company info - adjust based on your actual schema
-  // Option 1: If you have an Organization table with company info
-  /* const org = await db.organization.findUnique({
-    where: { id: orgId },
-    select: {
-      name: true,
-      address: true,
-      phone: true,
-      email: true,
+      lines: { include: { item: true } },
+      createdBy: { select: { name: true } }
     }
-  }); */
-
-  // Option 2: Hardcoded company info (use this for now)
+  })
+  if (!purchaseOrder) throw new Error("Purchase order not found")
   const companyInfo = {
     name: "Business Inventory",
     address: "Sunyani, USana",
     phone: "+233 5698734",
     email: "info@businessinventory.com",
-  };
-
-  // Format the data for email template
+  }
   const emailData: PurchaseOrderEmailProps = {
     purchaseOrder: {
       id: purchaseOrder.id,
@@ -794,9 +563,7 @@ async function preparePurchaseOrderEmailData(poNumber: string) {
       notes: purchaseOrder.notes,
       paymentTerms: purchaseOrder.paymentTerms,
       expectedDeliveryDate: purchaseOrder.expectedDeliveryDate,
-      createdBy: {
-        name: purchaseOrder.createdBy?.name || null,
-      },
+      createdBy: { name: purchaseOrder.createdBy?.name || null },
       createdAt: purchaseOrder.createdAt,
     },
     lineItems: purchaseOrder.lines.map((line) => ({
@@ -821,163 +588,47 @@ async function preparePurchaseOrderEmailData(poNumber: string) {
     companyPhone: companyInfo.phone,
     companyEmail: companyInfo.email,
     deliveryAddress: purchaseOrder.address || companyInfo.address,
-  };
-
-  return emailData;
+  }
+  return emailData
 }
 
-// Send PO to supplier (main function)
-export async function sendPOToSupplier(
-  poNumber: string
-): Promise<{ success: boolean; error?: string }> {
+export async function sendPOToSupplier(poNumber: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const user = await getAuthenticatedUser()
-    const orgId = user.orgId ?? ""
-
-    // Prepare email data
-    const emailData = await preparePurchaseOrderEmailData(poNumber);
-
-    // Validate supplier email
-    if (!emailData.purchaseOrder.supplier.email) {
-      throw new Error("Supplier email address is not available");
-    }
-
-    // Send email to supplier
-    const res = await resend.emails.send({
+    const emailData = await preparePurchaseOrderEmailData(poNumber)
+    if (!emailData.purchaseOrder.supplier.email) throw new Error("Supplier email address is not available")
+    await resend.emails.send({
       from: "Business Inventory <noreply@rich83ventures.inventpmf.com>",
       to: emailData.purchaseOrder.supplier.email,
       subject: `Purchase Order ${emailData.purchaseOrder.poNumber}`,
       react: PurchaseOrderEmail(emailData),
-    });
-
-    // Update PO status to SUBMITTED
+    })
+    const user = await getAuthenticatedUser()
+    const orgId = user.orgId ?? ""
     await db.purchaseOrder.update({
-      where: { 
-        poNumber,
-        orgId 
-      },
-      data: {
-        status: PurchaseOrderStatus.SUBMITTED,
-      },
-    });
-
-    revalidatePath("/dashboard/purchases/purchase-orders");
-    revalidatePath(`/dashboard/purchases/purchase-orders/${emailData.purchaseOrder.id}`);
-
-    return {
-      success: true,
-    };
+      where: { poNumber, orgId },
+      data: { status: PurchaseOrderStatus.SUBMITTED },
+    })
+    revalidatePath("/dashboard/purchases/purchase-orders")
+    return { success: true }
   } catch (error) {
-    console.error("Error sending PO to supplier:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to send email",
-    };
+    console.error("Error sending PO to supplier:", error)
+    return { success: false, error: error instanceof Error ? error.message : "Failed to send email" }
   }
 }
 
-// Alternative: Send PO email to custom recipient
-export async function sendPOEmailToRecipient(
-  poNumber: string,
-  recipientEmail: string
-): Promise<{ success: boolean; error?: string }> {
+export async function sendPOEmailToRecipient(poNumber: string, recipientEmail: string): Promise<{ success: boolean; error?: string }> {
   try {
-    // Prepare email data
-    const emailData = await preparePurchaseOrderEmailData(poNumber);
-
-    // Send email
-    const res = await resend.emails.send({
+    const emailData = await preparePurchaseOrderEmailData(poNumber)
+    await resend.emails.send({
       from: "Business Inventory <noreply@rich83ventures.inventpmf.com>",
       to: recipientEmail,
       subject: `Purchase Order ${emailData.purchaseOrder.poNumber} from ${emailData.companyName}`,
       react: PurchaseOrderEmail(emailData),
-    });
-
-    revalidatePath("/dashboard/purchases/purchase-orders");
-
-    return {
-      success: true,
-    };
-  } catch (error) {
-    console.error("Error sending purchase order email:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to send email",
-    };
-  }
-}
-
-// Add this function to purchase-order.ts to mark POs as completed
-export async function completePurchaseOrder(id: string) {
-  try {
-    const user = await getAuthenticatedUser()
-    const orgId = user.orgId ?? ""
-
-    const purchaseOrder = await db.purchaseOrder.update({
-      where: { 
-        id,
-        orgId
-      },
-      data: {
-        status: PurchaseOrderStatus.COMPLETED
-      },
-      include: {
-        supplier: true,
-        lines: {
-          include: {
-            item: true
-          }
-        }
-      }
     })
-
     revalidatePath("/dashboard/purchases/purchase-orders")
-    revalidatePath(`/dashboard/purchases/purchase-orders/${id}`)
-
-    return {
-      success: true,
-      data: purchaseOrder
-    }
+    return { success: true }
   } catch (error) {
-    console.error("Error completing purchase order:", error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to complete purchase order"
-    }
-  }
-}
-
-export async function getRecentPurchaseOrders(limit = 5) {
-  try {
-    const user = await getAuthenticatedUser();
-    const orgId = user.orgId ?? "";
-    const orders = await db.purchaseOrder.findMany({
-      where: { orgId, status: { not: "DRAFT" } },
-      orderBy: { createdAt: "desc" },
-      take: limit,
-      select: {
-        id: true,
-        poNumber: true,
-        supplier: { select: { name: true } },
-        subtotal: true,
-        taxAmount: true,
-        shippingCost: true,
-        discount: true,
-        status: true,
-        createdAt: true,
-      },
-    });
-    const mapped = orders.map(po => ({
-      id: po.id,
-      poNumber: po.poNumber,
-      supplierName: po.supplier?.name ?? "Unknown",
-      total: po.subtotal + po.taxAmount + (po.shippingCost || 0) - (po.discount || 0),
-      status: po.status,
-      date: po.createdAt,
-    }));
-    return { success: true, data: mapped };
-  } catch (error) {
-    console.error("getRecentPurchaseOrders error:", error);
-    return { success: false, data: [], error: String(error) };
+    console.error("Error sending purchase order email:", error)
+    return { success: false, error: error instanceof Error ? error.message : "Failed to send email" }
   }
 }
