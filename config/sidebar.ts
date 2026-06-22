@@ -31,6 +31,7 @@ import {
   CreditCard,
   PiggyBank,
   BadgeDollarSign,
+  Smartphone,
 } from "lucide-react";
 
 export interface ISidebarLink {
@@ -115,6 +116,38 @@ export const sidebarLinks: ISidebarLink[] = [
       },
     ],
   },
+
+    // ── MoMo Payments ──────────────────────────────────────────────────────────
+  {
+    title: "MoMo Payments",
+    icon: Smartphone,
+    dropdown: true,
+    href: "/dashboard/momo",
+    permission: "momo.read",
+    dropdownMenu: [
+      {
+        title: "MoMo Dashboard",
+        href: "/dashboard/momo",
+        permission: "momo.read",
+      },
+      {
+        title: "Merchant Lines",
+        href: "/dashboard/momo/merchant-lines",
+        permission: "momo.read",
+      },
+      {
+        title: "Transaction History",
+        href: "/dashboard/momo/transactions",
+        permission: "momo.read",
+      },
+      {
+        title: "Request Payment",
+        href: "/dashboard/momo/request",
+        permission: "momo.request",
+      },
+    ],
+  },
+
 
   // ── Inventory ──────────────────────────────────────────────────────────────
   {

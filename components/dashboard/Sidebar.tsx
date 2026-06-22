@@ -1,52 +1,47 @@
 "use client";
+// components/dashboard/Sidebar.tsx
+// • Responsive: 220 px on md, 280 px on lg — hidden on mobile (sheet used instead)
+// • MoMo live badge pulsing on the MoMo Payments link
+// • Paystack Settings removed from accounting dropdown
+
 import React, { useState } from "react";
 import Link from "next/link";
-import {
-  Bell,
-  ChevronDown,
-  ChevronRight,
-  ExternalLink,
-  Plus,
-  Power,
-} from "lucide-react";
+import { ChevronDown, ChevronRight, ExternalLink, Plus } from "lucide-react";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Button } from "@/components/ui/button";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import Logo from "../global/Logo";
 import { ISidebarLink, sidebarLinks } from "@/config/sidebar";
 import { Session } from "next-auth";
 import { signOut } from "next-auth/react";
-import { NotificationMenu } from "../NotificationMenu";
 import { UserDropdownMenu } from "../UserDropdownMenu";
-// import { NotificationMenu } from "../frontend/NotificationMenu";
-// import { Notification } from "@prisma/client";
+import { NotificationMenu, type StandardNotification } from "../NotificationMenu";
 
 interface SidebarProps {
   session: Session;
-  notifications?: Notification[];
+  notifications?: StandardNotification[]; // fixed type to match NotificationMenu
+  momoAlertCount?: number; // unread MoMo payment alerts
 }
 
-export default function Sidebar({ session, notifications = [] }: SidebarProps) {
+export default function Sidebar({
+  session,
+  notifications = [],
+  momoAlertCount = 0,
+}: SidebarProps) {
   const router = useRouter();
-  const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(
-    null
-  );
+  const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(null);
   const pathname = usePathname();
   const user = session.user;
 
-  // Helper function to check if user has permission
-  const hasPermission = (permission: string): boolean => {
-    return user.permissions?.includes(permission) ?? false;
-  };
+  const hasPermission = (permission: string): boolean =>
+    user.permissions?.includes(permission) ?? false;
 
-  // Filter sidebar links based on permissions
-  const filterSidebarLinks = (links: ISidebarLink[]): ISidebarLink[] => {
-    return links
+  const filterSidebarLinks = (links: ISidebarLink[]): ISidebarLink[] =>
+    links
       .filter((link) => hasPermission(link.permission))
       .map((link) => ({
         ...link,
@@ -58,7 +53,6 @@ export default function Sidebar({ session, notifications = [] }: SidebarProps) {
         (link) =>
           !link.dropdown || (link.dropdownMenu && link.dropdownMenu.length > 0)
       );
-  };
 
   const filteredLinks = filterSidebarLinks(sidebarLinks);
 
@@ -71,21 +65,27 @@ export default function Sidebar({ session, notifications = [] }: SidebarProps) {
     }
   }
 
+  const isMoMoLink = (title: string) => title === "MoMo Payments";
+
   return (
-    <div className="fixed top-0 left-0 h-full w-[220px] lg:w-[280px] border-r bg-muted/40 hidden md:block overflow-y-auto">
+    <div className="fixed top-0 left-0 h-full w-[220px] lg:w-[280px] border-r bg-muted/40 hidden md:block overflow-y-auto z-40">
       <div className="flex h-full max-h-screen flex-col gap-2">
-        <div className="flex flex-shrink-0 h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
+
+        {/* ── Header ── */}
+        <div className="flex flex-shrink-0 h-14 items-center justify-between border-b px-3 lg:h-[60px] lg:px-5">
           <Logo href="/dashboard" />
           <NotificationMenu notifications={notifications} />
         </div>
-        <div className="flex-1">
-          <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
+
+        {/* ── Nav links ── */}
+        <div className="flex-1 overflow-y-auto">
+          <nav className="grid items-start px-2 text-sm font-medium lg:px-3 py-2 gap-0.5">
             {filteredLinks.map((item, i) => {
               const Icon = item.icon;
+              const isMomo = isMoMoLink(item.title);
               const isHrefIncluded =
                 item.dropdownMenu &&
                 item.dropdownMenu.some((link) => link.href === pathname);
-
               const isOpen = openDropdownIndex === i;
 
               return (
@@ -95,32 +95,45 @@ export default function Sidebar({ session, notifications = [] }: SidebarProps) {
                       <CollapsibleTrigger
                         onClick={() => setOpenDropdownIndex(isOpen ? null : i)}
                         className={cn(
-                          "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary w-full",
+                          "flex items-center gap-2.5 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary w-full text-sm",
                           isHrefIncluded && "bg-muted text-primary"
                         )}
                       >
-                        <Icon className="h-4 w-4" />
-                        {item.title}
+                        <Icon className={cn(
+                          "h-4 w-4 flex-shrink-0",
+                          isMomo && "text-yellow-500"
+                        )} />
+                        <span className="flex-1 text-left truncate">{item.title}</span>
+
+                        {/* MoMo alert badge */}
+                        {isMomo && momoAlertCount > 0 && (
+                          <span className="relative flex h-4 w-4 mr-1">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75" />
+                            <span className="relative inline-flex rounded-full h-4 w-4 bg-yellow-500 text-[9px] font-bold text-white items-center justify-center">
+                              {momoAlertCount > 9 ? "9+" : momoAlertCount}
+                            </span>
+                          </span>
+                        )}
+
                         {isOpen ? (
-                          <ChevronDown className="h-5 w-5 ml-auto flex shrink-0 items-center justify-center rounded-full" />
+                          <ChevronDown className="h-4 w-4 flex-shrink-0" />
                         ) : (
-                          <ChevronRight className="h-5 w-5 ml-auto flex shrink-0 items-center justify-center rounded-full" />
+                          <ChevronRight className="h-4 w-4 flex-shrink-0" />
                         )}
                       </CollapsibleTrigger>
-                      <CollapsibleContent className="dark:bg-slate-950 rounded mt-1">
-                        {item.dropdownMenu?.map((menuItem, i) => (
+                      <CollapsibleContent className="dark:bg-slate-950 rounded mt-0.5">
+                        {item.dropdownMenu?.map((menuItem, j) => (
                           <Link
-                            key={i}
+                            key={j}
                             href={menuItem.href}
                             className={cn(
-                              "mx-4 flex items-center gap-3 rounded-lg px-3 py-1 text-muted-foreground transition-all hover:text-primary justify-between text-xs ml-6",
-                              pathname === menuItem.href &&
-                                "bg-muted text-primary"
+                              "ml-5 flex items-center gap-2 rounded-lg px-3 py-1.5 text-muted-foreground transition-all hover:text-primary justify-between text-xs",
+                              pathname === menuItem.href && "bg-muted text-primary"
                             )}
                           >
-                            {menuItem.title}
-                            <span className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full">
-                              <Plus className="w-4 h-4" />
+                            <span className="truncate">{menuItem.title}</span>
+                            <span className="ml-auto flex h-5 w-5 shrink-0 items-center justify-center rounded-full">
+                              <Plus className="w-3 h-3" />
                             </span>
                           </Link>
                         ))}
@@ -130,35 +143,33 @@ export default function Sidebar({ session, notifications = [] }: SidebarProps) {
                     <Link
                       href={item.href ?? "#"}
                       className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
+                        "flex items-center gap-2.5 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary text-sm",
                         pathname === item.href && "bg-muted text-primary"
                       )}
                     >
-                      <Icon className="h-4 w-4" />
-                      {item.title}
+                      <Icon className="h-4 w-4 flex-shrink-0" />
+                      <span className="truncate">{item.title}</span>
                     </Link>
                   )}
                 </div>
               );
             })}
+
+            {/* Live website external link */}
             <Link
               href="/"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
+              className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary text-sm"
               target="_blank"
+              rel="noopener noreferrer"
             >
-              <ExternalLink className="h-4 w-4" />
-              Live Website
+              <ExternalLink className="h-4 w-4 flex-shrink-0" />
+              <span className="truncate">Live Website</span>
             </Link>
           </nav>
         </div>
 
-        {/* <div className="mt-auto p-4">
-          <Button onClick={handleLogout} size="sm" className="w-full">
-            <Power className="h-4 w-4 mr-2" />
-            Logout
-          </Button>
-        </div> */}
-        <div className="p-4">
+        {/* ── User menu ── */}
+        <div className="flex-shrink-0 p-3 lg:p-4 border-t">
           <UserDropdownMenu
             username={session?.user?.name ?? ""}
             email={session?.user?.email ?? ""}

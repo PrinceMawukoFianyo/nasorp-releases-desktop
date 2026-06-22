@@ -136,6 +136,23 @@ model Organisation {
   supplierPayments      SupplierPayment[]
   ManualDebt            ManualDebt[]
   ManualSupplierDebt    ManualSupplierDebt[]
+  smsBalance            OrgSmsBalance? // optional reverse relation
+  //   momoLines          MomoLine[]
+  //   momoTransactions   MomoTransaction[]
+  //   momoAlerts         MomoAlert[]
+  //   orgSmsBalance      OrgSmsBalance?
+  //   smsUsages          SmsUsage[]
+  //   smsCreditTopups    SmsCreditTopup[]
+  //   paystackSplit      PaystackSplitConfig?
+  //   billingInvoices    BillingInvoice[]
+  //   billingPayments    BillingPayment[]
+  MomoLine              MomoLine[]
+  MomoTransaction       MomoTransaction[]
+  SmsUsage              SmsUsage[]
+  SmsCreditTopup        SmsCreditTopup[]
+  PaystackSplitConfig   PaystackSplitConfig?
+  BillingInvoice        BillingInvoice[]
+  BillingPayment        BillingPayment[]
 
   @@map("organisations")
 }
@@ -805,7 +822,7 @@ model ManualDebt {
   notes       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  createdById  String? 
+  createdById String?
 
   customer Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
   org      Organisation @relation(fields: [orgId], references: [id])
@@ -922,6 +939,196 @@ model SupplierPayment {
   @@index([purchaseOrderId])
   @@index([orgId])
   @@index([paidAt])
+}
+
+model MomoLine {
+  id        String   @id @default(cuid())
+  orgId     String
+  name      String // e.g. "Main Merchant Line"
+  number    String // e.g. "0244000001"
+  network   String // "MTN" | "Vodafone" | "AirtelTigo"
+  isActive  Boolean  @default(true)
+  balance   Decimal  @default(0) @db.Decimal(12, 2) // live balance from SMS
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org          Organisation      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  transactions MomoTransaction[]
+
+  @@index([orgId])
+  @@index([number])
+}
+
+model MomoTransaction {
+  id          String   @id @default(cuid())
+  orgId       String
+  type        String // "INCOMING" | "OUTGOING" | "REQUEST" | "TRANSFER" | "CARD"
+  amount      Decimal  @db.Decimal(12, 2)
+  fee         Decimal  @default(0) @db.Decimal(12, 2)
+  net         Decimal  @db.Decimal(12, 2)
+  fromName    String
+  fromNumber  String
+  toNumber    String? // recipient MoMo number (if transfer/request)
+  toBank      String? // recipient bank name (if bank transfer)
+  toAccount   String? // recipient account number (if bank transfer)
+  toName      String? // recipient name (if bank transfer)
+  lineId      String? // which MomoLine received/sent this
+  status      String   @default("COMPLETED") // "COMPLETED" | "PENDING" | "FAILED"
+  message     String   @db.Text // EXACT raw SMS text — never modified
+  reference   String   @unique // Transaction ID from SMS / Paystack ref
+  paystackRef String? // Paystack reference if via Paystack
+  createdAt   DateTime @default(now())
+
+  org  Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  line MomoLine?    @relation(fields: [lineId], references: [id], onDelete: SetNull)
+
+  @@index([orgId])
+  @@index([createdAt])
+  @@index([status])
+  @@index([type])
+}
+
+model MomoAlert {
+  id        String   @id @default(cuid())
+  orgId     String
+  payload   String   @db.Text // JSON: { amount, balance, senderName, senderNumber, message, lineNumber, timestamp }
+  delivered Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([orgId])
+  @@index([delivered])
+  @@index([createdAt])
+}
+
+model SystemConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String   @db.Text // always JSON string
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}
+
+model OrgSmsBalance {
+  id               String   @id @default(cuid())
+  orgId            String   @unique
+  creditBalanceUsd Decimal  @default(0) @db.Decimal(10, 4) // PREPAID: remaining credit
+  creditUsedUsd    Decimal  @default(0) @db.Decimal(10, 4) // total billed to merchant
+  atCostOwedUsd    Decimal  @default(0) @db.Decimal(10, 4) // what you owe AT this period
+  profitAccruedUsd Decimal  @default(0) @db.Decimal(10, 4) // your profit this period
+  bundleSmssUsed   Int      @default(0) // BUNDLE: SMS used this month
+  bundleSmssLimit  Int      @default(1000) // BUNDLE: monthly limit
+  lastUpdated      DateTime @default(now())
+  periodResetAt    DateTime @default(now()) // when bundle was last reset
+
+  org    Organisation     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  topups SmsCreditTopup[]
+  usages SmsUsage[]
+
+  @@index([orgId])
+}
+
+model SmsUsage {
+  id                String   @id @default(cuid())
+  orgId             String
+  smsBalanceId      String?
+  smsCount          Int      @default(1)
+  atCostUsd         Decimal  @db.Decimal(10, 6) // what AT charges for this batch
+  platformProfitUsd Decimal  @db.Decimal(10, 6) // your profit from this batch
+  merchantChargeUsd Decimal  @db.Decimal(10, 6) // total charged to merchant
+  billedAt          DateTime @default(now())
+  status            String   @default("PENDING") // "PENDING" | "PAID" | "WAIVED"
+  notes             String?
+
+  org        Organisation   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  smsBalance OrgSmsBalance? @relation(fields: [smsBalanceId], references: [id], onDelete: SetNull)
+
+  @@index([orgId])
+  @@index([billedAt])
+  @@index([status])
+}
+
+model SmsCreditTopup {
+  id             String   @id @default(cuid())
+  orgId          String
+  smsBalanceId   String?
+  amountUsd      Decimal  @db.Decimal(10, 4)
+  smsCreditCount Int // how many SMS credits this buys
+  method         String // "PAYSTACK" | "MOMO" | "MANUAL"
+  paystackRef    String? // Paystack reference if paid via Paystack
+  status         String   @default("PENDING") // "COMPLETED" | "PENDING" | "FAILED"
+  createdAt      DateTime @default(now())
+
+  org        Organisation   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  smsBalance OrgSmsBalance? @relation(fields: [smsBalanceId], references: [id], onDelete: SetNull)
+
+  @@index([orgId])
+  @@index([createdAt])
+}
+
+model PaystackSplitConfig {
+  id                   String   @id @default(cuid())
+  orgId                String   @unique
+  splitCode            String // e.g. "SPL_xxxxxxxxxxxxxxx"
+  splitId              String? // Paystack internal split ID
+  superAdminSubaccount String // ACCT_xxxxxxxxxxxxxxx
+  businessSubaccount   String // ACCT_xxxxxxxxxxxxxxx
+  superAdminSharePct   Decimal  @db.Decimal(5, 2) // e.g. 1.00 = 1%
+  businessSharePct     Decimal  @db.Decimal(5, 2) // e.g. 97.05%
+  isActive             Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  org Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+}
+
+model BillingInvoice {
+  id              String    @id @default(cuid())
+  orgId           String
+  invoiceNumber   String    @unique // e.g. "INV-2026-04-001"
+  periodStart     DateTime
+  periodEnd       DateTime
+  planFee         Decimal   @default(0) @db.Decimal(10, 2) // subscription fee
+  smsFee          Decimal   @default(0) @db.Decimal(10, 4) // SMS usage this period
+  totalAmountUsd  Decimal   @db.Decimal(10, 2)
+  totalAmountGhs  Decimal   @default(0) @db.Decimal(10, 2) // converted at billing time
+  status          String    @default("PENDING") // "PENDING" | "PAID" | "OVERDUE" | "WAIVED"
+  dueDate         DateTime
+  paidAt          DateTime?
+  deductionMethod String? // "MOMO" | "CARD" | "BANK" | "MANUAL"
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  org      Organisation     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  payments BillingPayment[]
+
+  @@index([orgId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+model BillingPayment {
+  id          String    @id @default(cuid())
+  invoiceId   String
+  orgId       String
+  amountUsd   Decimal   @db.Decimal(10, 2)
+  amountGhs   Decimal   @default(0) @db.Decimal(10, 2)
+  method      String // "MOMO" | "CARD" | "BANK" | "MANUAL"
+  paystackRef String? // if paid via Paystack
+  momoRef     String? // if paid via MoMo
+  status      String    @default("PENDING") // "COMPLETED" | "PENDING" | "FAILED"
+  paidAt      DateTime?
+  notes       String?
+  createdAt   DateTime  @default(now())
+
+  invoice BillingInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  org     Organisation   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@index([orgId])
+  @@index([status])
 }
 
 enum SupplierPaymentStatus {

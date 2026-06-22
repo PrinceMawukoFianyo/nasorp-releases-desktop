@@ -33,6 +33,7 @@ import { formatCurrency } from "../po-utils";
 import ReceiptScanner, { ScannedPOData } from "./receipt-scanner";
 import { Send, Mail, MessageCircle, SendHorizonal, PackageCheck } from "lucide-react";
 
+
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 interface Supplier {
@@ -130,6 +131,7 @@ export default function PurchaseOrderForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [supplierSearch, setSupplierSearch] = useState("");
   const [autoReceiveGoods, setAutoReceiveGoods] = useState(false);
+  const [autoCreateReceipt, setAutoCreateReceipt] = useState(false);  // <-- NEW
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [activeTab, setActiveTab] = useState<"order" | "receive">("order");
@@ -421,17 +423,40 @@ export default function PurchaseOrderForm({
         }
       }
 
+      // --- AUTO CREATE GOODS RECEIPT (NEW CHECKBOX) ---
+      if (autoCreateReceipt && result.success && result.data?.id) {
+        const freshPO = await getPurchaseOrderById(result.data.id);
+        if (freshPO && freshPO.lines.length > 0) {
+          const receiptItems = freshPO.lines.map((line: any) => ({
+            purchaseOrderLineId: line.id,
+            itemId: line.itemId,
+            receivedQuantity: line.quantity, // full quantity
+            notes: "Auto‑created from purchase order",
+          }));
+          const locationId = itemsWithLocation[0]?.locationId || formData.deliveryLocationId;
+          const grResult = await createGoodsReceipt({
+            purchaseOrderId: result.data.id,
+            locationId: locationId,
+            notes: "Auto‑generated receipt (full quantity)",
+            items: receiptItems,
+          });
+          if (grResult.success) {
+            toast.success("Goods receipt automatically created – stock updated");
+          } else {
+            toast.warning("PO saved but auto‑receipt failed");
+          }
+        }
+      }
+
       // Handle immediate receiving (if any quantities entered in Receive tab)
       if (result.success && result.data?.id && hasItemsToReceive) {
         const freshPO = await getPurchaseOrderById(result.data.id);
         if (freshPO && freshPO.lines.length > 0) {
           const lineIdMap = new Map();
           freshPO.lines.forEach((line: any) => {
-            // map by itemId (assuming unique item per line)
             lineIdMap.set(line.itemId, line.id);
           });
 
-          // Build receipt items from receiveQuantities
           const receiptItems: any[] = [];
           for (const line of lineItems) {
             const key = line.id || line.itemId;
@@ -713,16 +738,29 @@ export default function PurchaseOrderForm({
                   />
                 </div>
 
-                {/* Auto‑receive goods checkbox */}
-                <div className="flex items-center space-x-2 pt-2">
-                  <Checkbox
-                    id="autoReceive"
-                    checked={autoReceiveGoods}
-                    onCheckedChange={(checked) => setAutoReceiveGoods(!!checked)}
-                  />
-                  <Label htmlFor="autoReceive" className="cursor-pointer">
-                    Receive ALL goods immediately (full quantity)
-                  </Label>
+                {/* Checkboxes section */}
+                <div className="space-y-2 pt-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="autoReceive"
+                      checked={autoReceiveGoods}
+                      onCheckedChange={(checked) => setAutoReceiveGoods(!!checked)}
+                    />
+                    <Label htmlFor="autoReceive" className="cursor-pointer">
+                      Receive ALL goods immediately (full quantity)
+                    </Label>
+                  </div>
+                  {/* NEW: Auto-create goods receipt checkbox */}
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="autoCreateReceipt"
+                      checked={autoCreateReceipt}
+                      onCheckedChange={(checked) => setAutoCreateReceipt(!!checked)}
+                    />
+                    <Label htmlFor="autoCreateReceipt" className="cursor-pointer">
+                      Auto‑create goods receipt (receive all items immediately)
+                    </Label>
+                  </div>
                 </div>
 
                 {/* Line Items Manager */}

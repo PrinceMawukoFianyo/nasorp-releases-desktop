@@ -5,6 +5,9 @@
  * – Print individual & all customer statements
  * – Manual debt dialog (appears in Credit tracker)
  * – All other tabs (Overview, Expenses, Payroll, etc.) unchanged
+ * – Suppliers tab now shows PO summaries with progress, status and Pay button
+ * – Supplier total owing now loads automatically on mount
+ * – Payment link now uses PO id if available, and is configurable
  */
 
 import React, { useState, useEffect, useTransition, useMemo } from "react";
@@ -18,7 +21,7 @@ import {
   MapPin, Users, CreditCard, Layers, AlertTriangle, CheckCircle2,
   Clock, Ban, ArrowUpRight, Package2, Receipt, Building2,
   Smartphone, WalletCards, Banknote, Calendar, Printer,
-  PieChart, FileText, Settings, ShieldCheck, Zap, ShoppingBag, // ← added ShoppingBag
+  PieChart, FileText, Settings, ShieldCheck, Zap, ShoppingBag,
 } from "lucide-react";
 import { toast } from "sonner";
 import { createExpense, createPayrollEntry, markPayrollPaid, deletePayrollEntry } from "@/actions/accounting";
@@ -31,8 +34,6 @@ import { ChevronDown, ChevronUp, FileText as FileTextIcon, Receipt as ReceiptIco
 import { ManualSupplierDebtDialog } from "@/components/ManualSupplierDebtDialog";
 import { getBriefSuppliers, getSupplierStatement } from "@/actions/suppliers";
 import StaffPerformanceTab from "./StaffPerformanceTab";
-
-
 
 // ══════════════════════════════════════════════════════════════════════
 // TYPES
@@ -56,7 +57,7 @@ type DashboardData = {
   salesByCategory: { category: string; value: number }[];
   salesTimeline?: { label: string; sales: number; orders: number }[];
   inventoryValueAtRetail?: number;
-  recentPurchaseOrders?: {                           // ← new field
+  recentPurchaseOrders?: {
     id: string;
     poNumber: string;
     supplierName: string;
@@ -82,6 +83,7 @@ type Props = {
   initialPayroll?: PayrollRecord[];
   initialTab?: TabId;
 };
+
 // ══════════════════════════════════════════════════════════════════════
 // HELPERS
 // ══════════════════════════════════════════════════════════════════════
@@ -100,6 +102,72 @@ function toCsv(rows: Record<string, string | number>[], filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a"); a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url); toast.success("Exported!");
+}
+
+// ── Helper: build payment URL ──────────────────────────────────────
+function getPaymentUrl(po: { id?: string; poNumber: string }) {
+  // If we have an id, use it; otherwise fallback to poNumber.
+  // Adjust the route pattern to match your actual payment page.
+  const id = po.id || po.poNumber;
+  // Common patterns:
+  //   /dashboard/purchases/purchase-orders/[id]/pay
+  //   /dashboard/purchases/payments/new?poId=[id]
+  // Edit the line below to match your app's route.
+  return `/dashboard/purchases/purchase-orders/${id}/pay`;
+}
+
+// ── Helper: build PO summaries from transactions ──────────────────────
+function buildPOSummaries(transactions: any[]): {
+  id?: string;
+  poNumber: string;
+  poTotal: number;
+  paid: number;
+  owing: number;
+  progress: number;
+  status: "Paid" | "Partial" | "Unpaid";
+  dueDate?: string;
+}[] {
+  const poMap = new Map<string, any>();
+
+  // Collect PO transactions
+  for (const t of transactions) {
+    if (t.type === "PURCHASE_ORDER") {
+      const poNumber = t.number;
+      if (!poMap.has(poNumber)) {
+        poMap.set(poNumber, {
+          id: t.id, // capture the transaction id if available
+          poNumber,
+          poTotal: t.amount,
+          paid: 0,
+          owing: t.amount,
+          progress: 0,
+          status: "Unpaid" as const,
+          dueDate: t.dueDate || t.date,
+        });
+      }
+    }
+  }
+
+  // Add payments to matching POs (assuming payments have a poNumber field)
+  for (const t of transactions) {
+    if ((t.type === "PAYMENT" || t.type === "PAYOUT") && t.poNumber) {
+      const po = poMap.get(t.poNumber);
+      if (po) {
+        po.paid += t.amount;
+      }
+    }
+  }
+
+  // Compute derived fields
+  for (const po of poMap.values()) {
+    po.owing = po.poTotal - po.paid;
+    po.progress = po.poTotal > 0 ? (po.paid / po.poTotal) * 100 : 0;
+    if (po.owing <= 0) po.status = "Paid";
+    else if (po.paid > 0) po.status = "Partial";
+    else po.status = "Unpaid";
+  }
+
+  return Array.from(poMap.values());
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -197,7 +265,6 @@ function EmptyState({ icon: Icon, message }: { icon: React.ElementType; message:
   );
 }
 
-// ── Progress bar helper ───────────────────────────────────────────────
 function ProgressBar({ value, max, color = "bg-emerald-500" }: { value: number; max: number; color?: string }) {
   const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
   return (
@@ -207,7 +274,6 @@ function ProgressBar({ value, max, color = "bg-emerald-500" }: { value: number; 
   );
 }
 
-// ── Mini inline bar chart ─────────────────────────────────────────────
 function MiniBarChart({ data }: { data: { label: string; sales: number; expenses: number }[] }) {
   const max = Math.max(...data.map(d => Math.max(d.sales, d.expenses)), 1);
   return (
@@ -228,7 +294,6 @@ function MiniBarChart({ data }: { data: { label: string; sales: number; expenses
   );
 }
 
-// ── Revenue split card ────────────────────────────────────────────────
 function RevenueSplitCard({ totalSales, fromOrders, fromCredit, fromPOS, expenses }: {
   totalSales: number; fromOrders: number; fromCredit: number; fromPOS: number; expenses: number;
 }) {
@@ -267,7 +332,6 @@ function RevenueSplitCard({ totalSales, fromOrders, fromCredit, fromPOS, expense
   );
 }
 
-// ── Forms ─────────────────────────────────────────────────────────────
 const EXPENSE_CATS = ["Operations", "Logistics", "Marketing", "Maintenance", "Utilities", "Payroll", "Other"];
 
 function ExpenseForm({ onAdd }: { onAdd: (e: ExpenseRecord) => void }) {
@@ -387,7 +451,6 @@ function PayrollForm({ onAdd }: { onAdd: (p: PayrollRecord) => void }) {
   );
 }
 
-// ── Banners ───────────────────────────────────────────────────────────
 function UpgradeBanner() {
   return (
     <Card className="border-purple-200 dark:border-purple-800 bg-purple-50/60 dark:bg-purple-950/20">
@@ -475,10 +538,23 @@ export default function AccountantDashboard({
     loadCustomers();
   }, []);
 
+  // ── Load suppliers + fetch statements automatically ──────────────
   useEffect(() => {
-  async function loadSuppliers() {
-      const res = await getBriefSuppliers();
-      setAllSuppliers(res);
+    async function loadSuppliers() {
+      const suppliers = await getBriefSuppliers();
+      setAllSuppliers(suppliers);
+
+      // Fetch statements for all suppliers to populate totalOwing
+      const statementPromises = suppliers.map(async (s) => {
+        const stmt = await getSupplierStatement(s.id);
+        return { id: s.id, statement: stmt };
+      });
+      const results = await Promise.all(statementPromises);
+      const stmtMap: Record<string, any> = {};
+      results.forEach(({ id, statement }) => {
+        stmtMap[id] = statement;
+      });
+      setSupplierStatements(stmtMap);
     }
     loadSuppliers();
   }, []);
@@ -495,20 +571,18 @@ export default function AccountantDashboard({
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
-  // If the URL tab param changes externally (back/forward), sync state
   useEffect(() => {
     const urlTab = searchParams.get("tab") as TabId | null;
     if (urlTab && VALID_TABS.includes(urlTab) && urlTab !== tab) setTab(urlTab);
   }, [searchParams]);
 
-  // ── Fetch statement for a customer (only once) ───────────────────────
+  // ── Fetch statement for a customer ───────────────────────────────────
   const fetchStatement = async (customerId: string) => {
     if (customerStatements[customerId]) return;
     const data = await getCustomerStatement(customerId);
     setCustomerStatements(prev => ({ ...prev, [customerId]: data }));
   };
 
-  // ── Toggle expand/collapse ────────────────────────────────────────────
   const toggleExpand = async (customerId: string) => {
     if (expandedCustomer === customerId) {
       setExpandedCustomer(null);
@@ -518,31 +592,31 @@ export default function AccountantDashboard({
     }
   };
 
-// ── Print single customer statement ──────────────────────────────
-const printStatement = (customer: any, statement: any) => {
-  const printWindow = window.open("", "_blank", "width=860,height=700");
-  if (!printWindow) {
-    toast.error("Please allow pop-ups to print");
-    return;
-  }
+  // ── Print single customer statement ──────────────────────────────
+  const printStatement = (customer: any, statement: any) => {
+    const printWindow = window.open("", "_blank", "width=860,height=700");
+    if (!printWindow) {
+      toast.error("Please allow pop-ups to print");
+      return;
+    }
 
-  const rows =
-    statement.transactions.length === 0
-      ? `<tr><td colspan="5" style="text-align:center;color:#999;padding:20px">No transactions found</td></tr>`
-      : statement.transactions
-          .map(
-            (t: any) => `
-          <tr>
-            <td>${formatDate(t.date)}</td>
-            <td>${t.number}</td>
-            <td>${t.type}</td>
-            <td>${formatCurrency(t.amount)}</td>
-            <td class="status-${(t.status || "").toLowerCase()}">${t.status}</td>
-          </tr>`
-          )
-          .join("");
+    const rows =
+      statement.transactions.length === 0
+        ? `<tr><td colspan="5" style="text-align:center;color:#999;padding:20px">No transactions found</td></tr>`
+        : statement.transactions
+            .map(
+              (t: any) => `
+            <tr>
+              <td>${formatDate(t.date)}</td>
+              <td>${t.number}</td>
+              <td>${t.type}</td>
+              <td>${formatCurrency(t.amount)}</td>
+              <td class="status-${(t.status || "").toLowerCase()}">${t.status}</td>
+            </tr>`
+            )
+            .join("");
 
-  const content = `<!DOCTYPE html>
+    const content = `<!DOCTYPE html>
 <html>
 <head>
   <title>Statement – ${customer.name}</title>
@@ -603,86 +677,85 @@ const printStatement = (customer: any, statement: any) => {
 </body>
 </html>`;
 
-  printWindow.document.open();
-  printWindow.document.write(content);
-  printWindow.document.close();
-};
+    printWindow.document.open();
+    printWindow.document.write(content);
+    printWindow.document.close();
+  };
 
-// ── Print ALL customers' statements ──────────────────────────────
-const printAllStatements = async () => {
-  const toastId = toast.loading("Preparing all statements…");
+  // ── Print ALL customers' statements ──────────────────────────────
+  const printAllStatements = async () => {
+    const toastId = toast.loading("Preparing all statements…");
 
-  let allStatements: { customer: any; statement: any }[] = [];
+    let allStatements: { customer: any; statement: any }[] = [];
 
-  try {
-    allStatements = await Promise.all(
-      topCustomers.map(async (c) => ({
-        customer: c,
-        statement: await getCustomerStatement(c.id),
-      }))
-    );
-  } catch (err) {
+    try {
+      allStatements = await Promise.all(
+        topCustomers.map(async (c) => ({
+          customer: c,
+          statement: await getCustomerStatement(c.id),
+        }))
+      );
+    } catch (err) {
+      toast.dismiss(toastId);
+      toast.error("Failed to load customer statements");
+      return;
+    }
+
     toast.dismiss(toastId);
-    toast.error("Failed to load customer statements");
-    return;
-  }
 
-  toast.dismiss(toastId);
+    const printWindow = window.open("", "_blank", "width=860,height=700");
+    if (!printWindow) {
+      toast.error("Please allow pop-ups to print");
+      return;
+    }
 
-  const printWindow = window.open("", "_blank", "width=860,height=700");
-  if (!printWindow) {
-    toast.error("Please allow pop-ups to print");
-    return;
-  }
-
-  // Build one block per customer
-  const blocks = allStatements
-    .map(({ customer, statement }) => {
-      const rows =
-        statement.transactions.length === 0
-          ? `<tr><td colspan="5" style="text-align:center;color:#999;padding:16px">No transactions</td></tr>`
-          : statement.transactions
-              .map(
-                (t: any) => `
-            <tr>
-              <td>${formatDate(t.date)}</td>
-              <td>${t.number}</td>
-              <td>${t.type}</td>
-              <td>${formatCurrency(t.amount)}</td>
-              <td class="status-${(t.status || "").toLowerCase()}">${t.status}</td>
-            </tr>`
-              )
-              .join("");
-
-      return `
-        <div class="customer-block">
-          <div class="header">
-            <h2>${customer.name}</h2>
-            ${customer.email ? `<p>${customer.email}</p>` : ""}
-            <p>Generated: ${new Date().toLocaleDateString()}</p>
-          </div>
-          <table>
-            <thead>
+    const blocks = allStatements
+      .map(({ customer, statement }) => {
+        const rows =
+          statement.transactions.length === 0
+            ? `<tr><td colspan="5" style="text-align:center;color:#999;padding:16px">No transactions</td></tr>`
+            : statement.transactions
+                .map(
+                  (t: any) => `
               <tr>
-                <th>Date</th>
-                <th>Document #</th>
-                <th>Type</th>
-                <th>Amount</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
-          <div class="totals">
-            <p>Total Invoiced: <strong>${formatCurrency(statement.totalInvoiced)}</strong></p>
-            <p>Total Paid: <strong style="color:#15803d">${formatCurrency(statement.totalPaid)}</strong></p>
-            <p class="owing">Outstanding: ${formatCurrency(statement.totalOwing)}</p>
-          </div>
-        </div>`;
-    })
-    .join("\n");
+                <td>${formatDate(t.date)}</td>
+                <td>${t.number}</td>
+                <td>${t.type}</td>
+                <td>${formatCurrency(t.amount)}</td>
+                <td class="status-${(t.status || "").toLowerCase()}">${t.status}</td>
+              </tr>`
+                )
+                .join("");
 
-  const content = `<!DOCTYPE html>
+        return `
+          <div class="customer-block">
+            <div class="header">
+              <h2>${customer.name}</h2>
+              ${customer.email ? `<p>${customer.email}</p>` : ""}
+              <p>Generated: ${new Date().toLocaleDateString()}</p>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Document #</th>
+                  <th>Type</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+            <div class="totals">
+              <p>Total Invoiced: <strong>${formatCurrency(statement.totalInvoiced)}</strong></p>
+              <p>Total Paid: <strong style="color:#15803d">${formatCurrency(statement.totalPaid)}</strong></p>
+              <p class="owing">Outstanding: ${formatCurrency(statement.totalOwing)}</p>
+            </div>
+          </div>`;
+      })
+      .join("\n");
+
+    const content = `<!DOCTYPE html>
 <html>
 <head>
   <title>All Customer Statements</title>
@@ -722,11 +795,12 @@ const printAllStatements = async () => {
 </body>
 </html>`;
 
-  printWindow.document.open();
-  printWindow.document.write(content);
-  printWindow.document.close();
-};
+    printWindow.document.open();
+    printWindow.document.write(content);
+    printWindow.document.close();
+  };
 
+  // ── Supplier functions ──────────────────────────────────────────────
   const fetchSupplierStatement = async (supplierId: string) => {
     if (supplierStatements[supplierId]) return;
     const data = await getSupplierStatement(supplierId);
@@ -743,41 +817,221 @@ const printAllStatements = async () => {
   };
 
   const printSupplierStatement = (supplier: any, statement: any) => {
-    // same as printStatement but with supplier data
     const printWindow = window.open("", "_blank", "width=800,height=600");
     if (!printWindow) { toast.error("Please allow pop-ups to print"); return; }
-    const content = `<!DOCTYPE html>...`; // adapt from printStatement
-    // ... similar to customer version, using supplier.name, etc.
+
+    const rows =
+      statement.transactions.length === 0
+        ? `<tr><td colspan="5" style="text-align:center;color:#999;padding:20px">No transactions found</td></tr>`
+        : statement.transactions
+            .map(
+              (t: any) => `
+            <tr>
+              <td>${formatDate(t.date)}</td>
+              <td>${t.number}</td>
+              <td>${t.type}</td>
+              <td>${formatCurrency(t.amount)}</td>
+              <td class="status-${(t.status || "").toLowerCase()}">${t.status}</td>
+            </tr>`
+            )
+            .join("");
+
+    const content = `<!DOCTYPE html>
+<html>
+<head>
+  <title>Supplier Statement – ${supplier.name}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; padding: 24px; margin: 0; color: #222; }
+    .header { border-bottom: 2px solid #222; padding-bottom: 14px; margin-bottom: 20px; }
+    .header h2 { margin: 0 0 4px; font-size: 20px; }
+    .header p  { margin: 2px 0; color: #555; font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    th, td { border: 1px solid #ddd; padding: 9px 10px; text-align: left; font-size: 13px; }
+    th { background: #f5f5f5; font-weight: 700; }
+    tr:nth-child(even) td { background: #fafafa; }
+    .totals { margin-top: 18px; border-top: 1px solid #ddd; padding-top: 12px; text-align: right; }
+    .totals p { margin: 5px 0; font-size: 13px; }
+    .totals .owing { font-size: 16px; font-weight: bold; color: #b91c1c; }
+    .status-paid    { color: #15803d; font-weight: 600; }
+    .status-unpaid  { color: #dc2626; font-weight: 600; }
+    .status-partial { color: #d97706; font-weight: 600; }
+    @media print {
+      body { padding: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h2>Supplier Statement</h2>
+    <p><strong>${supplier.name}</strong></p>
+    ${supplier.email ? `<p>${supplier.email}</p>` : ""}
+    <p>Generated: ${new Date().toLocaleDateString()}</p>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Document #</th>
+        <th>Type</th>
+        <th>Amount</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+
+  <div class="totals">
+    <p>Total Invoiced: <strong>${formatCurrency(statement.totalInvoiced)}</strong></p>
+    <p>Total Paid: <strong style="color:#15803d">${formatCurrency(statement.totalPaid)}</strong></p>
+    <p class="owing">Outstanding: ${formatCurrency(statement.totalOwing)}</p>
+  </div>
+
+  <` + `script>
+    window.onload = function () {
+      window.print();
+      setTimeout(function () { window.close(); }, 1000);
+    };
+  </` + `script>
+</body>
+</html>`;
+    printWindow.document.open();
     printWindow.document.write(content);
     printWindow.document.close();
   };
 
-// Compute top suppliers (sorted by totalOwing from statements)
-const topSuppliers = useMemo(() => {
-  if (!allSuppliers.length) return [];
-  return allSuppliers
-    .map(s => ({
-      ...s,
-      totalOwing: supplierStatements[s.id]?.totalOwing ?? 0,
-      orderCount: supplierStatements[s.id]?.transactions?.filter((t: any) => t.type === "PURCHASE_ORDER").length ?? 0,
-    }))
-    .sort((a, b) => b.totalOwing - a.totalOwing)
-    .slice(0, 5);
-}, [allSuppliers, supplierStatements]);
-
-const totalSupplierOwing = useMemo(() => {
-  return topSuppliers.reduce((sum, s) => sum + s.totalOwing, 0);
-}, [topSuppliers]);
-
   const printAllSupplierStatements = async () => {
-    const allStatements = await Promise.all(
-      topSuppliers.map(async (s) => ({
-        supplier: s,
-        statement: await getSupplierStatement(s.id)
-      }))
-    );
-    // same as printAllStatements but for suppliers
+    const toastId = toast.loading("Preparing supplier statements…");
+    let allStatements: { supplier: any; statement: any }[] = [];
+
+    try {
+      allStatements = await Promise.all(
+        topSuppliers.map(async (s) => ({
+          supplier: s,
+          statement: await getSupplierStatement(s.id),
+        }))
+      );
+    } catch (err) {
+      toast.dismiss(toastId);
+      toast.error("Failed to load supplier statements");
+      return;
+    }
+    toast.dismiss(toastId);
+
+    const printWindow = window.open("", "_blank", "width=860,height=700");
+    if (!printWindow) {
+      toast.error("Please allow pop-ups to print");
+      return;
+    }
+
+    const blocks = allStatements
+      .map(({ supplier, statement }) => {
+        const rows =
+          statement.transactions.length === 0
+            ? `<tr><td colspan="5" style="text-align:center;color:#999;padding:16px">No transactions</td></tr>`
+            : statement.transactions
+                .map(
+                  (t: any) => `
+              <tr>
+                <td>${formatDate(t.date)}</td>
+                <td>${t.number}</td>
+                <td>${t.type}</td>
+                <td>${formatCurrency(t.amount)}</td>
+                <td class="status-${(t.status || "").toLowerCase()}">${t.status}</td>
+              </tr>`
+                )
+                .join("");
+
+        return `
+          <div class="supplier-block">
+            <div class="header">
+              <h2>${supplier.name}</h2>
+              ${supplier.email ? `<p>${supplier.email}</p>` : ""}
+              <p>Generated: ${new Date().toLocaleDateString()}</p>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Document #</th>
+                  <th>Type</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+            <div class="totals">
+              <p>Total Invoiced: <strong>${formatCurrency(statement.totalInvoiced)}</strong></p>
+              <p>Total Paid: <strong style="color:#15803d">${formatCurrency(statement.totalPaid)}</strong></p>
+              <p class="owing">Outstanding: ${formatCurrency(statement.totalOwing)}</p>
+            </div>
+          </div>`;
+      })
+      .join("\n");
+
+    const content = `<!DOCTYPE html>
+<html>
+<head>
+  <title>All Supplier Statements</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; padding: 24px; margin: 0; color: #222; }
+    .supplier-block { margin-bottom: 48px; page-break-after: always; }
+    .supplier-block:last-child { page-break-after: avoid; }
+    .header { border-bottom: 2px solid #222; padding-bottom: 12px; margin-bottom: 16px; }
+    .header h2 { margin: 0 0 4px; font-size: 18px; }
+    .header p  { margin: 2px 0; color: #555; font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #ddd; padding: 8px 10px; text-align: left; font-size: 13px; }
+    th { background: #f5f5f5; font-weight: 700; }
+    tr:nth-child(even) td { background: #fafafa; }
+    .totals { margin-top: 14px; border-top: 1px solid #ddd; padding-top: 10px; text-align: right; }
+    .totals p { margin: 4px 0; font-size: 13px; }
+    .totals .owing { font-size: 15px; font-weight: bold; color: #b91c1c; }
+    .status-paid    { color: #15803d; font-weight: 600; }
+    .status-unpaid  { color: #dc2626; font-weight: 600; }
+    .status-partial { color: #d97706; font-weight: 600; }
+    @media print {
+      body { padding: 10px; }
+      .supplier-block { page-break-after: always; }
+      .supplier-block:last-child { page-break-after: avoid; }
+    }
+  </style>
+</head>
+<body>
+  ${blocks}
+  <` + `script>
+    window.onload = function () {
+      window.print();
+      setTimeout(function () { window.close(); }, 1000);
+    };
+  </` + `script>
+</body>
+</html>`;
+
+    printWindow.document.open();
+    printWindow.document.write(content);
+    printWindow.document.close();
   };
+
+  // ── Derived data ────────────────────────────────────────────────────
+  const topSuppliers = useMemo(() => {
+    if (!allSuppliers.length) return [];
+    return allSuppliers
+      .map(s => ({
+        ...s,
+        totalOwing: supplierStatements[s.id]?.totalOwing ?? 0,
+        orderCount: supplierStatements[s.id]?.transactions?.filter((t: any) => t.type === "PURCHASE_ORDER").length ?? 0,
+      }))
+      .sort((a, b) => b.totalOwing - a.totalOwing)
+      .slice(0, 5);
+  }, [allSuppliers, supplierStatements]);
+
+  const totalSupplierOwing = useMemo(() => {
+    return topSuppliers.reduce((sum, s) => sum + s.totalOwing, 0);
+  }, [topSuppliers]);
 
   // Derived numbers
   const d = dashboardData;
@@ -888,7 +1142,6 @@ const totalSupplierOwing = useMemo(() => {
               <StatCard label="Outstanding Credit" value={fmt(outstandingCredit)} sub={`${creditSummary?.activeDebtors ?? 0} debtors`} accent="orange" icon={CreditCard} href="/dashboard/sales/orders/credit" />
               <StatCard label="Tax Collected" value={fmt(taxCollected)} sub="VAT & other taxes" accent="purple" icon={Receipt} />
               <StatCard label="COGS / Purchases" value={fmt(cogs)} sub="Cost of goods / purchases" accent="red" icon={TrendingDown} href="/dashboard/purchases/purchase-orders" />
-              {/* NEW: Total Purchases (30d) KPI */}
               <StatCard
                 label="Total Purchases (30d)"
                 value={fmt(financials?.totalPurchases ?? 0)}
@@ -954,8 +1207,6 @@ const totalSupplierOwing = useMemo(() => {
                   </div>
                 </CardContent>
               </Card>
-              <Link href="/dashboard/sales/orders" className="text-xs text-emerald-600 hover:underline">View all →</Link>
-
               <Card>
                 <CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-sm font-semibold">Top Selling Products</CardTitle><Link href="/dashboard/inventory/items" className="text-xs text-emerald-600 hover:underline">View all →</Link></div></CardHeader>
                 <CardContent className="space-y-2">
@@ -1104,8 +1355,8 @@ const totalSupplierOwing = useMemo(() => {
                               } else { toast.error("Failed to update status"); }
                             }}
                             className={`text-[10px] font-semibold px-2 py-1 rounded-md border transition-all ${p.status === "PAID"
-                              ? "bg-green-100 text-green-700 border-green-200 cursor-default"
-                              : "bg-amber-100 text-amber-700 border-amber-200 hover:bg-green-100 hover:text-green-700 hover:border-green-300 cursor-pointer"
+                                ? "bg-green-100 text-green-700 border-green-200 cursor-default"
+                                : "bg-amber-100 text-amber-700 border-amber-200 hover:bg-green-100 hover:text-green-700 hover:border-green-300 cursor-pointer"
                               }`}
                           >
                             {p.status === "PAID" ? "PAID ✓" : "PENDING → Pay"}
@@ -1256,7 +1507,7 @@ const totalSupplierOwing = useMemo(() => {
                                                     <ReceiptIcon className="h-4 w-4 inline" />
                                                   </a>
                                                 )}
-                                                
+                                                 
                                               </td>
                                             </tr>
                                           ))}
@@ -1309,13 +1560,13 @@ const totalSupplierOwing = useMemo(() => {
               onOpenChange={setManualDebtOpen}
               customers={allCustomers}
               onSuccess={() => {
-                toast.success("Manual debt added. It will appear in Credit & Payments tracker and Credit Saless.");
+                toast.success("Manual debt added. It will appear in Credit & Payments tracker and Credit Sales.");
               }}
             />
           </div>
         )}
 
-        {/* SUPPLIERS – with expandable statements, print all, manual debt */}
+        {/* ─── SUPPLIERS – with PO summaries ─────────────────────────── */}
         {tab === "suppliers" && (
           <div className="space-y-5">
             {/* Top Stats Cards */}
@@ -1364,6 +1615,7 @@ const totalSupplierOwing = useMemo(() => {
                       {topSuppliers.map((s, i) => {
                         const isExpanded = expandedSupplier === s.id;
                         const statement = supplierStatements[s.id];
+                        const poSummaries = statement ? buildPOSummaries(statement.transactions) : [];
                         return (
                           <React.Fragment key={s.id}>
                             <tr className="border-b hover:bg-muted/30">
@@ -1385,41 +1637,129 @@ const totalSupplierOwing = useMemo(() => {
                                 <td colSpan={8} className="p-4">
                                   <div className="space-y-3">
                                     <div className="flex justify-between items-center">
-                                      <h4 className="text-sm font-semibold">Transaction Statement</h4>
-                                      <Button size="sm" variant="outline" onClick={() => printSupplierStatement(s, statement)}>
-                                        <Printer className="h-3.5 w-3.5 mr-1" /> Print Statement
-                                      </Button>
+                                      <h4 className="text-sm font-semibold">Purchase Orders</h4>
+                                      <div className="flex gap-2">
+                                        <Button size="sm" variant="outline" onClick={() => printSupplierStatement(s, statement)}>
+                                          <Printer className="h-3.5 w-3.5 mr-1" /> Print Statement
+                                        </Button>
+                                      </div>
                                     </div>
+
+                                    {/* PO Summary Table */}
                                     <div className="overflow-x-auto">
                                       <table className="w-full text-sm">
                                         <thead className="bg-muted/40">
-                                          <tr><th className="p-2 text-left">Date</th><th className="p-2 text-left">Document #</th><th className="p-2 text-left">Type</th><th className="p-2 text-right">Amount</th><th className="p-2 text-left">Status</th><th className="p-2 text-center">Actions</th></tr>
+                                          <tr>
+                                            <th className="p-2 text-left">PO #</th>
+                                            <th className="p-2 text-right">PO Total</th>
+                                            <th className="p-2 text-right">Paid</th>
+                                            <th className="p-2 text-right">Owing</th>
+                                            <th className="p-2 text-center">Progress</th>
+                                            <th className="p-2 text-left">Status</th>
+                                            <th className="p-2 text-left">Due Date</th>
+                                            <th className="p-2 text-center">Actions</th>
+                                          </tr>
                                         </thead>
                                         <tbody>
-                                          {statement.transactions.map((t: any, idx: number) => (
+                                          {poSummaries.map((po, idx) => (
                                             <tr key={idx} className="border-b">
-                                              <td className="p-2">{formatDate(t.date)}</td>
-                                              <td className="p-2 font-mono text-xs">{t.number}</td>
-                                              <td className="p-2">{t.type}</td>
-                                              <td className="p-2 text-right font-medium">{fmt(t.amount)}</td>
-                                              <td className="p-2">{t.status}</td>
+                                              <td className="p-2 font-mono text-xs">
+                                                <Link href={`/dashboard/purchases/purchase-orders/${po.poNumber}`} className="text-blue-600 hover:underline">
+                                                  {po.poNumber}
+                                                </Link>
+                                              </td>
+                                              <td className="p-2 text-right font-medium">{fmt(po.poTotal)}</td>
+                                              <td className="p-2 text-right text-green-700">{fmt(po.paid)}</td>
+                                              <td className="p-2 text-right text-red-600 font-semibold">{fmt(po.owing)}</td>
                                               <td className="p-2 text-center">
-                                                {t.link && (
-                                                  <a href={t.link} target="_blank" className="text-blue-600 hover:underline" title="View PO">
-                                                    <FileTextIcon className="h-4 w-4 inline" />
-                                                  </a>
+                                                <div className="flex items-center gap-1.5 justify-center">
+                                                  <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                                                    <div
+                                                      className={`h-full rounded-full ${
+                                                        po.progress >= 100
+                                                          ? "bg-emerald-500"
+                                                          : po.progress > 0
+                                                          ? "bg-amber-500"
+                                                          : "bg-gray-300"
+                                                      }`}
+                                                      style={{ width: `${Math.min(100, po.progress)}%` }}
+                                                    />
+                                                  </div>
+                                                  <span className="text-[10px] text-muted-foreground">
+                                                    {po.progress.toFixed(0)}%
+                                                  </span>
+                                                </div>
+                                              </td>
+                                              <td className="p-2">
+                                                <Badge
+                                                  variant="outline"
+                                                  className={`text-[10px] font-semibold ${
+                                                    po.status === "Paid"
+                                                      ? "bg-green-100 text-green-700 border-green-200"
+                                                      : po.status === "Partial"
+                                                      ? "bg-amber-100 text-amber-700 border-amber-200"
+                                                      : "bg-red-100 text-red-700 border-red-200"
+                                                  }`}
+                                                >
+                                                  {po.status}
+                                                </Badge>
+                                              </td>
+                                              <td className="p-2 text-xs text-muted-foreground">
+                                                {po.dueDate ? formatDate(po.dueDate) : "—"}
+                                              </td>
+                                              <td className="p-2 text-center">
+                                                {po.status !== "Paid" && (
+                                                  <Link
+                                                    href={getPaymentUrl(po)}
+                                                    className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md inline-block"
+                                                  >
+                                                    Pay
+                                                  </Link>
                                                 )}
                                               </td>
                                             </tr>
                                           ))}
+                                          {poSummaries.length === 0 && (
+                                            <tr>
+                                              <td colSpan={8} className="p-4 text-center text-muted-foreground">
+                                                No purchase orders found.
+                                              </td>
+                                            </tr>
+                                          )}
                                         </tbody>
-                                        <tfoot className="border-t-2">
-                                          <tr><td colSpan={3} className="p-2 font-semibold">Totals</td><td className="p-2 text-right font-semibold">{fmt(statement.totalInvoiced)}</td><td colSpan={2}></td></tr>
-                                          <tr><td colSpan={3} className="p-2">Total Paid</td><td className="p-2 text-right text-green-700">{fmt(statement.totalPaid)}</td><td colSpan={2}></td></tr>
-                                          <tr><td colSpan={3} className="p-2 font-bold">Outstanding Balance</td><td className="p-2 text-right font-bold text-red-600">{fmt(statement.totalOwing)}</td><td colSpan={2}></td></tr>
-                                        </tfoot>
                                       </table>
                                     </div>
+
+                                    {/* Optional: full transaction list */}
+                                    <details className="text-xs text-muted-foreground">
+                                      <summary className="cursor-pointer hover:text-foreground">
+                                        View all transactions
+                                      </summary>
+                                      <div className="mt-2 overflow-x-auto">
+                                        <table className="w-full text-sm">
+                                          <thead className="bg-muted/40">
+                                            <tr>
+                                              <th className="p-2 text-left">Date</th>
+                                              <th className="p-2 text-left">Document #</th>
+                                              <th className="p-2 text-left">Type</th>
+                                              <th className="p-2 text-right">Amount</th>
+                                              <th className="p-2 text-left">Status</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {statement.transactions.map((t: any, idx: number) => (
+                                              <tr key={idx} className="border-b">
+                                                <td className="p-2">{formatDate(t.date)}</td>
+                                                <td className="p-2 font-mono text-xs">{t.number}</td>
+                                                <td className="p-2">{t.type}</td>
+                                                <td className="p-2 text-right">{fmt(t.amount)}</td>
+                                                <td className="p-2">{t.status}</td>
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    </details>
                                   </div>
                                 </td>
                               </tr>
@@ -1440,7 +1780,6 @@ const totalSupplierOwing = useMemo(() => {
               suppliers={allSuppliers}
               onSuccess={() => {
                 toast.success("Manual supplier debt added. It will appear in Payables tracker.");
-                // Optionally refresh supplier statements
               }}
             />
           </div>

@@ -796,3 +796,92 @@ export async function handleSendEmail(id: string, email?: string) {
     }
   }
 }
+
+export async function createMissingGoodsReceipts() {
+  try {
+    const user = await getAuthenticatedUser()
+    if (!user?.orgId) return { success: false, error: "Not authenticated" }
+
+    // Find all POs with status RECEIVED that have no goods receipts
+    const pos = await db.purchaseOrder.findMany({
+      where: {
+        orgId: user.orgId,
+        status: "RECEIVED",
+        goodsReceipts: { none: {} },
+      },
+      include: {
+        lines: { include: { item: true } },
+        supplier: true,
+      },
+    })
+
+    const results = []
+    for (const po of pos) {
+      // Create a goods receipt for each
+      const receipt = await db.goodsReceipt.create({
+        data: {
+          receiptNumber: `GR-MIGRATE-${po.poNumber}`,
+          purchaseOrderId: po.id,
+          locationId: po.deliveryLocationId,
+          receivedDate: new Date(),
+          receivedById: user.id,
+          status: "COMPLETED",
+          notes: "Auto‑created for existing received PO",
+          total: Number(po.subtotal) + Number(po.taxAmount) + (Number(po.shippingCost) || 0),
+          orgId: user.orgId,
+          lines: {
+            create: po.lines.map(line => ({
+              purchaseOrderLineId: line.id,
+              itemId: line.itemId,
+              receivedQuantity: line.quantity, // assume full quantity received
+              notes: "",
+              serialNumbers: [],
+            })),
+          },
+        },
+        include: { lines: true },
+      })
+      results.push({ poNumber: po.poNumber, receiptNumber: receipt.receiptNumber })
+    }
+
+    // Also update inventory for these lines
+    for (const po of pos) {
+      for (const line of po.lines) {
+        const existingInv = await db.inventory.findUnique({
+          where: {
+            itemId_locationId: {
+              itemId: line.itemId,
+              locationId: po.deliveryLocationId,
+            },
+          },
+        })
+        if (existingInv) {
+          await db.inventory.update({
+            where: {
+              itemId_locationId: {
+                itemId: line.itemId,
+                locationId: po.deliveryLocationId,
+              },
+            },
+            data: { quantity: { increment: line.quantity } },
+          })
+        } else {
+          await db.inventory.create({
+            data: {
+              itemId: line.itemId,
+              locationId: po.deliveryLocationId,
+              quantity: line.quantity,
+              reservedQuantity: 0,
+              orgId: user.orgId,
+            },
+          })
+        }
+      }
+    }
+
+    return { success: true, data: results }
+  } catch (error) {
+    console.error(error)
+    return { success: false, error: String(error) }
+  }
+}

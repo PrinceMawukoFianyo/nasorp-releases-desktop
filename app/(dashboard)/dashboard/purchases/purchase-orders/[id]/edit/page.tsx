@@ -2,143 +2,390 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft } from "lucide-react"
-import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent } from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
+import {
+  Mail, Printer, Download, ArrowLeft, MapPin, User, Calendar,
+  Package, FileText, Building2, Phone, CheckCircle2, Trash2, AlertCircle
+} from "lucide-react"
+import { toast } from "sonner"
 import { Spinner } from "@/components/ui/spinner"
-import { getPurchaseOrderById } from "@/actions/purchase-order"
-import { getSuppliers, getLocations, getItems } from "@/actions/purchase-order"
-import PurchaseOrderForm from "../../create/purchase-order-form"
+import { getGoodsReceipt, deleteGoodsReceipt } from "@/actions/goods-receipt"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
-export default function EditPurchaseOrderPage() {
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "GHS",
+  }).format(value)
+}
+
+const formatDate = (dateString: string | Date) => {
+  const date = typeof dateString === "string" ? new Date(dateString) : dateString
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  })
+}
+
+const formatTime = (dateString: string | Date) => {
+  const date = typeof dateString === "string" ? new Date(dateString) : dateString
+  return date.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+}
+
+export default function GoodsReceiptDetailPage() {
   const params = useParams()
   const router = useRouter()
   const id = params.id as string
 
-  const [loading, setLoading] = useState(true)
-  const [purchaseOrder, setPurchaseOrder] = useState<any>(null)
-  const [suppliers, setSuppliers] = useState<any[]>([])
-  const [locations, setLocations] = useState<any[]>([])
-  const [items, setItems] = useState<any[]>([])
+  const [receipt, setReceipt] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isReturning, setIsReturning] = useState(false)
 
   useEffect(() => {
-    async function loadData() {
-      try {
-        setLoading(true)
-        const [poData, suppliersData, locationsData, itemsData] = await Promise.all([
-          getPurchaseOrderById(id),
-          getSuppliers(),
-          getLocations(),
-          getItems(),
-        ])
+    loadReceipt()
+  }, [id])
 
-        if (!poData) {
-          toast.error("Purchase order not found")
-          router.push("/dashboard/purchases/purchase-orders")
-          return
-        }
-
-        setPurchaseOrder(poData)
-        setSuppliers(suppliersData || [])
-        setLocations(locationsData || [])
-        setItems(itemsData || [])
-      } catch (error) {
-        console.error("Failed to load data:", error)
-        toast.error("Failed to load purchase order")
-        router.push("/dashboard/purchases/purchase-orders")
-      } finally {
-        setLoading(false)
+  const loadReceipt = async () => {
+    try {
+      setIsLoading(true)
+      const result = await getGoodsReceipt(id)
+      if (result.success && result.data) {
+        setReceipt(result.data)
+      } else {
+        toast.error("Failed to load receipt")
       }
+    } catch (error) {
+      console.error("Error loading receipt:", error)
+      toast.error("Failed to load receipt")
+    } finally {
+      setIsLoading(false)
     }
-
-    loadData()
-  }, [id, router])
-
-  // Helper to safely format date for input[type="date"]
-  const formatDateForInput = (dateValue: any): string => {
-    if (!dateValue) return ""
-    let dateObj: Date
-    if (typeof dateValue === "string") dateObj = new Date(dateValue)
-    else if (dateValue instanceof Date) dateObj = dateValue
-    else return ""
-    if (isNaN(dateObj.getTime())) return ""
-    return dateObj.toISOString().split("T")[0]
   }
 
-  if (loading) {
+  const handleReturn = async () => {
+    setIsReturning(true)
+    try {
+      const result = await deleteGoodsReceipt(id)
+      if (result.success) {
+        toast.success("Goods receipt reversed. Stock has been updated.")
+        router.push("/dashboard/purchases/goods-receipt")
+      } else {
+        toast.error(result.error || "Failed to reverse receipt")
+      }
+    } catch (error) {
+      console.error("Error returning goods:", error)
+      toast.error("An error occurred while reversing")
+    } finally {
+      setIsReturning(false)
+    }
+  }
+
+  const handlePrint = () => {
+    window.print()
+  }
+
+  const handleDownload = () => {
+    toast.info("Download feature coming soon")
+  }
+
+  const handleSendEmail = () => {
+    toast.info("Email feature coming soon")
+  }
+
+  if (isLoading) {
     return (
-      <div className="min-h-screen bg-background p-6">
-        <div className="max-w-7xl mx-auto flex items-center justify-center min-h-[400px]">
-          <Spinner className="size-8" />
-          <p className="ml-4 text-muted-foreground">Loading purchase order...</p>
+      <div className="h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <Spinner className="size-8 mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading receipt details...</p>
         </div>
       </div>
     )
   }
 
-  if (!purchaseOrder) return null
-
-  const initialData = {
-    id: purchaseOrder.id,
-    poNumber: purchaseOrder.poNumber,
-    supplierId: purchaseOrder.supplierId,
-    orderDate: formatDateForInput(purchaseOrder.orderDate || purchaseOrder.date),
-    expectedDeliveryDate: formatDateForInput(purchaseOrder.expectedDeliveryDate),
-    deliveryAddress: purchaseOrder.deliveryAddress || purchaseOrder.address || "",
-    deliveryLocationId: purchaseOrder.deliveryLocationId || "",
-    notes: purchaseOrder.notes || "",
-    shippingCost: purchaseOrder.shippingCost?.toString() || "0",
-    taxPercentage: purchaseOrder.taxPercentage?.toString() || "0",
-    paymentTerms: purchaseOrder.paymentTerms || "",
-    paymentStatus: purchaseOrder.paymentStatus || "UNPAID",
-    status: purchaseOrder.status,
-    lineItems: purchaseOrder.lines?.map((line: any) => ({
-      id: line.id,
-      itemId: line.itemId,
-      itemName: line.item?.name || "",
-      itemSku: line.item?.sku || "",
-      quantity: line.quantity,
-      unitPrice: line.unitPrice,
-      taxRate: line.taxRate,
-      lineTotal: line.quantity * line.unitPrice * (1 + (line.taxRate || 0) / 100),
-      locationId: line.locationId || purchaseOrder.deliveryLocationId,
-      locationName: "",
-      receivedQuantity: line.receivedQuantity || 0,
-    })) || [],
+  if (!receipt) {
+    return (
+      <div className="h-screen bg-slate-50 flex items-center justify-center">
+        <Card className="max-w-md">
+          <CardContent className="text-center pt-6">
+            <FileText className="w-16 h-16 mx-auto mb-4 text-slate-300" />
+            <h1 className="text-2xl font-bold mb-2">Receipt not found</h1>
+            <p className="text-muted-foreground mb-4">
+              The goods receipt you're looking for doesn't exist.
+            </p>
+            <Button onClick={() => router.push("/dashboard/purchases/goods-receipt")}>
+              Back to Goods Receipts
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
+  const supplierInfo = receipt.purchaseOrder?.supplier
+  const subtotal = receipt.total
+  const tax = receipt.lines.reduce((sum: number, line: any) => {
+    const unitPrice = line.purchaseOrderLine?.unitPrice || 0
+    return sum + (line.receivedQuantity * unitPrice * 0.0001)
+  }, 0)
+
   return (
-    <div className="min-h-screen bg-background">
-      <div className="border-b px-6 py-4">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => router.back()} className="h-8 w-8">
+    <div className="min-h-screen bg-slate-50">
+      {/* Action Bar */}
+      <div className="bg-white border-b shadow-sm sticky top-0 z-10 print:hidden">
+        <div className="max-w-5xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <Button
+              variant="ghost"
+              onClick={() => router.push("/dashboard/purchases/goods-receipt")}
+              className="gap-2"
+            >
               <ArrowLeft className="h-4 w-4" />
+              Back to Receipts
             </Button>
-            <div>
-              <h1 className="text-3xl font-bold">Edit Purchase Order</h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                Update PO #{purchaseOrder.poNumber}
-              </p>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={handleSendEmail} className="gap-2">
+                <Mail className="h-4 w-4" /> Send Email
+              </Button>
+              <Button variant="outline" onClick={handleDownload} className="gap-2">
+                <Download className="h-4 w-4" /> Download
+              </Button>
+              <Button onClick={handlePrint} className="gap-2 bg-gradient-to-r from-rose-600 to-pink-600">
+                <Printer className="h-4 w-4" /> Print
+              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" className="gap-2">
+                    <Trash2 className="h-4 w-4" /> Return / Reverse
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Reverse Goods Receipt?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will:
+                      <ul className="list-disc list-inside mt-2 space-y-1">
+                        <li>Remove all received stock from inventory</li>
+                        <li>Delete this goods receipt</li>
+                        <li>Reset purchase order received quantities</li>
+                      </ul>
+                      <p className="mt-4 font-semibold text-red-600">This action cannot be undone.</p>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleReturn}
+                      disabled={isReturning}
+                      className="bg-red-600 hover:bg-red-700"
+                    >
+                      {isReturning ? "Processing..." : "Yes, Reverse Receipt"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="p-6">
-        <div className="max-w-6xl mx-auto">
-          <PurchaseOrderForm
-            suppliers={suppliers}
-            items={items}
-            deliveryLocations={locations}
-            autoGeneratedPONumber={purchaseOrder.poNumber}
-            initialData={initialData}
-            onSuccess={() => {
-              toast.success("Purchase order updated successfully")
-              router.push("/dashboard/purchases/purchase-orders")
-            }}
-          />
-        </div>
+      {/* Receipt Document */}
+      <div className="max-w-5xl mx-auto p-6">
+        <Card className="shadow-xl">
+          <CardContent className="p-0">
+            {/* Receipt Header */}
+            <div className="bg-gradient-to-r from-rose-600 to-pink-600 p-8 text-white">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                      <FileText className="w-8 h-8" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium opacity-90">Goods Receipt</p>
+                      <h1 className="text-3xl font-bold">{receipt.receiptNumber}</h1>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 mt-4 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
+                      <span>{formatDate(receipt.receivedDate)}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-1 h-1 rounded-full bg-white/50"></span>
+                      <span>{formatTime(receipt.receivedDate)}</span>
+                    </div>
+                  </div>
+                </div>
+                <Badge className="bg-green-500 text-white border-green-400 px-4 py-2 text-sm font-semibold shadow-lg">
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  Completed
+                </Badge>
+              </div>
+            </div>
+
+            {/* Receipt Body */}
+            <div className="p-8">
+              {/* Reference Information */}
+              <div className="grid grid-cols-2 gap-6 mb-8">
+                <div>
+                  <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
+                    Purchase Order Reference
+                  </h3>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-slate-400" />
+                      <span className="font-semibold text-slate-700">
+                        PO: {receipt.purchaseOrder?.poNumber}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-slate-400" />
+                      <span className="text-slate-600">{receipt.location?.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <User className="w-4 h-4 text-slate-400" />
+                      <span className="text-slate-600">
+                        Received by: {receipt.receivedBy?.name}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
+                    Supplier Information
+                  </h3>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="w-4 h-4 text-slate-400" />
+                      <span className="font-semibold text-slate-700">
+                        {supplierInfo?.name}
+                      </span>
+                    </div>
+                    {supplierInfo?.email && (
+                      <div className="flex items-center gap-2">
+                        <Mail className="w-4 h-4 text-slate-400" />
+                        <span className="text-slate-600">{supplierInfo.email}</span>
+                      </div>
+                    )}
+                    {supplierInfo?.phone && (
+                      <div className="flex items-center gap-2">
+                        <Phone className="w-4 h-4 text-slate-400" />
+                        <span className="text-slate-600">{supplierInfo.phone}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Notes */}
+              {receipt.notes && (
+                <div className="mb-8 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                  <h3 className="text-xs font-semibold text-amber-800 uppercase tracking-wider mb-2">
+                    Receipt Notes
+                  </h3>
+                  <p className="text-sm text-slate-700 whitespace-pre-wrap">{receipt.notes}</p>
+                </div>
+              )}
+
+              <Separator className="my-8" />
+
+              {/* Items Table */}
+              <div>
+                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                  <Package className="w-5 h-5 text-rose-600" />
+                  Received Items
+                </h3>
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-slate-50 border-b">
+                      <tr>
+                        <th className="text-left py-4 px-4 font-semibold text-xs uppercase text-slate-600">Item Details</th>
+                        <th className="text-center py-4 px-4 font-semibold text-xs uppercase text-slate-600">Ordered</th>
+                        <th className="text-center py-4 px-4 font-semibold text-xs uppercase text-slate-600">Received</th>
+                        <th className="text-right py-4 px-4 font-semibold text-xs uppercase text-slate-600">Unit Price</th>
+                        <th className="text-right py-4 px-4 font-semibold text-xs uppercase text-slate-600">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {receipt.lines.map((line: any) => {
+                        const unitPrice = line.purchaseOrderLine?.unitPrice || 0
+                        const orderedQty = line.purchaseOrderLine?.quantity || 0
+                        const lineTotal = line.receivedQuantity * unitPrice
+                        return (
+                          <tr key={line.id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="py-4 px-4">
+                              <div>
+                                <p className="font-semibold text-slate-900">{line.item?.name}</p>
+                                <p className="text-xs text-slate-500 mt-1">SKU: {line.item?.sku}</p>
+                              </div>
+                            </td>
+                            <td className="py-4 px-4 text-center text-slate-700 font-medium">{orderedQty}</td>
+                            <td className="py-4 px-4 text-center">
+                              <div className="flex items-center justify-center gap-2">
+                                <span className="text-slate-900 font-bold">{line.receivedQuantity}</span>
+                                <CheckCircle2 className="w-4 h-4 text-green-600" />
+                              </div>
+                            </td>
+                            <td className="py-4 px-4 text-right text-slate-700">{formatCurrency(unitPrice)}</td>
+                            <td className="py-4 px-4 text-right font-bold text-slate-900">{formatCurrency(lineTotal)}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Totals */}
+              <div className="mt-8 flex justify-end">
+                <div className="w-full max-w-sm">
+                  <div className="bg-slate-50 rounded-lg p-6 space-y-3">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-600">Subtotal</span>
+                      <span className="font-semibold text-slate-900">{formatCurrency(subtotal)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-600">Tax</span>
+                      <span className="font-semibold text-slate-900">{formatCurrency(tax)}</span>
+                    </div>
+                    <Separator />
+                    <div className="flex justify-between items-center pt-2">
+                      <span className="text-lg font-bold text-slate-900">Total Amount</span>
+                      <span className="text-2xl font-bold text-rose-600">{formatCurrency(receipt.total)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="mt-8 pt-6 border-t text-center text-xs text-slate-500">
+                <p>This is a computer-generated goods receipt and requires no signature.</p>
+                <p className="mt-1">
+                  Generated on {formatDate(new Date())} at {formatTime(new Date())}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )
