@@ -10,7 +10,7 @@
 // ============================================================
 
 import { useState, useEffect, useMemo, useTransition } from "react"
-import { useRouter } from "next/navigation"           // <-- ADD THIS
+import { useRouter } from "next/navigation"
 import { Badge }    from "@/components/ui/badge"
 import { Button }   from "@/components/ui/button"
 import { Card }     from "@/components/ui/card"
@@ -154,9 +154,9 @@ function PayNowDialog({ payable, open, onClose, onPaid }: PayDialogProps) {
         <div className="rounded-lg border bg-muted/30 p-3 space-y-2 text-sm">
           <div className="flex items-center gap-2">
             <Building2 className="w-4 h-4 text-muted-foreground" />
-            <span className="font-medium">{payable.supplierName}</span>
+            <span className="font-medium truncate" title={payable.supplierName}>{payable.supplierName}</span>
             {payable.supplierPhone && (
-              <span className="text-muted-foreground flex items-center gap-1 ml-2">
+              <span className="text-muted-foreground flex items-center gap-1 ml-2 truncate" title={payable.supplierPhone}>
                 <Phone className="w-3 h-3" />{payable.supplierPhone}
               </span>
             )}
@@ -247,7 +247,7 @@ function PayNowDialog({ payable, open, onClose, onPaid }: PayDialogProps) {
                 <div key={p.id} className="flex items-center justify-between text-xs rounded border px-2.5 py-1.5 bg-background">
                   <span className="text-muted-foreground">{fmtDate(p.paidAt)}</span>
                   <span className="font-medium">{METHOD_LABELS[p.method] ?? p.method}</span>
-                  {p.reference && <span className="text-muted-foreground font-mono">{p.reference}</span>}
+                  {p.reference && <span className="text-muted-foreground font-mono truncate max-w-[80px]" title={p.reference}>{p.reference}</span>}
                   <span className="font-semibold text-green-700">{fmt(p.amount)}</span>
                 </div>
               ))}
@@ -307,22 +307,24 @@ function PayableRow({
             </CollapsibleTrigger>
           </TableCell>
 
-          <TableCell>
+          <TableCell className="max-w-[140px]">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-full bg-rose-100 flex items-center justify-center flex-shrink-0">
                 <Building2 className="w-3.5 h-3.5 text-rose-600" />
               </div>
-              <div>
-                <p className="font-medium text-sm">{payable.supplierName}</p>
+              <div className="min-w-0">
+                <p className="font-medium text-sm truncate" title={payable.supplierName}>
+                  {payable.supplierName}
+                </p>
                 <div className="flex items-center gap-3 mt-0.5">
                   {payable.supplierPhone && (
-                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Phone className="w-3 h-3" />{payable.supplierPhone}
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground truncate" title={payable.supplierPhone}>
+                      <Phone className="w-3 h-3 shrink-0" />{payable.supplierPhone}
                     </span>
                   )}
                   {payable.supplierEmail && (
-                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Mail className="w-3 h-3" />{payable.supplierEmail}
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground truncate" title={payable.supplierEmail}>
+                      <Mail className="w-3 h-3 shrink-0" />{payable.supplierEmail}
                     </span>
                   )}
                 </div>
@@ -330,7 +332,9 @@ function PayableRow({
             </div>
           </TableCell>
 
-          <TableCell className="font-mono text-xs">{payable.poNumber}</TableCell>
+          <TableCell className="font-mono text-xs max-w-[110px] truncate" title={payable.poNumber}>
+            {payable.poNumber}
+          </TableCell>
           <TableCell className="text-right text-sm">{fmt(payable.totalAmount)}</TableCell>
           <TableCell className="text-right font-medium text-green-700">{fmt(payable.amountPaid)}</TableCell>
           <TableCell className="text-right font-bold">
@@ -350,8 +354,8 @@ function PayableRow({
           <TableCell>
             {payable.expectedDate
               ? <span className={`text-sm flex items-center gap-1 ${isOverdue ? "text-red-600 font-medium" : "text-muted-foreground"}`}>
-                  <Calendar className="w-3 h-3" />
-                  {fmtDate(payable.expectedDate)}
+                  <Calendar className="w-3 h-3 shrink-0" />
+                  <span className="truncate" title={fmtDate(payable.expectedDate)}>{fmtDate(payable.expectedDate)}</span>
                   {isOverdue && " ⚠"}
                 </span>
               : <span className="text-muted-foreground text-sm">—</span>}
@@ -415,8 +419,8 @@ function PayableRow({
                         <div key={p.id} className="flex items-center gap-4 rounded-lg border px-3 py-2 text-sm bg-background">
                           <span className="text-muted-foreground text-xs w-24">{fmtDate(p.paidAt)}</span>
                           <Badge variant="outline" className="text-xs">{METHOD_LABELS[p.method] ?? p.method}</Badge>
-                          {p.reference && <span className="font-mono text-xs text-muted-foreground">{p.reference}</span>}
-                          {p.notes && <span className="text-xs text-muted-foreground italic truncate max-w-[160px]">{p.notes}</span>}
+                          {p.reference && <span className="font-mono text-xs text-muted-foreground truncate max-w-[120px]" title={p.reference}>{p.reference}</span>}
+                          {p.notes && <span className="text-xs text-muted-foreground italic truncate max-w-[160px]" title={p.notes}>{p.notes}</span>}
                           {p.recordedBy && <span className="text-xs text-muted-foreground ml-auto">by {p.recordedBy}</span>}
                           <span className="font-semibold text-green-700 ml-auto">{fmt(p.amount)}</span>
                         </div>
@@ -448,7 +452,7 @@ export default function SupplierPaymentTracker({
   autoOpenPayableId,
   onAutoOpenHandled,
 }: SupplierPaymentTrackerProps) {
-  const router = useRouter()                         // <-- ADD THIS
+  const router = useRouter()
   const [search,       setSearch]       = useState("")
   const [statusFilter, setStatusFilter] = useState("ALL")
   const [selectedPO,   setSelectedPO]   = useState<SupplierPayable | null>(null)
@@ -551,9 +555,7 @@ export default function SupplierPaymentTracker({
   }
 
   const handlePaid = () => {
-    // Force a fresh fetch of all server data
     router.refresh()
-    // Also bump local key to re-render (optional)
     setRefreshKey(k => k + 1)
   }
 

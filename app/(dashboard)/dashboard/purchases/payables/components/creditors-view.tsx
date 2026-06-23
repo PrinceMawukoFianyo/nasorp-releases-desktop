@@ -80,7 +80,7 @@ export default function CreditorsView({ creditors, onPayNow }: CreditorsViewProp
             <TableHeader>
               <TableRow>
                 <TableHead className="w-8" />
-                <TableHead>Supplier</TableHead>
+                <TableHead className="max-w-[180px]">Supplier</TableHead>
                 <TableHead className="text-right">Total We Owe</TableHead>
                 <TableHead className="text-right">Total Paid</TableHead>
                 <TableHead className="text-center">Orders</TableHead>
@@ -113,22 +113,24 @@ export default function CreditorsView({ creditors, onPayNow }: CreditorsViewProp
                           ? <ChevronDown className="w-4 h-4 text-muted-foreground" />
                           : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="max-w-[180px]">
                         <div className="flex items-center gap-2">
                           <div className="w-7 h-7 rounded-full bg-rose-100 flex items-center justify-center flex-shrink-0">
                             <Building2 className="w-3.5 h-3.5 text-rose-600" />
                           </div>
-                          <div>
-                            <p className="font-medium">{creditor.supplierName}</p>
+                          <div className="min-w-0">
+                            <p className="font-medium truncate" title={creditor.supplierName}>
+                              {creditor.supplierName}
+                            </p>
                             <div className="flex items-center gap-3 mt-0.5">
                               {creditor.supplierPhone && (
-                                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                                  <Phone className="w-3 h-3" />{creditor.supplierPhone}
+                                <span className="flex items-center gap-1 text-xs text-muted-foreground truncate" title={creditor.supplierPhone}>
+                                  <Phone className="w-3 h-3 shrink-0" />{creditor.supplierPhone}
                                 </span>
                               )}
                               {creditor.supplierEmail && (
-                                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                                  <Mail className="w-3 h-3" />{creditor.supplierEmail}
+                                <span className="flex items-center gap-1 text-xs text-muted-foreground truncate" title={creditor.supplierEmail}>
+                                  <Mail className="w-3 h-3 shrink-0" />{creditor.supplierEmail}
                                 </span>
                               )}
                             </div>
@@ -172,15 +174,17 @@ export default function CreditorsView({ creditors, onPayNow }: CreditorsViewProp
                                   order.isOverdue ? "border-red-200 bg-red-50/60" : "border-border bg-background"
                                 }`}
                               >
-                                <div className="flex items-center gap-4">
-                                  <span className="font-mono text-xs font-semibold">{order.poNumber}</span>
+                                <div className="flex items-center gap-4 min-w-0">
+                                  <span className="font-mono text-xs font-semibold truncate max-w-[110px]" title={order.poNumber}>
+                                    {order.poNumber}
+                                  </span>
                                   {order.expectedDate && (
-                                    <span className={`text-xs ${order.isOverdue ? "text-red-600 font-medium" : "text-muted-foreground"}`}>
+                                    <span className={`text-xs ${order.isOverdue ? "text-red-600 font-medium" : "text-muted-foreground"} truncate max-w-[120px]`} title={order.expectedDate}>
                                       Expected: {order.expectedDate}{order.isOverdue && " ⚠"}
                                     </span>
                                   )}
                                 </div>
-                                <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-4 flex-shrink-0">
                                   <div className="text-right">
                                     <p className="font-semibold text-red-600">{fmt(order.amountOwing)} owing</p>
                                     <p className="text-xs text-muted-foreground">{fmt(order.amountPaid)} paid of {fmt(order.orderTotal)}</p>

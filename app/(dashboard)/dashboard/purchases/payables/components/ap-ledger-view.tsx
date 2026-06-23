@@ -127,8 +127,8 @@ export default function APLedgerView({ entries, summary, exportRows }: APLedgerV
 
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center justify-between">
-        <div className="flex gap-2 flex-1">
-          <div className="relative flex-1 max-w-xs">
+        <div className="flex gap-2 flex-1 flex-wrap">
+          <div className="relative flex-1 min-w-[180px] max-w-xs">
             <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Search supplier, PO, ref…"
@@ -169,8 +169,8 @@ export default function APLedgerView({ entries, summary, exportRows }: APLedgerV
               <TableRow>
                 <TableHead>Date</TableHead>
                 <TableHead>Event</TableHead>
-                <TableHead>Supplier</TableHead>
-                <TableHead>PO #</TableHead>
+                <TableHead className="max-w-[140px]">Supplier</TableHead>
+                <TableHead className="max-w-[110px]">PO #</TableHead>
                 <TableHead className="text-right">PO Total</TableHead>
                 <TableHead className="text-right">This Payment</TableHead>
                 <TableHead className="text-right">Still Owe</TableHead>
@@ -192,11 +192,19 @@ export default function APLedgerView({ entries, summary, exportRows }: APLedgerV
                 >
                   <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{entry.date}</TableCell>
                   <TableCell><EventBadge type={entry.eventType} /></TableCell>
-                  <TableCell>
-                    <p className="font-medium text-sm">{entry.supplierName}</p>
-                    {entry.supplierPhone && <p className="text-xs text-muted-foreground">{entry.supplierPhone}</p>}
+                  <TableCell className="max-w-[140px]">
+                    <p className="font-medium text-sm truncate" title={entry.supplierName}>
+                      {entry.supplierName}
+                    </p>
+                    {entry.supplierPhone && (
+                      <p className="text-xs text-muted-foreground truncate" title={entry.supplierPhone}>
+                        {entry.supplierPhone}
+                      </p>
+                    )}
                   </TableCell>
-                  <TableCell className="font-mono text-xs">{entry.poNumber}</TableCell>
+                  <TableCell className="font-mono text-xs max-w-[110px] truncate" title={entry.poNumber}>
+                    {entry.poNumber}
+                  </TableCell>
                   <TableCell className="text-right text-sm">{fmt(entry.poTotal)}</TableCell>
                   <TableCell className="text-right font-semibold">
                     {entry.eventType === "PAYMENT_MADE"
@@ -210,7 +218,11 @@ export default function APLedgerView({ entries, summary, exportRows }: APLedgerV
                   </TableCell>
                   <TableCell>
                     {entry.paymentMethod && <p className="text-xs font-medium">{entry.paymentMethod.replace(/_/g, " ")}</p>}
-                    {entry.reference && <p className="text-xs text-muted-foreground truncate max-w-[100px]" title={entry.reference}>{entry.reference}</p>}
+                    {entry.reference && (
+                      <p className="text-xs text-muted-foreground truncate max-w-[100px]" title={entry.reference}>
+                        {entry.reference}
+                      </p>
+                    )}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">{entry.recordedBy ?? "—"}</TableCell>
                 </TableRow>
