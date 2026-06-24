@@ -6,9 +6,11 @@
 //
 // Client shell for AP — mirrors credit-tabs-page.tsx.
 // Routes "Pay Now" from CreditorsView back to the tracker.
+// Now also reads autoOpenPayableId from URL query.
 // ============================================================
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { CreditCard, Building2, BookOpen, BarChart3 } from "lucide-react"
 
@@ -34,8 +36,18 @@ export default function SupplierTabsPage({
   ledgerExportRows,
   creditors,
 }: SupplierTabsPageProps) {
+  const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState("tracker")
   const [pendingPayPayableId, setPendingPayPayableId] = useState<string | null>(null)
+
+  // Read autoOpenPayableId from URL once on mount
+  useEffect(() => {
+    const autoOpen = searchParams.get("autoOpenPayableId")
+    if (autoOpen) {
+      setPendingPayPayableId(autoOpen)
+      setActiveTab("tracker")
+    }
+  }, [searchParams])
 
   // When "Pay Now" is clicked in Creditors tab, switch to Tracker and open dialog
   const handleCreditorPayNow = (payableId: string) => {

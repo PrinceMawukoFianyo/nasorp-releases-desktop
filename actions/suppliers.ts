@@ -75,32 +75,6 @@ export async function getOrgSupplier() {
   }
 }
 
-export async function getBriefSuppliers() {
-  try {
-    // FIX 2: Added missing user declaration
-    const user = await getAuthenticatedUser();
-    const orgId = user.orgId;
-    
-    // FIX 3: Changed variable name from 'res' to 'locations'
-    const suppliers = await db.supplier.findMany({
-      where: {
-        orgId
-      },
-      orderBy: {
-        createdAt: "desc"
-      },
-      select: {
-         id: true,
-        name: true,
-      },
-    });
-    return suppliers;
-  } catch (error) {
-    console.log(error);
-    return [];
-  }
-}
-
 export async function getSupplierById(
   id: string,
 ){
@@ -234,100 +208,126 @@ export async function deleteSupplier(id: string) {
 }
 
 export async function getSupplierStatement(supplierId: string) {
-  const user = await getAuthenticatedUser();
-  const orgId = user.orgId;
+  try {
+    const user = await getAuthenticatedUser();
+    const orgId = user.orgId;
 
-  // 1. Fetch all purchase orders for this supplier (exclude DRAFT)
-  const purchaseOrders = await db.purchaseOrder.findMany({
-    where: { supplierId, orgId, status: { not: "DRAFT" } },
-    include: { payments: true },
-    orderBy: { createdAt: "asc" },
-  });
-
-  // 2. Fetch manual supplier debts (active, not paid/cancelled)
-  const manualDebts = await db.manualSupplierDebt.findMany({
-    where: { supplierId, orgId, status: { notIn: ["PAID", "CANCELLED"] } },
-    include: { payments: true },
-    orderBy: { createdAt: "asc" },
-  });
-
-  const transactions: any[] = [];
-  let totalInvoiced = 0;
-  let totalPaid = 0;
-  let totalOwing = 0;
-
-  for (const po of purchaseOrders) {
-    const total = po.subtotal + po.taxAmount + (po.shippingCost || 0);
-    const isCancelled = ["CANCELLED", "REFUNDED"].includes(po.status);
-    const isPaid = po.paymentStatus === "PAID";
-
-    let amountOwing = 0;
-    if (!isCancelled && !isPaid) {
-      amountOwing = Number(po.amountOwing ?? 0) > 0
-        ? Number(po.amountOwing)
-        : Math.max(0, total - Number(po.amountPaid ?? 0));
-    }
-
-    if (!isCancelled) {
-      totalInvoiced += total;
-      totalPaid += Number(po.amountPaid ?? 0);
-      totalOwing += amountOwing;
-    }
-
-    // Purchase order entry
-    transactions.push({
-      date: po.createdAt,
-      type: "PURCHASE_ORDER",
-      number: po.poNumber,
-      amount: total,
-      status: po.paymentStatus,
-      amountOwing: isCancelled ? 0 : amountOwing,
-      poStatus: po.status,
-      link: `/dashboard/purchases/purchase-orders/${po.id}`,
+    // ── 1. Purchase Orders ──────────────────────────────────────
+    const purchaseOrders = await db.purchaseOrder.findMany({
+      where: {
+        supplierId,
+        orgId,
+        status: { notIn: ["CANCELLED", "DRAFT"] },
+      },
+      include: {
+        payments: true,
+      },
     });
 
-    // Payments
-    for (const p of po.payments) {
-      if (p.reference?.includes("VOIDED")) continue;
-      totalPaid += p.amount;
-      transactions.push({
-        date: p.paidAt,
-        type: "PAYMENT",
-        number: `PMT-${p.id.slice(-8)}`,
-        amount: p.amount,
-        status: "PAID",
-      });
-    }
-  }
-
-  // Manual debts
-  for (const debt of manualDebts) {
-    const debtTotal = debt.amountOwing + debt.amountPaid;
-    totalInvoiced += debtTotal;
-    totalPaid += debt.amountPaid;
-    totalOwing += debt.amountOwing;
-
-    transactions.push({
-      date: debt.createdAt,
-      type: "MANUAL_DEBT",
-      number: `DEBT-${debt.id.slice(-8)}`,
-      amount: debtTotal,
-      amountOwing: debt.amountOwing,
-      status: debt.status,
+    // ── 2. Manual Supplier Debts ────────────────────────────────
+    const manualDebts = await db.manualSupplierDebt.findMany({
+      where: {
+        supplierId,
+        orgId,
+        status: { notIn: ["CANCELLED"] },
+      },
+      include: {
+        payments: true,
+        supplier: true,
+      },
     });
-    for (const p of debt.payments) {
-      totalPaid += p.amount;
+
+    // ── 3. Build transaction array ──────────────────────────────
+    const transactions: any[] = [];
+
+    // POs
+    for (const po of purchaseOrders) {
+      const total = Number(po.subtotal) + Number(po.taxAmount) + (Number(po.shippingCost) || 0) - (Number(po.discount) || 0);
       transactions.push({
-        date: p.paidAt,
-        type: "DEBT_PAYMENT",
-        number: `DEBT-PMT-${p.id.slice(-8)}`,
-        amount: p.amount,
-        status: "PAID",
+        date: po.createdAt,
+        number: po.poNumber,
+        type: "PURCHASE_ORDER",
+        amount: total,
+        status: po.paymentStatus,
+        id: po.id,
       });
+      for (const p of po.payments) {
+        transactions.push({
+          date: p.paidAt,
+          number: p.reference || po.poNumber,
+          type: "PAYMENT",
+          amount: -Number(p.amount), // negative for outgoing
+          status: "PAID",
+        });
+      }
     }
+
+    // Manual debts
+    for (const debt of manualDebts) {
+      const totalAmount = debt.amountOwing + debt.amountPaid;
+      transactions.push({
+        date: debt.createdAt,
+        number: `MANUAL-${debt.id.slice(-8)}`,
+        type: "MANUAL_DEBT",
+        amount: totalAmount,
+        status: debt.status,
+        id: debt.id,
+      });
+      for (const p of debt.payments) {
+        transactions.push({
+          date: p.paidAt,
+          number: p.reference || `MANUAL-${debt.id.slice(-8)}`,
+          type: "PAYMENT",
+          amount: -Number(p.amount),
+          status: "PAID",
+        });
+      }
+    }
+
+    // Sort by date ascending
+    transactions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    // ── 4. Compute totals ──────────────────────────────────────
+    let totalInvoiced = 0;
+    let totalPaid = 0;
+    for (const t of transactions) {
+      if (t.type === "PURCHASE_ORDER" || t.type === "MANUAL_DEBT") {
+        totalInvoiced += t.amount;
+      }
+      if (t.type === "PAYMENT") {
+        totalPaid += Math.abs(t.amount);
+      }
+    }
+    const totalOwing = totalInvoiced - totalPaid;
+
+    return {
+      transactions,
+      totalInvoiced,
+      totalPaid,
+      totalOwing,
+    };
+  } catch (error) {
+    console.error("getSupplierStatement error:", error);
+    return {
+      transactions: [],
+      totalInvoiced: 0,
+      totalPaid: 0,
+      totalOwing: 0,
+    };
   }
+}
 
-  transactions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-  return { transactions, totalInvoiced, totalPaid, totalOwing };
+export async function getBriefSuppliers() {
+  try {
+    const user = await getAuthenticatedUser();
+    const orgId = user.orgId;
+    return await db.supplier.findMany({
+      where: { orgId },
+      select: { id: true, name: true, email: true, phone: true },
+      orderBy: { name: "asc" },
+    });
+  } catch (error) {
+    console.error("getBriefSuppliers error:", error);
+    return [];
+  }
 }

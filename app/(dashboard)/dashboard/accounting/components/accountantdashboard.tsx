@@ -113,7 +113,7 @@ function getPaymentUrl(po: { id?: string; poNumber: string }) {
   //   /dashboard/purchases/purchase-orders/[id]/pay
   //   /dashboard/purchases/payments/new?poId=[id]
   // Edit the line below to match your app's route.
-  return `/dashboard/purchases/purchase-orders/${id}/pay`;
+  return `/dashboard/purchases/payables?autoOpenPayableId=${id}`;
 }
 
 // ── Helper: build PO summaries from transactions ──────────────────────

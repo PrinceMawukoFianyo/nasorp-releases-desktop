@@ -5,12 +5,6 @@ import { getAuthenticatedUser } from "@/config/useAuth"
 import { revalidatePath }       from "next/cache"
 import { format }               from "date-fns"
 
-// ─────────────────────────────────────────────────────────────────────────────
-// IMPORTANT: Before this file will compile you must:
-//   1. npx prisma migrate dev --name add_supplier_payments
-//   2. npx prisma generate
-// ─────────────────────────────────────────────────────────────────────────────
-
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export type APPaymentMethod = "CASH" | "BANK_TRANSFER" | "MOBILE_MONEY" | "CHEQUE"
@@ -273,7 +267,7 @@ export async function recordSupplierPayment(input: {
   }
 }
 
-// ── Get all payables ──────────────────────────────────────────────────────────
+// ── Get all payables (POs + manual debts) ────────────────────────────────────
 
 export async function getSupplierPayables(): Promise<{
   success: boolean
@@ -284,19 +278,36 @@ export async function getSupplierPayables(): Promise<{
     const user = await getAuthenticatedUser()
     if (!user?.orgId) return { success: false, error: "Not authenticated" }
 
+    // ── 1. Purchase Orders ──────────────────────────────────────────────
     const rawPOs = await db.purchaseOrder.findMany({
       where: {
         orgId:  user.orgId,
-        // ✅ Include SUBMITTED status so that POs sent to suppliers (or auto‑promoted from DRAFT when PAID) appear
         status: { in: ["SUBMITTED", "RECEIVED", "PARTIALLY_RECEIVED", "COMPLETED"] },
       },
       include: PO_AP_INCLUDE,
       orderBy: { createdAt: "desc" },
     })
-
     const pos = rawPOs as unknown as POWithRelations[]
 
-    const payables: SupplierPayable[] = pos.map(po => {
+    // ── 2. Manual Supplier Debts ───────────────────────────────────────
+    const manualDebts = await db.manualSupplierDebt.findMany({
+      where: {
+        orgId: user.orgId,
+        status: { notIn: ["CANCELLED"] },
+      },
+      include: {
+        supplier: true,
+        payments: {
+          include: { recordedBy: { select: { name: true } } },
+        },
+      },
+    })
+
+    // ── 3. Build payables list ─────────────────────────────────────────
+    const payables: SupplierPayable[] = []
+
+    // Map POs
+    for (const po of pos) {
       const total      = calcPOTotal(po)
       const paidSum    = po.payments.reduce((s, p) => s + Number(p.amount), 0)
       const amountPaid = Number(po.amountPaid ?? 0) > 0 ? Number(po.amountPaid) : paidSum
@@ -307,7 +318,7 @@ export async function getSupplierPayables(): Promise<{
         : rawOwing > 0 ? rawOwing
         : Math.max(0, total - amountPaid)
 
-      return {
+      payables.push({
         id:             po.id,
         poNumber:       po.poNumber,
         supplierId:     po.supplierId ?? "",
@@ -330,8 +341,44 @@ export async function getSupplierPayables(): Promise<{
           recordedBy: p.recordedBy?.name ?? undefined,
         })),
         receiptNumbers: po.goodsReceipts.map(gr => gr.receiptNumber),
-      }
-    })
+      })
+    }
+
+    // Map manual debts
+    for (const debt of manualDebts) {
+      const totalAmount = debt.amountOwing + debt.amountPaid
+      const amountPaid  = debt.amountPaid
+      const amountOwing = debt.amountOwing
+      const status = amountOwing <= 0.01 ? "PAID" : (amountPaid > 0 ? "PARTIAL" : "UNPAID")
+
+      payables.push({
+        id:             `manual-${debt.id}`,
+        poNumber:       `MANUAL-${debt.id.slice(-8)}`,
+        supplierId:     debt.supplierId,
+        supplierName:   debt.supplier?.name  ?? "Unknown Supplier",
+        supplierPhone:  debt.supplier?.phone  ?? undefined,
+        supplierEmail:  debt.supplier?.email  ?? undefined,
+        totalAmount,
+        amountPaid,
+        amountOwing,
+        orderDate:      debt.createdAt,
+        expectedDate:   null,
+        paymentStatus:  status as any,
+        payments:       debt.payments.map(p => ({
+          id:         p.id,
+          amount:     Number(p.amount),
+          method:     p.method as APPaymentMethod,
+          reference:  p.reference  ?? undefined,
+          notes:      undefined,
+          paidAt:     new Date(p.paidAt),
+          recordedBy: p.recordedBy?.name ?? undefined,
+        })),
+        receiptNumbers: [],
+      })
+    }
+
+    // Sort: newest first (by orderDate)
+    payables.sort((a, b) => b.orderDate.getTime() - a.orderDate.getTime())
 
     return { success: true, data: payables }
   } catch (err: any) {
@@ -634,6 +681,7 @@ export async function createManualSupplierDebt(data: {
         notes: data.notes,
       },
     });
+    revalidatePath("/dashboard/purchases/payables");
     return { success: true, data: debt };
   } catch (error: any) {
     return { success: false, error: error.message };
