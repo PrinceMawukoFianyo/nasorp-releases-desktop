@@ -90,6 +90,9 @@ export async function createItem(data: ItemCreateInput) {
         unitOfMeasure: data.unitOfMeasure ?? null,
         isActive: data.isActive ?? true,
         isSerialTracked: data.isSerialTracked ?? false,
+        // ── ADDED ──
+        defaultLocationId: data.defaultLocationId ?? null,
+        // ───────────
       },
     });
 
@@ -362,6 +365,9 @@ export async function updateItemById(id: string, data: Partial<ProductData>) {
       "minStockLevel", "maxStockLevel", "isActive", "isSerialTracked",
       "createdAt", "updatedAt", "organisationId", "categoryId", "taxRateId",
       "brandId", "unitId", "tax",
+      // ── ADDED ──
+      "defaultLocationId",
+      // ───────────
     ];
 
     const sanitizedData = Object.entries(prismaData).reduce((acc, [key, value]) => {

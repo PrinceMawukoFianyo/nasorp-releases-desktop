@@ -94,19 +94,27 @@ export async function getOrgExpenses(dateRange = "30d"): Promise<{
   success: boolean; data: ExpenseRecord[]; error?: string;
 }> {
   try {
-    const user              = await getAuthenticatedUser();
-    const { startDate, endDate } = getDateRange(dateRange);
-    const expenses          = await db.expense.findMany({
-      where:   { orgId: user.orgId, date: { gte: startDate, lte: endDate } },
+    const user = await getAuthenticatedUser();
+    let where: any = { orgId: user.orgId };
+    
+    if (dateRange !== "all") {
+      const { startDate, endDate } = getDateRange(dateRange);
+      where.date = { gte: startDate, lte: endDate };
+    }
+    // else no date filter -> all expenses
+
+    const expenses = await db.expense.findMany({
+      where,
       orderBy: { date: "desc" },
     });
+
     return {
       success: true,
       data: expenses.map(e => ({
         ...e,
-        date:      e.date.toISOString().split("T")[0],
+        date: e.date.toISOString().split("T")[0],
         recordedBy: e.recordedBy ?? "Staff",
-        notes:     e.notes,
+        notes: e.notes,
       })),
     };
   } catch (error) {
@@ -217,6 +225,7 @@ function getDateRange(range: string) {
     case "7d":    start.setDate(now.getDate() - 7); break;
     case "30d":   start.setDate(now.getDate() - 30); break;
     case "90d":   start.setDate(now.getDate() - 90); break;
+    case "all":   start.setFullYear(2000); break;
     default:      start.setDate(now.getDate() - 30);
   }
   return { startDate: start, endDate: now };

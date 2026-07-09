@@ -35,19 +35,39 @@ interface ReceiveItem {
   hasAutoLocation: boolean
 }
 
-async function fetchItemLocations(itemIds: string[], orgId: string): Promise<Map<string, { locationId: string; locationName: string }>> {
+async function fetchItemDefaultAndExistingLocations(
+  itemIds: string[],
+  orgId: string
+): Promise<Map<string, { locationId: string; locationName: string }>> {
   const map = new Map()
   try {
-    const res = await fetch("/api/items/locations", {
+    const res = await fetch("/api/items/default-locations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ itemIds, orgId }),
     })
     if (res.ok) {
       const data: { itemId: string; locationId: string; locationName: string }[] = await res.json()
-      data.forEach(({ itemId, locationId, locationName }) => map.set(itemId, { locationId, locationName }))
+      data.forEach(({ itemId, locationId, locationName }) =>
+        map.set(itemId, { locationId, locationName })
+      )
     }
-  } catch (e) { console.error("fetchItemLocations error:", e) }
+    // If default not set, fallback to existing inventory locations
+    const missingIds = itemIds.filter(id => !map.has(id))
+    if (missingIds.length) {
+      const invRes = await fetch("/api/items/locations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemIds: missingIds, orgId }),
+      })
+      if (invRes.ok) {
+        const invData: { itemId: string; locationId: string; locationName: string }[] = await invRes.json()
+        invData.forEach(({ itemId, locationId, locationName }) =>
+          map.set(itemId, { locationId, locationName })
+        )
+      }
+    }
+  } catch (e) { console.error("fetch locations error:", e) }
   return map
 }
 
@@ -60,42 +80,45 @@ export function ReceiveInventoryModal({ open, onOpenChange, purchaseOrder, locat
   const [validationErrors, setValidationErrors] = useState<string[]>([])
   const [useAutoLocation, setUseAutoLocation] = useState(true)
 
-  useEffect(() => {
-    if (!open || !purchaseOrder?.lines) return
-    const baseItems: ReceiveItem[] = purchaseOrder.lines.map((line: any) => {
-      const received = line.receivedQuantity || 0
-      const remaining = line.quantity - received
-      return {
-        purchaseOrderLineId: line.id,
-        itemId: line.item?.id || "",
-        itemName: line.item?.name || "Unknown Item",
-        itemSku: line.item?.sku || "N/A",
-        orderedQuantity: line.quantity || 0,
-        receivedQuantity: received,
-        remainingQuantity: remaining,
-        receiveNow: remaining,
-        isFullyReceived: received >= line.quantity,
-        autoLocationId: "",
-        autoLocationName: "",
-        hasAutoLocation: false,
-      }
-    })
-    setItems(baseItems)
-    setValidationErrors([])
-    setGeneralNotes("")
+useEffect(() => {
+  if (!open || !purchaseOrder?.lines) return
+  const baseItems: ReceiveItem[] = purchaseOrder.lines.map((line: any) => {
+    const received = line.receivedQuantity || 0
+    const remaining = line.quantity - received
+    return {
+      purchaseOrderLineId: line.id,
+      itemId: line.item?.id || "",
+      itemName: line.item?.name || "Unknown Item",
+      itemSku: line.item?.sku || "N/A",
+      orderedQuantity: line.quantity || 0,
+      receivedQuantity: received,
+      remainingQuantity: remaining,
+      receiveNow: remaining,
+      isFullyReceived: received >= line.quantity,
+      autoLocationId: "",
+      autoLocationName: "",
+      hasAutoLocation: false,
+    }
+  })
+  setItems(baseItems)
+  setValidationErrors([])
+  setGeneralNotes("")
 
-    const itemIds = baseItems.map(i => i.itemId).filter(Boolean)
-    if (itemIds.length === 0) return
-    setIsLoadingLocations(true)
-    fetchItemLocations(itemIds, purchaseOrder.orgId || "")
-      .then(locationMap => {
-        setItems(prev => prev.map(item => {
-          const loc = locationMap.get(item.itemId)
-          return loc ? { ...item, autoLocationId: loc.locationId, autoLocationName: loc.locationName, hasAutoLocation: true } : item
-        }))
-      })
-      .finally(() => setIsLoadingLocations(false))
-  }, [open, purchaseOrder])
+  const itemIds = baseItems.map(i => i.itemId).filter(Boolean)
+  if (itemIds.length === 0) return
+  setIsLoadingLocations(true)
+
+  fetchItemDefaultAndExistingLocations(itemIds, purchaseOrder.orgId || "")
+    .then(locationMap => {
+      setItems(prev => prev.map(item => {
+        const loc = locationMap.get(item.itemId)
+        return loc
+          ? { ...item, autoLocationId: loc.locationId, autoLocationName: loc.locationName, hasAutoLocation: true }
+          : item
+      }))
+    })
+    .finally(() => setIsLoadingLocations(false))
+}, [open, purchaseOrder])
 
   const updateReceiveQuantity = (lineId: string, value: number) => {
     setItems(prev => prev.map(item => item.purchaseOrderLineId === lineId ? { ...item, receiveNow: Math.max(0, Math.min(value, item.remainingQuantity)) } : item))

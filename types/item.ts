@@ -16,7 +16,8 @@ export interface ItemCreateProps {
   unitOfMeasure?: string | null;
   isActive?: boolean;
   isbn?: string | null;  
-  tax?: number | null;    
+  tax?: number | null;  
+  defaultLocationId?: string | null;  
 }
 
 // types/item.ts
@@ -117,6 +118,7 @@ interface ProductData {
   isSerialTracked: boolean
   createdAt: string
   updatedAt: string
+  defaultLocationId?: string | null;
 }
 
 interface ProductResponse {

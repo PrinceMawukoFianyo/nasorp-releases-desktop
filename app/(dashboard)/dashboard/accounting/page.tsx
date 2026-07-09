@@ -53,11 +53,11 @@ export default async function AccountingPage({
   // Fetch all data in parallel — never throws (Promise.allSettled)
   const [dashResult, locationResult, financialResult, creditResult, expensesResult, payrollResult] =
     await Promise.allSettled([
-      getDashboardData("30d"),
-      getAllLocationsSalesSummary("30d"),
-      getFinancialSummaries("30d"),
+      getDashboardData("all"),
+      getAllLocationsSalesSummary("all"),
+      getFinancialSummaries("all"),
       getLedgerStats(),
-      getOrgExpenses("30d"),
+      getOrgExpenses("all"),
       getOrgPayroll(),
     ]);
 

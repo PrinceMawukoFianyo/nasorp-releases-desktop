@@ -603,7 +603,7 @@ export async function updateUser(
       }
     }
 
-    // Prepare update data
+    // ── Prepare update data ──
     const updateData: any = {
       email: validatedData.email,
       phone: validatedData.phone || null,
@@ -626,15 +626,18 @@ export async function updateUser(
       }
     }
 
-    // Add role and location if provided
+    // ── FIX: update role relation correctly ──
     if (validatedData.roleId) {
-      updateData.roleId = validatedData.roleId;
+      updateData.roles = {
+        set: [{ id: validatedData.roleId }],
+      };
     }
+    // Location is a direct relation (foreign key)
     if (validatedData.locationId) {
       updateData.locationId = validatedData.locationId;
     }
 
-    // Update the user
+    // ── Update the user ──
     const updatedUser = await db.user.update({
       where: {
         id: userId,

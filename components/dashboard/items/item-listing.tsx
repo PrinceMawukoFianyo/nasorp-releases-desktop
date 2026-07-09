@@ -176,6 +176,7 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
 
   const [packagingUnits, setPackagingUnits] = useState<PackagingUnitRecord[]>([]);
   const [wholesaleTiers, setWholesaleTiers] = useState<WholesaleTierDraft[]>([]);
+  const [selectedDefaultLocation, setSelectedDefaultLocation] = useState<Option | null>(null);
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
@@ -426,6 +427,7 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
       isActive: true,
       isbn: null,
       tax: 0,
+      defaultLocationId: selectedDefaultLocation?.value ?? null,
     };
 
     setIsSubmitting(true);
@@ -969,7 +971,45 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
             )}
           </div>
 
-          <Separator className="my-6" />
+          {/* ── DEFAULT LOCATION ── */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-primary/10 rounded">
+                <MapPin className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold">Default Location (Auto‑disperse)</h4>
+                <p className="text-xs text-muted-foreground">
+                  When receiving this item, it will be auto‑routed here if "Auto‑disperse" is enabled.
+                </p>
+              </div>
+            </div>
+
+            {loadingOptions ? (
+              <p className="text-xs text-muted-foreground animate-pulse">Loading locations…</p>
+            ) : locationOptions.length === 0 ? (
+              <div className="flex items-center gap-2 p-3 border border-dashed rounded-md">
+                <MapPin className="h-4 w-4 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">
+                  No locations found.{" "}
+                  <Link href="/dashboard/inventory/locations" className="underline text-primary">
+                    Create one first
+                  </Link>
+                </p>
+              </div>
+            ) : (
+              <FormSelectInput
+                label="Select Default Location"
+                options={locationOptions}
+                option={selectedDefaultLocation}
+                setOption={setSelectedDefaultLocation}
+                toolTipText="Manage Locations"
+                href="/dashboard/inventory/locations"
+              />
+            )}
+          </div>
+
+          <Separator className="my-6" /> 
 
           {/* Wholesale / Bulk Pricing */}
           <WholesalePricingSection

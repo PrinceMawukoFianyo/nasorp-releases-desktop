@@ -21,7 +21,7 @@ import { upsertItemPricingTiers, getItemPricingTiers, PricingTierInput } from "@
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { ConfirmationDialog } from "@/components/ui/data-table"; // 
+import { ConfirmationDialog } from "@/components/ui/data-table"
 
 interface PricingStockTabProps {
   item: ProductData
@@ -124,6 +124,12 @@ export default function PricingStockTab({
   const [tiersLoading, setTiersLoading] = useState(true)
   const [isSavingTiers, setIsSavingTiers] = useState(false)
   const [expandedTiers, setExpandedTiers] = useState<Set<number>>(new Set())
+
+  // ── Default Location state ──
+  const [selectedDefaultLocation, setSelectedDefaultLocation] = useState<Option | null>(
+    locationOptions.find(loc => loc.value === item.defaultLocationId) || null
+  )
+  const [isSavingDefaultLocation, setIsSavingDefaultLocation] = useState(false)
 
   // Load real inventory locations on mount
   useEffect(() => {
@@ -579,6 +585,28 @@ export default function PricingStockTab({
     }
   }
 
+  // ── Save default location handler ──
+  const handleSaveDefaultLocation = async () => {
+    if (!selectedDefaultLocation) {
+      toast.error("Please select a default location")
+      return
+    }
+    setIsSavingDefaultLocation(true)
+    try {
+      const result = await updateItemById(item.id, { defaultLocationId: selectedDefaultLocation.value })
+      if (result.success) {
+        toast.success("Default location updated")
+        onUpdate({ defaultLocationId: selectedDefaultLocation.value })
+      } else {
+        toast.error(result.error || "Failed to update default location")
+      }
+    } catch (error) {
+      toast.error("An error occurred while saving")
+    } finally {
+      setIsSavingDefaultLocation(false)
+    }
+  }
+
   // ── Tax & Unit handler ──
   const handleTaxAndUnitUpdate = async () => {
     setIsUpdating(true)
@@ -794,41 +822,42 @@ export default function PricingStockTab({
           </Tabs>
         </CardContent>
       </Card>
-      {/* Unlink Location Confirmation Dialog */}
-      <ConfirmationDialog
-        open={unlinkDialogOpen}
-        onOpenChange={setUnlinkDialogOpen}
-        title="Delete Item"
-        description={
-          locationToUnlink ? (
-            <>
-              Are you sure you want to remove <strong>{locationToUnlink.locationName}</strong> from this item?
-              <br />
-              This will permanently delete all stock records for this location.
-              <br />
-              The item will remain in other locations.
-            </>
-          ) : (
-            "Are you sure you want to remove this location from the item?"
-          )
-        }
-        onConfirm={async () => {
-          if (!locationToUnlink) return;
-          const res = await unlinkItemFromLocation(item.id, locationToUnlink.locationId);
-          if (res.success) {
-            toast.success(`Removed from ${locationToUnlink.locationName}`);
-            const updated = await getItemInventoryLocations(item.id);
-            setInventoryLocations(updated);
-          } else {
-            toast.error(res.error || "Failed to remove location");
-          }
-          setUnlinkDialogOpen(false);
-          setLocationToUnlink(null);
-        }}
-        isConfirming={false}
-        confirmLabel="Delete"
-        variant="destructive"
-      />
+
+      {/* ══ DEFAULT LOCATION (AUTO‑DISPERSE) ══ */}
+      <Card className="border-2 border-primary/10">
+        <CardHeader className="pb-2">
+          <div className="flex items-center gap-2">
+            <MapPin className="h-4 w-4 text-primary" />
+            <CardTitle className="text-base">Default Location (Auto‑disperse)</CardTitle>
+          </div>
+          <CardDescription>
+            When receiving this item, it will be auto‑routed here if "Auto‑disperse" is enabled in the receive modal.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <FormSelectInput
+            label="Select Default Location"
+            options={locationOptions}
+            option={selectedDefaultLocation}
+            setOption={setSelectedDefaultLocation}
+            toolTipText="Manage Locations"
+            href="/dashboard/inventory/locations"
+          />
+          <Button
+            type="button"
+            onClick={handleSaveDefaultLocation}
+            disabled={isSavingDefaultLocation || !selectedDefaultLocation}
+            className="w-full"
+            size="sm"
+          >
+            {isSavingDefaultLocation ? "Saving..." : "Save Default Location"}
+          </Button>
+          <p className="text-[10px] text-muted-foreground text-center">
+            This location will be used when you receive this item via purchase order with "Auto‑disperse" turned on.
+          </p>
+        </CardContent>
+      </Card>
+
       {/* ══ PRICING ══ */}
       <div className="bg-card border border-input rounded-lg p-4 lg:p-6">
         <div className="mb-4">
@@ -1149,6 +1178,39 @@ export default function PricingStockTab({
         />
       </div>
 
+      {/* Confirmation Dialog for removing location (already used above) */}
+      <ConfirmationDialog
+        open={unlinkDialogOpen}
+        onOpenChange={setUnlinkDialogOpen}
+        title="Remove from Location"
+        description={
+          locationToUnlink ? (
+            <>
+              Are you sure you want to remove <strong>{locationToUnlink.locationName}</strong> from this item?
+              <br />
+              This will delete all stock records for this item in that location.
+            </>
+          ) : (
+            "Are you sure you want to remove this location from the item?"
+          )
+        }
+        onConfirm={async () => {
+          if (!locationToUnlink) return;
+          const res = await unlinkItemFromLocation(item.id, locationToUnlink.locationId);
+          if (res.success) {
+            toast.success(`Removed from ${locationToUnlink.locationName}`);
+            const updated = await getItemInventoryLocations(item.id);
+            setInventoryLocations(updated);
+          } else {
+            toast.error(res.error || "Failed to remove location");
+          }
+          setUnlinkDialogOpen(false);
+          setLocationToUnlink(null);
+        }}
+        isConfirming={false}
+        confirmLabel="Remove"
+        variant="destructive"
+      />
     </div>
   )
 }

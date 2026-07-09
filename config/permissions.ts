@@ -1,4 +1,4 @@
-// permissions.ts
+// config/permissions.ts
 
 export type Permission = {
   create: string;
@@ -24,12 +24,12 @@ export const permissions: ModulePermissions[] = [
       delete: "dashboard.delete",
     },
   },
-   {
+  {
     display: "Accounting",
     name: "accounting",
     permissions: {
       create: "accounting.create",
-      read: "accounting.read",     // This is what the sidebar needs!
+      read: "accounting.read",
       update: "accounting.update",
       delete: "accounting.delete",
     },
@@ -40,7 +40,7 @@ export const permissions: ModulePermissions[] = [
     name: "accounting.payroll",
     permissions: {
       create: "accounting.payroll.create",
-      read: "accounting.payroll",        
+      read: "accounting.payroll",
       update: "accounting.payroll.update",
       delete: "accounting.payroll.delete",
     },
@@ -50,11 +50,24 @@ export const permissions: ModulePermissions[] = [
     name: "accounting.admin",
     permissions: {
       create: "accounting.admin.create",
-      read: "accounting.admin",          
+      read: "accounting.admin",
       update: "accounting.admin.update",
       delete: "accounting.admin.delete",
     },
   },
+
+  // ── MoMo Payments (NEW) ──────────────────────────────────────────
+  {
+    display: "MoMo Payments",
+    name: "momo",
+    permissions: {
+      create: "momo.create",
+      read: "momo.read",
+      update: "momo.update",
+      delete: "momo.request",
+    },
+  },
+
   {
     display: "Inventory",
     name: "inventory",
@@ -145,6 +158,19 @@ export const permissions: ModulePermissions[] = [
       delete: "serial.numbers.delete",
     },
   },
+
+  // ── Barcode Management (NEW) ─────────────────────────────────────
+  {
+    display: "Barcode Management",
+    name: "barcodes",
+    permissions: {
+      create: "barcodes.create",
+      read: "barcodes.read",
+      update: "barcodes.update",
+      delete: "barcodes.delete",
+    },
+  },
+
   {
     display: "Purchases",
     name: "purchases",
@@ -187,7 +213,7 @@ export const permissions: ModulePermissions[] = [
   },
   {
     display: "Suppliers Items",
-    name: "suppliers Items",
+    name: "suppliers.items",
     permissions: {
       create: "suppliers.items.create",
       read: "suppliers.items.read",
@@ -206,7 +232,7 @@ export const permissions: ModulePermissions[] = [
     },
   },
   {
-    display: "Credit Saless",
+    display: "Credit Sales",
     name: "sales.orders",
     permissions: {
       create: "sales.orders.create",
@@ -215,6 +241,19 @@ export const permissions: ModulePermissions[] = [
       delete: "sales.orders.delete",
     },
   },
+
+  // ── Backorders (NEW) ──────────────────────────────────────────────
+  {
+    display: "Backorders",
+    name: "backorders",
+    permissions: {
+      create: "backorders.create",
+      read: "backorders.read",
+      update: "backorders.update",
+      delete: "backorders.delete",
+    },
+  },
+
   {
     display: "POS",
     name: "pos",
@@ -385,6 +424,19 @@ export const permissions: ModulePermissions[] = [
       delete: "tax.settings.access",
     },
   },
+
+  // ── Settings (NEW mother module) ──────────────────────────────────
+  {
+    display: "Settings",
+    name: "settings",
+    permissions: {
+      create: "settings.create",
+      read: "settings.read",
+      update: "settings.update",
+      delete: "settings.admin",
+    },
+  },
+
   {
     display: "Users",
     name: "users",
@@ -438,404 +490,169 @@ export const permissions: ModulePermissions[] = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ADMIN — full access to everything including all accounting sub-modules
+// ADMIN — full access to everything including all sub-modules
 // ─────────────────────────────────────────────────────────────────────────────
-export const adminPermissions = [
-  // Dashboard
-  "dashboard.create",
+export const adminPermissions = permissions.flatMap((m) =>
+  Object.values(m.permissions)
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MANAGER — accounting read + payroll, no admin (Paystack settings)
+// ─────────────────────────────────────────────────────────────────────────────
+export const managerPermissions = [
   "dashboard.read",
-  "dashboard.update",
-  "dashboard.delete",
 
-  // Accounting 
- "accounting.create",
-  "accounting.read",        
+  "accounting.read",
   "accounting.update",
-  "accounting.delete",
-  "accounting.payroll",     
-  "accounting.admin",             
+  "accounting.payroll",
 
-  // Inventory
-  "inventory.create",
+  "momo.read",
+  "momo.update",
+
   "inventory.read",
   "inventory.update",
-  "inventory.delete",
 
-  // Items
   "items.create",
   "items.read",
   "items.update",
-  "items.delete",
 
-  // Categories
-  "categories.create",
   "categories.read",
-  "categories.update",
-  "categories.delete",
-
-  // Brands
-  "brands.create",
   "brands.read",
-  "brands.update",
-  "brands.delete",
-
-  // Units
-  "units.create",
   "units.read",
-  "units.update",
-  "units.delete",
 
-  // Stock
-  "stock.create",
   "stock.read",
   "stock.update",
-  "stock.delete",
 
-  // Transfers
+  "barcodes.read",
+  "barcodes.update",
+
   "transfers.create",
   "transfers.read",
   "transfers.update",
-  "transfers.delete",
 
-  // Adjustments
   "adjustments.create",
   "adjustments.read",
   "adjustments.update",
-  "adjustments.delete",
 
-  // Serial Numbers
-  "serial.numbers.create",
   "serial.numbers.read",
   "serial.numbers.update",
-  "serial.numbers.delete",
 
-  // Purchases
   "purchases.create",
   "purchases.read",
   "purchases.update",
-  "purchases.delete",
 
-  // Purchase Orders
   "purchase.orders.create",
   "purchase.orders.read",
   "purchase.orders.update",
-  "purchase.orders.delete",
 
-  // Goods Receipts
   "goods.receipts.create",
   "goods.receipts.read",
   "goods.receipts.update",
-  "goods.receipts.delete",
 
-  // Suppliers
-  "suppliers.create",
   "suppliers.read",
   "suppliers.update",
-  "suppliers.delete",
-
-  // Suppliers Items
-  "suppliers.items.create",
   "suppliers.items.read",
   "suppliers.items.update",
-  "suppliers.items.delete",
 
-  // Sales
   "sales.create",
   "sales.read",
   "sales.update",
-  "sales.delete",
 
-  // Credit Saless
   "sales.orders.create",
   "sales.orders.read",
   "sales.orders.update",
-  "sales.orders.delete",
 
-  // POS
+  "backorders.read",
+  "backorders.update",
+
   "pos.create",
   "pos.read",
-  "pos.update",
   "pos.access",
 
-  // Returns
   "returns.create",
   "returns.read",
   "returns.update",
-  "returns.delete",
 
-  // Customers
-  "customers.create",
   "customers.read",
   "customers.update",
-  "customers.delete",
 
-  // Reports
-  "reports.create",
   "reports.read",
-  "reports.update",
-  "reports.delete",
   "reports.inventory.read",
   "reports.purchases.read",
   "reports.sales.read",
   "reports.products.read",
   "reports.customers.read",
 
-  // Integrations
-  "integrations.create",
   "integrations.read",
-  "integrations.update",
-  "integrations.access",
-  "integrations.pos.access",
+  "integrations.pos.read",
   "integrations.accounting.read",
-  "integrations.accounting.access",
-  "integrations.ecommerce.access",
-  "integrations.api.access",
-
-  // API Settings
-  "api_settings.create",
   "api_settings.read",
-  "api_settings.update",
-  "api_settings.delete",
 
-  // Settings
-  "settings.create",
   "settings.read",
-  "settings.update",
-  "settings.access",
-
-  // Locations
-  "locations.create",
   "locations.read",
-  "locations.update",
-  "locations.delete",
-
-  // Tax Settings
-  "tax.settings.create",
   "tax.settings.read",
-  "tax.settings.update",
-  "tax.settings.access",
-
-  // Users
-  "users.create",
   "users.read",
-  "users.update",
-  "users.delete",
-
-  // Roles
-  "roles.create",
   "roles.read",
-  "roles.update",
-  "roles.delete",
-
-  // Company Settings
-  "company.settings.create",
-  "company.settings.read",
-  "company.settings.update",
   "company.settings.access",
 
-  // Profile
-  "profile.create",
   "profile.read",
   "profile.update",
-  "profile.delete",
 
-  // Password
-  "password.create",
   "password.read",
   "password.update",
   "password.change",
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MANAGER — accounting read + payroll, no admin (Paystack settings)
-// ─────────────────────────────────────────────────────────────────────────────
-export const managerPermissions = [
-  // Dashboard
-  "dashboard.read",
-
-  // Accounting
-  "accounting.read",        
-  "accounting.update",
-  "accounting.payroll",         
-
-  // Inventory
-  "inventory.read",
-  "inventory.update",
-
-  // Items
-  "items.create",
-  "items.read",
-  "items.update",
-
-  // Categories
-  "categories.read",
-
-  // Brands
-  "brands.read",
-
-  // Units
-  "units.read",
-
-  // Stock
-  "stock.read",
-  "stock.update",
-
-  // Transfers
-  "transfers.create",
-  "transfers.read",
-  "transfers.update",
-
-  // Adjustments
-  "adjustments.create",
-  "adjustments.read",
-  "adjustments.update",
-
-  // Serial Numbers
-  "serial.numbers.read",
-  "serial.numbers.update",
-
-  // Purchases
-  "purchases.create",
-  "purchases.read",
-  "purchases.update",
-
-  // Purchase Orders
-  "purchase.orders.create",
-  "purchase.orders.read",
-  "purchase.orders.update",
-
-  // Goods Receipts
-  "goods.receipts.create",
-  "goods.receipts.read",
-  "goods.receipts.update",
-
-  // Suppliers
-  "suppliers.read",
-  "suppliers.update",
-  "suppliers.items.read",
-  "suppliers.items.update",
-
-  // Sales
-  "sales.create",
-  "sales.read",
-  "sales.update",
-
-  // Credit Saless
-  "sales.orders.create",
-  "sales.orders.read",
-  "sales.orders.update",
-
-  // POS
-  "pos.create",
-  "pos.read",
-  "pos.access",
-
-  // Returns
-  "returns.create",
-  "returns.read",
-  "returns.update",
-
-  // Customers
-  "customers.read",
-  "customers.update",
-
-  // Reports
-  "reports.read",
-  "reports.inventory.read",
-  "reports.purchases.read",
-  "reports.sales.read",
-  "reports.products.read",
-  "reports.customers.read",
-
-  // Integrations
-  "integrations.access",
-  "integrations.pos.access",
-  "integrations.accounting.access",
-  "integrations.api.access",
-  "api.keys.read",
-  "api_settings.read",
-
-  // Settings
-  "settings.access",
-  "locations.read",
-  "tax.settings.read",
-  "users.read",
-  "roles.read",
-  "company.settings.access",
-
-  // Profile
-  "profile.read",
-  "profile.update",
-
-  // Password
-  "password.update",
-  "password.change",
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// USER — accounting read only (overview, daily sales, credit view)
-// No payroll, no paystack admin
+// USER — read-only day-to-day access
 // ─────────────────────────────────────────────────────────────────────────────
 export const userPermissions = [
-  // Dashboard
   "dashboard.read",
 
-  // Accounting
-  "accounting.read",             // overview, daily, expenses, credit, forecast, billing tabs
+  "accounting.read",
 
-  // Inventory
+  "momo.read",
+
   "inventory.read",
-
-  // Items
   "items.read",
-
-  // Stock
   "stock.read",
 
-  // Sales
   "sales.create",
   "sales.read",
 
-  // Credit Saless
   "sales.orders.create",
   "sales.orders.read",
 
-  // POS
   "pos.create",
   "pos.read",
   "pos.access",
 
-  // Returns
   "returns.create",
   "returns.read",
 
-  // Customers
   "customers.read",
 
-  // Reports
   "reports.read",
   "reports.sales.read",
   "reports.products.read",
 
-  // Purchases
   "purchases.read",
 
-  // Suppliers
   "suppliers.read",
 
-  // Settings
-  "settings.access",
+  "settings.read",
 
-  // Profile
   "profile.read",
   "profile.update",
 
-  // Password
+  "password.read",
   "password.update",
   "password.change",
 ];
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
 
 export function getAllPermissions(): string[] {
   return permissions.flatMap((module) => Object.values(module.permissions));
@@ -855,3 +672,51 @@ export function getModulePermissions(
 export type PermissionsType = {
   [K in (typeof permissions)[number]["name"]]: Permission;
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Hierarchical tree (used by RoleForm to render nested permission groups)
+// A module's name uses dot-notation to declare its parent, e.g.
+// "accounting.payroll" is a child of "accounting".
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type PermTreeNode = {
+  key: string;
+  label: string;
+  actions: Permission;
+  children: PermTreeNode[];
+};
+
+export function buildPermissionTree(): PermTreeNode[] {
+  const nodeMap = new Map<string, PermTreeNode>();
+  const roots: PermTreeNode[] = [];
+
+  permissions.forEach((m) => {
+    nodeMap.set(m.name, {
+      key: m.name,
+      label: m.display,
+      actions: m.permissions,
+      children: [],
+    });
+  });
+
+  permissions.forEach((m) => {
+    const node = nodeMap.get(m.name)!;
+    const parts = m.name.split(".");
+    const parentKey = parts.slice(0, -1).join(".");
+    const parent = parts.length > 1 ? nodeMap.get(parentKey) : undefined;
+
+    if (parent) {
+      parent.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  });
+
+  return roots;
+}
+
+export function flattenNodeActions(node: PermTreeNode): string[] {
+  const own = Object.values(node.actions);
+  const child = node.children.flatMap(flattenNodeActions);
+  return [...own, ...child];
+}

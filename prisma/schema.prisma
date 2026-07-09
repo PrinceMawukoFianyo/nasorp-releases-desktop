@@ -180,6 +180,7 @@ model Location {
   users                 User[]
   salesReturns          SalesReturn[]
   adjustmentLines       AdjustmentLine[]
+  Item                  Item[]
 }
 
 model Category {
@@ -292,6 +293,8 @@ model Item {
   suppliers             Supplier[]             @relation("SupplierItems")
   pricingTiers          ItemPricingTier[]
   salesReturnLines      SalesReturnLine[]
+  defaultLocationId     String?                @map("default_location_id")
+  defaultLocation       Location?              @relation(fields: [defaultLocationId], references: [id])
 }
 
 model Supplier {

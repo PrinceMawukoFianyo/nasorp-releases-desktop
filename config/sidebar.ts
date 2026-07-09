@@ -260,7 +260,7 @@ export const sidebarLinks: ISidebarLink[] = [
     {
       title: "Create Receipt",
       href: "/dashboard/purchases/goods-receipt/create",
-      permission: "goods_receipt.create",
+      permission: "goods.receipts.create",
     },
     {
       title: "Suppliers",
@@ -430,7 +430,7 @@ export const sidebarLinks: ISidebarLink[] = [
       {
         title: "Change Password",
         href: "/dashboard/settings/change-password",
-        permission: "settings.read",
+        permission: "password.read",   // was "settings.read"
       },
     ],
   },
