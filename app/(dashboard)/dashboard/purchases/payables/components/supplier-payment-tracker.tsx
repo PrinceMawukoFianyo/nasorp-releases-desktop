@@ -133,7 +133,7 @@ function PayNowDialog({ payable, open, onClose, onPaid }: PayDialogProps) {
         onPaid()   // ← triggers refresh in parent
         onClose()
       } else {
-        toast.error(res.error ?? "Failed to record payment")
+        toast.error('error' in res && res.error ? res.error : "Failed to record payment")
       }
     })
   }
