@@ -301,17 +301,17 @@ export default function POSPage() {
       {/* Header */}
       <div className="border-b px-6 py-4 flex-shrink-0">
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold flex items-center gap-2">
-                <Receipt className="w-8 h-8" />
+              <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
+                <Receipt className="w-7 h-7 sm:w-8 sm:h-8" />
                 POS Transactions
               </h1>
               <p className="text-sm text-muted-foreground mt-1">
                 View and manage point of sale transactions
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
               <Button variant="outline" onClick={handleReceiveFromPOS}>
                 <Upload className="w-4 h-4 mr-2" />
                 Receive from POS
@@ -394,10 +394,10 @@ export default function POSPage() {
           </div>
 
           {/* Main Grid */}
-          <div className="flex-1 overflow-hidden">
-            <div className="grid grid-cols-1 lg:grid-cols-4 xl:grid-cols-5 gap-6 h-full">
+          <div className="flex-1 overflow-y-auto lg:overflow-hidden">
+            <div className="grid grid-cols-1 lg:grid-cols-4 xl:grid-cols-5 gap-6 lg:h-full">
               {/* Transaction List */}
-              <div className="lg:col-span-1 xl:col-span-2 flex flex-col h-full overflow-hidden">
+              <div className="lg:col-span-1 xl:col-span-2 flex flex-col lg:h-full lg:overflow-hidden">
                 <div className="flex items-center justify-between mb-4 flex-shrink-0">
                   <h2 className="font-semibold text-sm text-muted-foreground">
                     {filteredTransactions.length} Transaction{filteredTransactions.length !== 1 ? 's' : ''}
@@ -418,8 +418,8 @@ export default function POSPage() {
                   )}
                 </div>
 
-                <div className="flex-1 overflow-hidden border rounded-lg bg-background">
-                  <ScrollArea className="h-full">
+                <div className="flex-1 lg:overflow-hidden border rounded-lg bg-background max-h-[70vh] lg:max-h-none">
+                  <ScrollArea className="h-full lg:h-full">
                     <div className="p-4 space-y-4">
                       {filteredTransactions.length === 0 ? (
                         <div className="text-center py-12">
@@ -467,7 +467,7 @@ export default function POSPage() {
               </div>
 
               {/* Detail View */}
-              <div className="lg:col-span-3 xl:col-span-3 h-full overflow-hidden">
+              <div className="lg:col-span-3 xl:col-span-3 lg:h-full lg:overflow-hidden mt-6 lg:mt-0">
                 {selectedTransaction ? (
                   <div className="h-full flex flex-col">
                     <div className="h-full overflow-hidden border rounded-lg shadow-sm bg-background">

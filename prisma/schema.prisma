@@ -881,6 +881,7 @@ model ManualSupplierDebtPayment {
   amount               Float
   method               String // CASH, BANK_TRANSFER, MOBILE_MONEY, CHEQUE
   reference            String?
+  notes                String?
   paidAt               DateTime @default(now())
   recordedById         String
   orgId                String

@@ -3,6 +3,7 @@
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -17,8 +18,8 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useState } from "react"
 import { toast } from "sonner"
+import { updateUser } from "@/actions/users"
 
-// Define your form schema
 const userFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
@@ -36,26 +37,43 @@ interface UserUpdateFormProps {
 }
 
 export function UserUpdateForm({ user, roles, locations, orgId }: UserUpdateFormProps) {
+  const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Initialize form with user data
+  const currentRoleId = user.roles?.[0]?.id ?? ""
+  const currentLocationId = user.locationId ?? user.Location?.id ?? ""
+
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
     defaultValues: {
       name: user.name || "",
       email: user.email || "",
-      roleId: user.roleId || "",
-      locationId: user.locationId || "",
+      roleId: currentRoleId,
+      locationId: currentLocationId,
     },
   })
 
   async function onSubmit(data: UserFormValues) {
     setIsSubmitting(true)
     try {
-      // Your update logic here
-      console.log("Updating user:", data)
+      const result = await updateUser(user.id, {
+        name: data.name,
+        email: data.email,
+        roleId: data.roleId,
+        locationId: data.locationId,
+        orgId,
+      })
+
+      if (!result.success) {
+        toast.error(result.error || "Failed to update user")
+        return
+      }
+
       toast.success("User updated successfully")
+      router.push("/dashboard/settings/users")
+      router.refresh()
     } catch (error) {
+      console.error("Error updating user:", error)
       toast.error("Failed to update user")
     } finally {
       setIsSubmitting(false)
@@ -65,7 +83,7 @@ export function UserUpdateForm({ user, roles, locations, orgId }: UserUpdateForm
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {/* Name Field - CORRECT STRUCTURE */}
+        {/* Name Field */}
         <FormField
           control={form.control}
           name="name"
@@ -81,7 +99,7 @@ export function UserUpdateForm({ user, roles, locations, orgId }: UserUpdateForm
           )}
         />
 
-        {/* Email Field - CORRECT STRUCTURE */}
+        {/* Email Field */}
         <FormField
           control={form.control}
           name="email"
@@ -96,14 +114,18 @@ export function UserUpdateForm({ user, roles, locations, orgId }: UserUpdateForm
           )}
         />
 
-        {/* Role Field - CORRECT STRUCTURE */}
+        {/* Role Field */}
+        {/* FIX: was defaultValue={field.value} — that only sets the value ONCE
+            at mount and then Radix's Select never picks up changes again,
+            which is why it kept snapping back to "Select a role" on refresh.
+            Using value= keeps it fully controlled by the form state. */}
         <FormField
           control={form.control}
           name="roleId"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Role</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a role" />
@@ -122,14 +144,14 @@ export function UserUpdateForm({ user, roles, locations, orgId }: UserUpdateForm
           )}
         />
 
-        {/* Location Field - CORRECT STRUCTURE */}
+        {/* Location Field — same fix applied */}
         <FormField
           control={form.control}
           name="locationId"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Location (Optional)</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a location" />

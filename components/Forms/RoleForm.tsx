@@ -12,7 +12,7 @@ import FormFooter from "./FormFooter";
 import TextInput from "../FormInputs/TextInput";
 import { Checkbox } from "@/components/ui/checkbox";
 import { createRole, updateRole } from "@/actions/roles";
-import { sidebarLinks } from "@/config/sidebar";
+import { sidebarLinks, ISidebarLink } from "@/config/sidebar";
 
 type RoleFormProps = {
   editingId?: string;
@@ -20,15 +20,94 @@ type RoleFormProps = {
   orgId: string;
 };
 
+type ChildPerm = { label: string; permission: string };
+
+type PermissionGroup = {
+  moduleTitle: string;
+  motherPermission: string;
+  children: ChildPerm[];
+};
+
 // ── Build permission groups from sidebar ──────────────────────────────────
-function buildPermissionGroups() {
-  return sidebarLinks
-    .filter((link) => link.dropdown && link.dropdownMenu && link.dropdownMenu.length > 0)
-    .map((link) => ({
-      moduleTitle: link.title,
-      motherPermission: link.permission,
-      childPermissions: link.dropdownMenu!.map((item) => item.permission),
-    }));
+// FIX: labels now come from each item's real `title` in sidebar.ts (e.g.
+// "Items", "Categories", "Payroll") instead of being guessed from the tail
+// end of the permission string — that's why everything used to say "read".
+function buildPermissionGroups(): PermissionGroup[] {
+  return sidebarLinks.map((link: ISidebarLink) => ({
+    moduleTitle: link.title,
+    motherPermission: link.permission,
+    children:
+      link.dropdownMenu?.map((item) => ({
+        label: item.title,
+        permission: item.permission,
+      })) ?? [],
+  }));
+}
+
+function PermissionGroupCard({
+  group,
+  isSelected,
+  toggleGroup,
+  togglePermission,
+}: {
+  group: PermissionGroup;
+  isSelected: (perm: string) => boolean;
+  toggleGroup: (mother: string, children: string[]) => void;
+  togglePermission: (perm: string) => void;
+}) {
+  const hasChildren = group.children.length > 0;
+  const allChildrenSelected =
+    hasChildren && group.children.every((c) => isSelected(c.permission));
+  const someChildrenSelected =
+    hasChildren && group.children.some((c) => isSelected(c.permission));
+  const motherIndeterminate = hasChildren && someChildrenSelected && !allChildrenSelected;
+  const motherChecked = isSelected(group.motherPermission);
+
+  const checkboxRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (checkboxRef.current) {
+      checkboxRef.current.indeterminate = motherIndeterminate;
+    }
+  }, [motherIndeterminate]);
+
+  return (
+    <div className="border rounded-lg bg-white shadow-sm hover:shadow-md transition-shadow">
+      <div className="p-4 space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-base font-medium">{group.moduleTitle}</span>
+          <input
+            type="checkbox"
+            ref={checkboxRef}
+            checked={hasChildren ? allChildrenSelected : motherChecked}
+            onChange={() =>
+              toggleGroup(
+                group.motherPermission,
+                group.children.map((c) => c.permission)
+              )
+            }
+            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+          />
+        </div>
+
+        {hasChildren && (
+          <div className="ml-2 space-y-1">
+            {group.children.map((child) => (
+              <div key={child.permission} className="flex items-center gap-2">
+                <Checkbox
+                  id={child.permission}
+                  checked={isSelected(child.permission)}
+                  onCheckedChange={() => togglePermission(child.permission)}
+                />
+                <label htmlFor={child.permission} className="text-sm cursor-pointer select-none">
+                  {child.label}
+                </label>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default function RoleForm({ orgId, editingId, initialData }: RoleFormProps) {
@@ -37,17 +116,15 @@ export default function RoleForm({ orgId, editingId, initialData }: RoleFormProp
 
   const groups = useMemo(() => buildPermissionGroups(), []);
 
-  // All valid permissions for filtering
   const allValidPermissions = useMemo(() => {
     const perms = new Set<string>();
     groups.forEach((g) => {
       perms.add(g.motherPermission);
-      g.childPermissions.forEach((p) => perms.add(p));
+      g.children.forEach((c) => perms.add(c.permission));
     });
     return Array.from(perms);
   }, [groups]);
 
-  // ── React Hook Form ──
   const {
     register,
     handleSubmit,
@@ -66,7 +143,6 @@ export default function RoleForm({ orgId, editingId, initialData }: RoleFormProp
 
   const selectedPermissions = watch("permissions") || [];
 
-  // ── Helpers ──
   const isSelected = (perm: string) => selectedPermissions.includes(perm);
 
   const togglePermission = (perm: string) => {
@@ -76,11 +152,22 @@ export default function RoleForm({ orgId, editingId, initialData }: RoleFormProp
     } else {
       current.add(perm);
     }
-    setValue("permissions", Array.from(current));
+    setValue("permissions", Array.from(current), { shouldDirty: true });
   };
 
   const toggleGroup = (mother: string, children: string[]) => {
     const current = new Set(selectedPermissions);
+
+    if (children.length === 0) {
+      if (current.has(mother)) {
+        current.delete(mother);
+      } else {
+        current.add(mother);
+      }
+      setValue("permissions", Array.from(current), { shouldDirty: true });
+      return;
+    }
+
     const allChildrenSelected = children.every((child) => current.has(child));
 
     if (allChildrenSelected) {
@@ -90,32 +177,14 @@ export default function RoleForm({ orgId, editingId, initialData }: RoleFormProp
       current.add(mother);
       children.forEach((child) => current.add(child));
     }
-    setValue("permissions", Array.from(current));
+    setValue("permissions", Array.from(current), { shouldDirty: true });
   };
 
-  // ── Save ──
   async function saveRole(data: RoleFormData) {
     try {
       setLoading(true);
 
-      // ── CRITICAL FIX: parse permissions from hidden input ──
-      let permissions: string[] = [];
-      if (typeof data.permissions === "string") {
-        try {
-          permissions = JSON.parse(data.permissions);
-        } catch {
-          permissions = [];
-        }
-      } else if (Array.isArray(data.permissions)) {
-        permissions = data.permissions;
-      }
-
-      // Fallback: if still empty, use the current selected state
-      if (permissions.length === 0) {
-        permissions = getValues("permissions") || [];
-      }
-
-      // Filter to only valid sidebar permissions
+      const permissions = getValues("permissions") || [];
       const cleanPermissions = permissions.filter((p) => allValidPermissions.includes(p));
 
       const roleData: RoleFormData = {
@@ -158,7 +227,6 @@ export default function RoleForm({ orgId, editingId, initialData }: RoleFormProp
       />
 
       <div className="max-w-4xl mx-auto space-y-6 py-8">
-        {/* Basic Role Information */}
         <Card>
           <CardContent>
             <div className="grid gap-6">
@@ -180,7 +248,6 @@ export default function RoleForm({ orgId, editingId, initialData }: RoleFormProp
           </CardContent>
         </Card>
 
-        {/* Permissions Section */}
         <Card>
           <CardContent>
             <h2 className="text-xl font-medium mt-6 mb-6">
@@ -188,75 +255,16 @@ export default function RoleForm({ orgId, editingId, initialData }: RoleFormProp
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {groups.map((group) => {
-                const motherChecked = isSelected(group.motherPermission);
-                const allChildrenSelected = group.childPermissions.every((child) =>
-                  isSelected(child)
-                );
-                const someChildrenSelected = group.childPermissions.some((child) =>
-                  isSelected(child)
-                );
-                const motherIndeterminate = someChildrenSelected && !allChildrenSelected;
-
-                const checkboxRef = useRef<HTMLInputElement>(null);
-                useEffect(() => {
-                  if (checkboxRef.current) {
-                    checkboxRef.current.indeterminate = motherIndeterminate;
-                  }
-                }, [motherIndeterminate]);
-
-                return (
-                  <div
-                    key={group.motherPermission}
-                    className="border rounded-lg bg-white shadow-sm hover:shadow-md transition-shadow"
-                  >
-                    <div className="p-4 space-y-2">
-                      {/* Mother checkbox */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-base font-medium">
-                          {group.moduleTitle}
-                        </span>
-                        <input
-                          type="checkbox"
-                          ref={checkboxRef}
-                          checked={motherChecked}
-                          onChange={() =>
-                            toggleGroup(group.motherPermission, group.childPermissions)
-                          }
-                          className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                        />
-                      </div>
-
-                      {/* Children */}
-                      <div className="ml-2 space-y-1">
-                        {group.childPermissions.map((child) => (
-                          <div key={child} className="flex items-center gap-2">
-                            <Checkbox
-                              id={child}
-                              checked={isSelected(child)}
-                              onCheckedChange={() => togglePermission(child)}
-                            />
-                            <label
-                              htmlFor={child}
-                              className="text-sm cursor-pointer select-none"
-                            >
-                              {child.split(".").pop()?.replace(/_/g, " ") || child}
-                            </label>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+              {groups.map((group) => (
+                <PermissionGroupCard
+                  key={group.motherPermission}
+                  group={group}
+                  isSelected={isSelected}
+                  toggleGroup={toggleGroup}
+                  togglePermission={togglePermission}
+                />
+              ))}
             </div>
-
-            {/* ── HIDDEN INPUT – stores permissions as JSON string ── */}
-            <input
-              type="hidden"
-              {...register("permissions")}
-              value={JSON.stringify(selectedPermissions)}
-            />
           </CardContent>
         </Card>
       </div>

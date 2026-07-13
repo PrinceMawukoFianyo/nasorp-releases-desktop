@@ -604,12 +604,29 @@ export async function updateUser(
     }
 
     // ── Prepare update data ──
+    // const updateData: any = {
+    //   email: validatedData.email,
+    //   phone: validatedData.phone || null,
+    //   image: validatedData.image || null,
+    //   jobTitle: validatedData.jobTitle || null,
+    // };
     const updateData: any = {
       email: validatedData.email,
-      phone: validatedData.phone || null,
-      image: validatedData.image || null,
-      jobTitle: validatedData.jobTitle || null,
     };
+
+    // FIX: only set these if they were actually provided — sending `null` for
+    // `phone` blows up because it's a required (non-nullable) field in your
+    // Prisma schema. `image` and `jobTitle` are presumably nullable so they're
+    // fine, but doing it this way for all three is safer either way.
+    if (validatedData.phone !== undefined) {
+      updateData.phone = validatedData.phone;
+    }
+    if (validatedData.image !== undefined) {
+      updateData.image = validatedData.image || null;
+    }
+    if (validatedData.jobTitle !== undefined) {
+      updateData.jobTitle = validatedData.jobTitle || null;
+    }
 
     // Handle name fields
     if (validatedData.firstName && validatedData.lastName) {

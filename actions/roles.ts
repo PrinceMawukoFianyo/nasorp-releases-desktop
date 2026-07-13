@@ -93,11 +93,16 @@ export async function updateRole(id: string, data: Partial<RoleFormData>) {
     const existing = await db.role.findUnique({ where: { id } });
     if (!existing) throw new Error("Role not found");
 
-    if (data.permissions) {
+    // ── Validate permissions if provided ──
+    if (data.permissions !== undefined) {
       const validPermissions = getAllPermissions();
       const invalid = data.permissions.filter((p) => !validPermissions.includes(p));
+      
+      // Log invalid permissions for debugging
       if (invalid.length > 0) {
-        throw new Error(`Invalid permissions: ${invalid.join(", ")}`);
+        console.warn("⚠️ Invalid permissions filtered out:", invalid);
+        // Remove invalid permissions instead of throwing
+        data.permissions = data.permissions.filter((p) => validPermissions.includes(p));
       }
     }
 
@@ -114,16 +119,27 @@ export async function updateRole(id: string, data: Partial<RoleFormData>) {
       }
     }
 
+    // ── Prepare update data ──
+    const updateData: any = {};
+
+    if (data.displayName) {
+      updateData.displayName = data.displayName;
+      updateData.roleName = createRoleName(data.displayName);
+    }
+
+    if (data.description !== undefined) {
+      updateData.description = data.description;
+    }
+
+    if (data.permissions !== undefined) {
+      updateData.permissions = data.permissions;
+    }
+
+    console.log("📝 Updating role with:", updateData);
+
     const role = await db.role.update({
       where: { id },
-      data: {
-        ...(data.displayName && {
-          displayName: data.displayName,
-          roleName:    createRoleName(data.displayName),
-        }),
-        ...(data.description  && { description:  data.description  }),
-        ...(data.permissions  && { permissions:  data.permissions  }),
-      },
+      data: updateData,
     });
 
     revalidatePath("/dashboard/settings/roles");

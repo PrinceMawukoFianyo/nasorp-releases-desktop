@@ -82,9 +82,9 @@ export default function POSDetailView({
     <div className="h-full flex flex-col">
       {/* Header */}
       <div className="flex-shrink-0 p-6 border-b bg-background">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
-            <h2 className="text-3xl font-bold truncate flex items-center gap-2">
+            <h2 className="text-xl sm:text-3xl font-bold truncate flex items-center gap-2">
               <Receipt className="w-8 h-8" />
               {transaction.orderNumber}
             </h2>
@@ -92,7 +92,7 @@ export default function POSDetailView({
               {customerInfo?.name || 'Walk-in Customer'} • {formatDate(transaction.createdAt)}
             </p>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
             <Badge className="bg-green-100 text-green-800">
               {transaction.status}
             </Badge>

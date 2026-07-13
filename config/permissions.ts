@@ -1,5 +1,7 @@
 // config/permissions.ts
 
+import { sidebarLinks } from "./sidebar";
+
 export type Permission = {
   create: string;
   read: string;
@@ -56,7 +58,7 @@ export const permissions: ModulePermissions[] = [
     },
   },
 
-  // ── MoMo Payments (NEW) ──────────────────────────────────────────
+  // ── MoMo Payments ──────────────────────────────────────────────
   {
     display: "MoMo Payments",
     name: "momo",
@@ -159,7 +161,7 @@ export const permissions: ModulePermissions[] = [
     },
   },
 
-  // ── Barcode Management (NEW) ─────────────────────────────────────
+  // ── Barcode Management ─────────────────────────────────────────
   {
     display: "Barcode Management",
     name: "barcodes",
@@ -242,7 +244,7 @@ export const permissions: ModulePermissions[] = [
     },
   },
 
-  // ── Backorders (NEW) ──────────────────────────────────────────────
+  // ── Backorders ────────────────────────────────────────────────
   {
     display: "Backorders",
     name: "backorders",
@@ -425,7 +427,7 @@ export const permissions: ModulePermissions[] = [
     },
   },
 
-  // ── Settings (NEW mother module) ──────────────────────────────────
+  // ── Settings (mother module) ────────────────────────────────────
   {
     display: "Settings",
     name: "settings",
@@ -654,8 +656,28 @@ export const userPermissions = [
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Every permission string that the sidebar/RoleForm UI can actually produce
+// (mother + child permissions for every link, including links with no dropdown
+// like "Dashboard"). This is what RoleForm.tsx uses on the client too, so the
+// two can never drift apart again.
+function getSidebarPermissions(): string[] {
+  const perms = new Set<string>();
+  sidebarLinks.forEach((link) => {
+    perms.add(link.permission);
+    link.dropdownMenu?.forEach((item) => perms.add(item.permission));
+  });
+  return Array.from(perms);
+}
+
+// FIX: this used to only return the flat create/read/update/delete list built
+// from `permissions` above. That list didn't match what the sidebar/RoleForm
+// UI actually lets an admin select (e.g. "dashboard.read" has no dropdown so
+// it was missing here), which caused updateRole() to silently strip valid
+// permissions on every save. Now it's a safe superset of both lists so
+// nothing selectable in the UI is ever rejected by the server.
 export function getAllPermissions(): string[] {
-  return permissions.flatMap((module) => Object.values(module.permissions));
+  const flatCrud = permissions.flatMap((module) => Object.values(module.permissions));
+  return Array.from(new Set([...flatCrud, ...getSidebarPermissions()]));
 }
 
 export function isValidPermission(permission: string): boolean {
@@ -675,8 +697,6 @@ export type PermissionsType = {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Hierarchical tree (used by RoleForm to render nested permission groups)
-// A module's name uses dot-notation to declare its parent, e.g.
-// "accounting.payroll" is a child of "accounting".
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type PermTreeNode = {

@@ -202,6 +202,20 @@ export async function recordSupplierPayment(input: {
   reference?:      string
   notes?:          string
 }) {
+  // FIX: manual supplier debts get an id like "manual-<debtId>" when built
+  // in getSupplierPayables(). This function only ever looked up a real
+  // purchaseOrder, so paying a manual debt always failed with
+  // "Purchase order not found". Route those to their own handler.
+  if (input.purchaseOrderId.startsWith("manual-")) {
+    return recordManualSupplierDebtPaymentInternal({
+      manualDebtId: input.purchaseOrderId.replace(/^manual-/, ""),
+      amount:       input.amount,
+      method:       input.method,
+      reference:    input.reference,
+      notes:        input.notes,
+    })
+  }
+
   try {
     const user = await getAuthenticatedUser()
     if (!user?.orgId) return { success: false, error: "Not authenticated" }
@@ -220,8 +234,6 @@ export async function recordSupplierPayment(input: {
     if (input.amount > maxOwing + 0.01) {
       return { success: false, error: `Cannot pay more than outstanding balance (${maxOwing.toFixed(2)})` }
     }
-
-    const dbClient = db as any
 
     const payment = await db.$transaction(async (tx) => {
       const txClient = tx as any
@@ -263,6 +275,63 @@ export async function recordSupplierPayment(input: {
     return { success: true, data: payment }
   } catch (err: any) {
     console.error("[recordSupplierPayment]", err)
+    return { success: false, error: err?.message ?? "Failed to record payment" }
+  }
+}
+
+// ── Record a payment against a MANUAL supplier debt (no real PO) ────────────
+async function recordManualSupplierDebtPaymentInternal(input: {
+  manualDebtId: string
+  amount:       number
+  method:       APPaymentMethod
+  reference?:   string
+  notes?:       string
+}) {
+  try {
+    const user = await getAuthenticatedUser()
+    if (!user?.orgId) return { success: false, error: "Not authenticated" }
+
+    const debt = await db.manualSupplierDebt.findFirst({
+      where: { id: input.manualDebtId, orgId: user.orgId },
+    })
+    if (!debt) return { success: false, error: "Manual debt record not found" }
+    if (debt.amountOwing <= 0) {
+      return { success: false, error: "This debt is already fully paid" }
+    }
+    if (input.amount > debt.amountOwing + 0.01) {
+      return { success: false, error: `Cannot pay more than outstanding balance (${debt.amountOwing.toFixed(2)})` }
+    }
+
+    const newPaid   = debt.amountPaid + input.amount
+    const newOwing  = Math.max(0, debt.amountOwing - input.amount)
+    const newStatus = newOwing <= 0.01 ? "PAID" : "PARTIAL"
+
+    await db.$transaction([
+      db.manualSupplierDebt.update({
+        where: { id: input.manualDebtId },
+        data:  { amountPaid: newPaid, amountOwing: newOwing, status: newStatus },
+      }),
+      db.manualSupplierDebtPayment.create({
+        data: {
+          manualSupplierDebtId: input.manualDebtId,
+          amount:               input.amount,
+          method:               input.method,
+          reference:            input.reference ?? null,
+          notes:                input.notes ?? null,
+          paidAt:               new Date(),
+          recordedById:         user.id,
+          orgId:                user.orgId,
+        },
+      }),
+    ])
+
+    revalidatePath("/dashboard/purchases/payables")
+    revalidatePath("/dashboard/purchases/overview")
+    revalidatePath("/dashboard")
+
+    return { success: true }
+  } catch (err: any) {
+    console.error("[recordManualSupplierDebtPaymentInternal]", err)
     return { success: false, error: err?.message ?? "Failed to record payment" }
   }
 }

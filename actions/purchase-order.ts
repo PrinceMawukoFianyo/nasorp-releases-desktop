@@ -362,11 +362,27 @@ export async function getItems() {
   try {
     const user = await getAuthenticatedUser()
     const orgId = user.orgId ?? ""
-    return await db.item.findMany({
+    const items = await db.item.findMany({
       where: { orgId, isActive: true },
       orderBy: { name: "asc" },
-      select: { id: true, name: true, sku: true, description: true }
+      select: {
+        id: true,
+        name: true,
+        sku: true,
+        description: true,
+        costPrice: true,     // ← FIX: was missing, so unit cost never came through
+        sellingPrice: true,  // ← bonus: lets us show the selling price without an
+                              //   extra API round-trip per item, though that path
+                              //   still works too
+      }
     })
+    // Prisma returns Decimal for these — convert to plain numbers so the
+    // frontend's `unitCost`/`sellingPrice` (typed as `number`) work correctly.
+    return items.map((i) => ({
+      ...i,
+      unitCost: i.costPrice != null ? Number(i.costPrice) : undefined,
+      sellingPrice: i.sellingPrice != null ? Number(i.sellingPrice) : undefined,
+    }))
   } catch (error) {
     console.error("Error fetching items:", error)
     return []
