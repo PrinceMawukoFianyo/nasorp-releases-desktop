@@ -20,7 +20,6 @@ import { Session } from "next-auth";
 import { signOut } from "next-auth/react";
 import { UserDropdownMenu } from "../UserDropdownMenu";
 import { NotificationMenu, type StandardNotification } from "../NotificationMenu";
-import MobileNav from "./MobileNav";
 
 interface SidebarProps {
   session: Session;
@@ -80,7 +79,6 @@ export default function Sidebar({
 
         {/* ── Nav links ── */}
         <div className="flex-1 overflow-y-auto px-2 lg:px-3 py-2">
-         <MobileNav session={session} momoAlertCount={momoAlertCount} />
             {filteredLinks.map((item, i) => {
               const Icon = item.icon;
               const isMomo = isMoMoLink(item.title);

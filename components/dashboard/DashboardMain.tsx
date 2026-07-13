@@ -365,19 +365,17 @@ export default function DashboardMain({
       <div className="max-w-7xl mx-auto space-y-6 p-6">
 
         {/* Header */}
-        <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-            <p className="text-muted-foreground">Here's your statistics overview.</p>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">Here's your statistics overview.</p>
           </div>
-          <div className="flex items-center gap-3">
-            <DateRangePicker
-              value={initialPeriod}
-              onChange={handleRangeChange}
-            />
-            <Button variant="outline">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+            <DateRangePicker value={initialPeriod} onChange={handleRangeChange} />
+            <Button variant="outline" className="shrink-0">
               <Download className="mr-2 h-4 w-4" />
-              Export to Excel
+              <span className="hidden xs:inline">Export to Excel</span>
+              <span className="xs:hidden">Export</span>
             </Button>
           </div>
         </div>

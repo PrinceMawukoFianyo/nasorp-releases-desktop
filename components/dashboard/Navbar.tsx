@@ -27,8 +27,6 @@ interface NavbarProps {
 
 export default function Navbar({ session, momoAlertCount = 0 }: NavbarProps) {
   const router = useRouter();
-  // FIX: Sheet is now controlled so we can close it automatically after
-  // tapping a link — previously it stayed open until you manually hit X.
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const user = session?.user;
 
@@ -45,7 +43,7 @@ export default function Navbar({ session, momoAlertCount = 0 }: NavbarProps) {
   const orgName = user?.orgName ?? "";
 
   return (
-    <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-muted/60 px-4 lg:h-[60px] lg:px-6">
+    <header className="sticky top-0 z-10 flex h-14 items-center gap-2 sm:gap-4 border-b bg-muted/60 px-3 sm:px-4 lg:h-[60px] lg:px-6 overflow-hidden">
       <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
         <SheetTrigger asChild>
           <Button variant="outline" size="icon" className="shrink-0 md:hidden">
@@ -53,22 +51,15 @@ export default function Navbar({ session, momoAlertCount = 0 }: NavbarProps) {
             <span className="sr-only">Toggle navigation menu</span>
           </Button>
         </SheetTrigger>
-        {/* FIX: explicit width + overflow-y-auto so a long, fully-grouped
-            menu (with all dropdowns) scrolls properly on short phone screens
-            instead of getting clipped. */}
         <SheetContent side="left" className="flex flex-col w-[280px] sm:w-[320px] overflow-y-auto">
           <div className="mb-2">
             <Logo href="/dashboard" />
           </div>
-
-          {/* FIX: was a flattened, ungrouped mobileLinks list — now renders
-              the same grouped/collapsible nav as desktop. */}
           <MobileNav
             session={session}
             momoAlertCount={momoAlertCount}
             onNavigate={() => setMobileNavOpen(false)}
           />
-
           <div className="mt-auto pt-4">
             <Button onClick={handleLogout} size="sm" className="w-full">
               Logout
@@ -77,19 +68,30 @@ export default function Navbar({ session, momoAlertCount = 0 }: NavbarProps) {
         </SheetContent>
       </Sheet>
 
-      <div className="flex-1">
+      {/* FIX: single flex-1 + min-w-0 so this row can actually shrink instead
+          of forcing the whole header (and page) wider than the viewport */}
+      <div className="flex-1 min-w-0">
         {orgName && (
-          <div className="font-medium flex gap-3 items-center whitespace-nowrap">
-            <span className="text-ms text-foreground whitespace-nowrap">{orgName}</span>
-            <span className="text-sm text-muted-foreground">|</span>
-            <span className="text-xs text-muted-foreground whitespace-nowrap">{userRole}</span>
+          <div className="font-medium flex items-center gap-1.5 sm:gap-3 min-w-0">
+            <span className="text-sm text-foreground truncate max-w-[100px] xs:max-w-[140px] sm:max-w-none">
+              {orgName}
+            </span>
+            {userRole && (
+              <>
+                <span className="hidden sm:inline text-sm text-muted-foreground">|</span>
+                <span className="hidden sm:inline text-xs text-muted-foreground truncate max-w-[140px]">
+                  {userRole}
+                </span>
+              </>
+            )}
           </div>
         )}
       </div>
-      <div className="flex-1"></div>
 
-      <div className="w-full flex-1"></div>
-      <div className="p-4">
+      {/* FIX: removed the two redundant empty flex-1 spacer divs — one
+          flex-1 on the org-name block above is enough to push this to the
+          right edge */}
+      <div className="shrink-0">
         <UserDropdownMenu
           username={session?.user?.name ?? ""}
           email={session?.user?.email ?? ""}
