@@ -205,13 +205,17 @@ function StatCard({ label, value, sub, accent = "default", icon: Icon, href, tre
   icon?: React.ElementType; href?: string; trend?: { value: string; up: boolean };
 }) {
   const inner = (
-    <Card className={`border ${CARD_BG[accent]} transition-all hover:shadow-md h-full`}>
-      <CardContent className="pt-4 pb-3">
-        <div className="flex items-start justify-between mb-1">
-          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide leading-tight">{label}</p>
+    // FIX: min-w-0 lets this card actually shrink to its grid column's real
+    // width instead of forcing the column wider to fit the unbroken number.
+    <Card className={`border ${CARD_BG[accent]} transition-all hover:shadow-md h-full min-w-0`}>
+      <CardContent className="pt-4 pb-3 min-w-0">
+        <div className="flex items-start justify-between mb-1 gap-2">
+          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide leading-tight min-w-0">{label}</p>
           {Icon && <Icon className={`h-4 w-4 flex-shrink-0 ${ICON_CLR[accent]}`} />}
         </div>
-        <p className={`text-xl font-bold tracking-tight ${CARD_TEXT[accent]}`}>{value}</p>
+        {/* FIX: break-words + smaller mobile font size so long currency
+            values wrap/fit instead of overflowing and getting clipped */}
+        <p className={`text-lg sm:text-xl font-bold tracking-tight break-words ${CARD_TEXT[accent]}`}>{value}</p>
         <div className="flex items-center justify-between mt-1">
           {sub && <p className="text-xs text-muted-foreground leading-tight">{sub}</p>}
           {trend && (
@@ -306,26 +310,26 @@ function RevenueSplitCard({ totalSales, fromOrders, fromCredit, fromPOS, expense
   return (
     <Card>
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
           <CardTitle className="text-sm font-semibold flex items-center gap-2"><BarChart2 className="h-4 w-4 text-emerald-600" />Revenue Split</CardTitle>
-          <span className="text-base font-bold text-emerald-600">{fmt(totalSales)}</span>
+          <span className="text-base font-bold text-emerald-600 flex-shrink-0">{fmt(totalSales)}</span>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
         {items.map(item => (
           <div key={item.label}>
-            <div className="flex justify-between items-center mb-1">
-              <Link href={item.href} className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors no-underline">
-                <span className={`inline-block w-2 h-2 rounded-full ${item.color}`} />{item.label} →
+            <div className="flex justify-between items-center mb-1 gap-2">
+              <Link href={item.href} className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors no-underline min-w-0 truncate">
+                <span className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${item.color}`} />{item.label} →
               </Link>
-              <span className="text-xs font-semibold">{fmt(item.amount)}</span>
+              <span className="text-xs font-semibold flex-shrink-0">{fmt(item.amount)}</span>
             </div>
             <ProgressBar value={item.amount} max={totalSales} color={item.color} />
           </div>
         ))}
         <div className="pt-2 border-t space-y-1">
-          <div className="flex justify-between text-xs"><span className="text-red-500 font-medium">Expenses deducted</span><span className="text-red-500 font-semibold">− {fmt(expenses)}</span></div>
-          <div className="flex justify-between text-xs"><span className="text-emerald-600 font-semibold">Net Revenue</span><span className="text-emerald-600 font-bold">{fmt(net)}</span></div>
+          <div className="flex justify-between text-xs gap-2"><span className="text-red-500 font-medium">Expenses deducted</span><span className="text-red-500 font-semibold flex-shrink-0">− {fmt(expenses)}</span></div>
+          <div className="flex justify-between text-xs gap-2"><span className="text-emerald-600 font-semibold">Net Revenue</span><span className="text-emerald-600 font-bold flex-shrink-0">{fmt(net)}</span></div>
         </div>
       </CardContent>
     </Card>
@@ -1086,7 +1090,7 @@ export default function AccountantDashboard({
     <div className="flex flex-col min-h-full">
 
       {/* ── STICKY HEADER ───────────────────────────────────────── */}
-      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b px-6 py-3 flex-shrink-0">
+      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b px-3 sm:px-6 py-3 flex-shrink-0">
         <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
           <div>
             <div className="flex items-center gap-2">
@@ -1099,11 +1103,17 @@ export default function AccountantDashboard({
               {" · "}<span className="font-medium capitalize text-foreground">{TABS.find(t => t.id === tab)?.label}</span>
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={exportOverview}><Download className="h-3.5 w-3.5 mr-1.5" />Export</Button>
-            <Button variant="outline" size="sm" onClick={() => window.print()}><Printer className="h-3.5 w-3.5 mr-1.5" />Print</Button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={exportOverview} title="Export">
+              <Download className="h-3.5 w-3.5 sm:mr-1.5" /><span className="hidden sm:inline">Export</span>
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => window.print()} title="Print">
+              <Printer className="h-3.5 w-3.5 sm:mr-1.5" /><span className="hidden sm:inline">Print</span>
+            </Button>
             <Link href="/dashboard/reports/sales">
-              <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white">Full Sales Report <ArrowUpRight className="h-3.5 w-3.5 ml-1" /></Button>
+              <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                <span className="hidden sm:inline">Full Sales Report</span><span className="sm:hidden">Report</span> <ArrowUpRight className="h-3.5 w-3.5 ml-1" />
+              </Button>
             </Link>
           </div>
         </div>
@@ -1135,7 +1145,7 @@ export default function AccountantDashboard({
         {tab === "overview" && (
           <div className="space-y-5">
             {/* KPIs */}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               <StatCard label="Total Revenue" value={fmt(totalRevenue)} sub={`${grossMargin.toFixed(1)}% gross margin`} accent="green" icon={TrendingUp} href="/dashboard/reports/sales" />
               <StatCard label="Net Profit" value={fmt(netProfit)} sub="After expenses + payroll" accent="teal" icon={DollarSign} />
               <StatCard label="Inventory Value (Cost)" value={fmt(inventoryValue)} sub={`Retail: ${fmt(d?.inventoryValueAtRetail ?? 0)} · ${d?.totalItems ?? 0} items`} accent="blue" icon={Package2} href="/dashboard/inventory/items" />
@@ -1153,11 +1163,11 @@ export default function AccountantDashboard({
             </div>
 
             {/* Revenue split + chart */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <RevenueSplitCard totalSales={fromOrders + fromCredit + fromPOS} fromOrders={fromOrders} fromCredit={fromCredit} fromPOS={fromPOS} expenses={totalExpensesSum + payrollTotal} />
               <Card>
                 <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
                     <CardTitle className="text-sm font-semibold flex items-center gap-2"><BarChart2 className="h-4 w-4 text-muted-foreground" />Recent Orders Performance</CardTitle>
                     <div className="flex gap-3 text-[10px] text-muted-foreground">
                       <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-emerald-500 inline-block" />Sales</span>
@@ -1172,16 +1182,16 @@ export default function AccountantDashboard({
             {/* Financial summary ribbon */}
             <Card className="bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800">
               <CardContent className="pt-4 pb-4">
-                <div className="grid grid-cols-4 divide-x divide-emerald-200 dark:divide-emerald-800">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-4 sm:gap-y-0 sm:divide-x divide-emerald-200 dark:divide-emerald-800">
                   {[
                     { label: "Gross Revenue", value: fmt(totalRevenue), note: "All orders" },
                     { label: "Total Expenses", value: fmt(totalExpensesSum + payrollTotal), note: "Ops + payroll", red: true },
                     { label: "Net Profit", value: fmt(netProfit), note: `${pct(netProfit, totalRevenue)}% margin` },
                     { label: "Outstanding", value: fmt(outstandingCredit), note: `${creditSummary?.activeDebtors ?? 0} customers`, amber: true },
                   ].map((s, i) => (
-                    <div key={i} className={`px-5 ${i === 0 ? "pl-0" : ""} ${i === 3 ? "pr-0" : ""}`}>
+                    <div key={i} className="min-w-0 px-0 sm:px-5 sm:first:pl-0 sm:last:pr-0">
                       <p className="text-xs text-muted-foreground font-medium">{s.label}</p>
-                      <p className={`text-lg font-bold mt-0.5 ${s.red ? "text-red-600" : s.amber ? "text-amber-600" : "text-emerald-700"}`}>{s.value}</p>
+                      <p className={`text-lg font-bold mt-0.5 break-words ${s.red ? "text-red-600" : s.amber ? "text-amber-600" : "text-emerald-700"}`}>{s.value}</p>
                       <p className="text-[10px] text-muted-foreground mt-0.5">{s.note}</p>
                     </div>
                   ))}
@@ -1190,7 +1200,7 @@ export default function AccountantDashboard({
             </Card>
 
             {/* Recent orders + top products */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <Card>
                 <CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-sm font-semibold">Recent Credit Sales</CardTitle><Link href="/dashboard/sales/orders" className="text-xs text-emerald-600 hover:underline">View all →</Link></div></CardHeader>
                 <CardContent>
@@ -1222,7 +1232,7 @@ export default function AccountantDashboard({
               </Card>
             </div>
 
-            <div className="grid grid-cols-2 gap-4"><PaystackBanner /><UpgradeBanner /></div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4"><PaystackBanner /><UpgradeBanner /></div>
           </div>
         )}
 
@@ -1232,11 +1242,33 @@ export default function AccountantDashboard({
         {/* EXPENSES */}
         {tab === "expenses" && (
           <div className="space-y-5">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <StatCard label="Total Expenses" value={fmt(totalExpensesSum)} sub={`${expenses.length} entries`} accent="red" icon={Receipt} />
               <StatCard label="Payroll Expenses" value={fmt(expenses.filter(e => e.isPayroll).reduce((s, e) => s + e.amount, 0))} sub="Salary & wages" accent="amber" icon={Users} />
               <StatCard label="Operating Costs" value={fmt(expenses.filter(e => !e.isPayroll).reduce((s, e) => s + e.amount, 0))} sub="Non-payroll" accent="blue" icon={Building2} />
             </div>
+
+            {expenses.length > 0 && (
+              <Card>
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Expenses by Category</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {EXPENSE_CATS.map(cat => {
+                      const total = expenses.filter(e => e.category === cat).reduce((s, e) => s + e.amount, 0);
+                      if (!total) return null;
+                      return (
+                        <div key={cat} className="p-3 rounded-lg bg-muted/40 border min-w-0">
+                          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">{cat}</p>
+                          <p className="text-sm font-bold mt-0.5 break-words">{fmt(total)}</p>
+                          <ProgressBar value={total} max={totalExpensesSum} color="bg-red-400" />
+                          <p className="text-[10px] text-muted-foreground mt-1">{pct(total, totalExpensesSum)}% of total</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {expenses.length > 0 && (
               <Card>
@@ -1293,7 +1325,7 @@ export default function AccountantDashboard({
         {/* PAYROLL */}
         {tab === "payroll" && (
           <div className="space-y-5">
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <StatCard label="Total Payroll" value={fmt(payrollTotal)} sub={`${payroll.length} entries`} accent="amber" icon={Users} />
               <StatCard label="Paid" value={fmt(payrollPaid)} sub="Disbursed" accent="green" icon={CheckCircle2} />
               <StatCard label="Pending" value={fmt(payrollPending)} sub="Awaiting payment" accent="red" icon={Clock} />
@@ -1301,7 +1333,7 @@ export default function AccountantDashboard({
             </div>
 
             {payroll.length > 0 && (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <Card>
                   <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Payroll Status</CardTitle></CardHeader>
                   <CardContent className="space-y-3">
@@ -1389,20 +1421,20 @@ export default function AccountantDashboard({
         {/* CUSTOMERS – with expandable statements, print all, manual debt */}
         {tab === "customers" && (
           <div className="space-y-5">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <StatCard label="Active Customers" value={String(allCustomers.length)} sub="In selected period" accent="blue" icon={Users} href="/dashboard/sales/customers" />
               <StatCard label="Top Spender" value={fmt(topCustomers[0]?.totalSpent ?? 0)} sub={topCustomers[0]?.name ?? "—"} accent="purple" icon={TrendingUp} />
               <StatCard label="Avg Order Value" value={fmt(d?.salesOrdersCount ? d.salesOrdersValue / d.salesOrdersCount : 0)} sub="Per order" accent="teal" icon={DollarSign} />
             </div>
 
             {topCustomers.length > 0 && (
-              <div className="grid grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 {topCustomers.map((c, i) => (
-                  <Card key={i} className="text-center">
-                    <CardContent className="pt-4 pb-3">
+                  <Card key={i} className="text-center min-w-0">
+                    <CardContent className="pt-4 pb-3 min-w-0">
                       <div className="w-10 h-10 rounded-full mx-auto flex items-center justify-center font-bold text-sm mb-2" style={{ background: `hsl(${i * 55}, 55%, 92%)`, color: `hsl(${i * 55}, 55%, 35%)` }}>{c.name.charAt(0)}</div>
                       <p className="text-xs font-semibold truncate">{c.name}</p>
-                      <p className="text-sm font-bold text-emerald-700 mt-0.5">{fmt(c.totalSpent)}</p>
+                      <p className="text-sm font-bold text-emerald-700 mt-0.5 break-words">{fmt(c.totalSpent)}</p>
                       <p className="text-[10px] text-muted-foreground">{c.totalOrders} orders</p>
                     </CardContent>
                   </Card>
@@ -1412,9 +1444,9 @@ export default function AccountantDashboard({
 
             <Card>
               <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
                   <CardTitle className="text-sm font-semibold">Customer Performance</CardTitle>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <Button size="sm" variant="outline" className="h-7 text-xs border-amber-500 text-amber-600 hover:bg-amber-50" onClick={() => setManualDebtOpen(true)}>
                       + Manual Debt
                     </Button>
@@ -1570,7 +1602,7 @@ export default function AccountantDashboard({
         {tab === "suppliers" && (
           <div className="space-y-5">
             {/* Top Stats Cards */}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <StatCard label="Active Suppliers" value={String(allSuppliers.length)} sub="In selected period" accent="blue" icon={Building2} href="/dashboard/purchases/suppliers" />
               <StatCard label="Top Creditor" value={fmt(topSuppliers[0]?.totalOwing ?? 0)} sub={topSuppliers[0]?.name ?? "—"} accent="purple" icon={TrendingUp} />
               <StatCard label="Avg Payable" value={fmt(totalSupplierOwing / (allSuppliers.length || 1))} sub="Per supplier" accent="teal" icon={DollarSign} />
@@ -1578,13 +1610,13 @@ export default function AccountantDashboard({
 
             {/* Top Creditor Mini Cards */}
             {topSuppliers.length > 0 && (
-              <div className="grid grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 {topSuppliers.map((s, i) => (
-                  <Card key={i} className="text-center">
-                    <CardContent className="pt-4 pb-3">
+                  <Card key={i} className="text-center min-w-0">
+                    <CardContent className="pt-4 pb-3 min-w-0">
                       <div className="w-10 h-10 rounded-full mx-auto flex items-center justify-center font-bold text-sm mb-2" style={{ background: `hsl(${i * 55}, 55%, 92%)`, color: `hsl(${i * 55}, 55%, 35%)` }}>{s.name.charAt(0)}</div>
                       <p className="text-xs font-semibold truncate">{s.name}</p>
-                      <p className="text-sm font-bold text-rose-700 mt-0.5">{fmt(s.totalOwing)}</p>
+                      <p className="text-sm font-bold text-rose-700 mt-0.5 break-words">{fmt(s.totalOwing)}</p>
                       <p className="text-[10px] text-muted-foreground">{s.orderCount} POs</p>
                     </CardContent>
                   </Card>
@@ -1594,9 +1626,9 @@ export default function AccountantDashboard({
 
             <Card>
               <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
                   <CardTitle className="text-sm font-semibold">Supplier Performance</CardTitle>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <Button size="sm" variant="outline" className="h-7 text-xs border-amber-500 text-amber-600 hover:bg-amber-50" onClick={() => setManualSupplierDebtOpen(true)}>
                       + Manual Debt
                     </Button>
@@ -1869,7 +1901,7 @@ export default function AccountantDashboard({
               <StatCard label="Partial" value={String(creditSummary?.partialCount ?? 0)} sub="Partially paid" accent="orange" icon={Clock} />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <Card>
                 <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold flex items-center gap-2"><CreditCard className="h-4 w-4 text-primary" />Payment Status Overview</CardTitle></CardHeader>
                 <CardContent>
@@ -1931,7 +1963,7 @@ export default function AccountantDashboard({
               </CardContent>
             </Card>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-semibold flex items-center gap-2"><Settings className="h-4 w-4 text-blue-600" />API Configuration</CardTitle>

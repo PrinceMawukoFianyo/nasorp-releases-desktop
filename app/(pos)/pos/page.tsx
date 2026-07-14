@@ -9,7 +9,7 @@ import {
   Receipt, Loader2, FileText, Plus, Minus,
   Package2, ChevronDown, ScanLine, Zap,
   CheckCircle2, XCircle, AlertTriangle,
-  ArrowLeft,
+  ArrowLeft, Camera,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -37,6 +37,7 @@ import {
 import { lookupByBarcode } from "@/actions/barcode-actions"
 import type { PricingTierRecord } from "@/actions/pricing-tiers"
 import { cn } from "@/lib/utils"
+import { CameraBarcodeScanner } from "@/app/(dashboard)/dashboard/sales/pos/components/details/camera-barcode-scanner"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BARCODE SCANNER HOOK
@@ -430,6 +431,7 @@ export default function POSPage() {
   const [showAddCustomerModal, setShowAddCustomerModal] = useState(false)
   const [showPaymentModal,     setShowPaymentModal]     = useState(false)
   const [mobileCartOpen, setMobileCartOpen] = useState(false)
+  const [showCameraScanner, setShowCameraScanner] = useState(false)
   const [showInvoiceModal,     setShowInvoiceModal]     = useState(false)
 
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "CARD" | "MOBILE_MONEY">("CASH")
@@ -824,7 +826,17 @@ export default function POSPage() {
                 }
               </span>
               {isLookingUp && <Loader2 className="h-3 w-3 animate-spin" />}
-            </div>
+              </div>
+
+              {/* ── Camera scan button ── */}
+              <button
+                onClick={() => setShowCameraScanner(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-blue-200 bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100 transition-colors"
+                title="Scan with camera"
+              >
+                <Camera className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Scan with Camera</span>
+              </button>
 
             {lastOrderId && (
               <div className="flex items-center gap-2 bg-blue-50 rounded-lg p-2 border border-blue-200">
@@ -1199,7 +1211,16 @@ export default function POSPage() {
           <span className="font-bold text-base">GHS{grandTotal.toFixed(2)}</span>
         </button>
       )}
-      
+
+        {/* ── Camera barcode scanner ── */}
+        <CameraBarcodeScanner
+          open={showCameraScanner}
+          onClose={() => setShowCameraScanner(false)}
+          onScan={(value) => {
+            setShowCameraScanner(false)
+            handleScan(value)
+          }}
+        />
 
       {/* ════════════════ MODALS ════════════════ */}
 

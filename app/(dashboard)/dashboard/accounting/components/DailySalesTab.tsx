@@ -495,7 +495,7 @@ export default function DailySalesTab() {
     <div className="space-y-5">
 
       {/* ── TOP: KPI strip for selected day ──────────────────────── */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label:"Total Revenue",   value:selectedDay.totalRevenue,         accent:"green",   icon:TrendingUp,   sub:`${selectedDay.orderCount} orders` },
           { label:"Credit Saless",    value:selectedDay.totalCreditInvoiced,  accent:"emerald", icon:ShoppingCart, sub:`${selectedDay.salesOrders.length} orders · ${fmt(selectedDay.totalCredit)} received` },
@@ -508,14 +508,14 @@ export default function DailySalesTab() {
             s.accent==="blue"  ?"bg-blue-50    border-blue-200    dark:bg-blue-950/20    dark:border-blue-800":
                                  "bg-amber-50   border-amber-200   dark:bg-amber-950/20   dark:border-amber-800"
           }`}>
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-start justify-between mb-1">
+            <CardContent className="pt-4 pb-3 min-w-0">
+              <div className="flex items-start justify-between mb-1 gap-2">
                 <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{s.label}</p>
-                <s.icon className={`h-4 w-4 ${
+                <s.icon className={`h-4 w-4 flex-shrink-0 ${
                   s.accent==="green"?"text-emerald-600":s.accent==="emerald"?"text-teal-600":s.accent==="blue"?"text-blue-600":"text-amber-600"
                 }`}/>
               </div>
-              <p className={`text-xl font-bold ${
+              <p className={`text-lg sm:text-xl font-bold break-words ${
                 s.accent==="green"?"text-emerald-900 dark:text-emerald-100":s.accent==="emerald"?"text-teal-900 dark:text-teal-100":s.accent==="blue"?"text-blue-900 dark:text-blue-100":"text-amber-900 dark:text-amber-100"
               }`}>{fmt(s.value)}</p>
               <p className="text-xs text-muted-foreground mt-1">{s.sub}</p>
@@ -532,7 +532,7 @@ export default function DailySalesTab() {
               <Calendar className="h-4 w-4 text-emerald-600"/>
               Daily Overview
             </CardTitle>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               {/* Date picker */}
               <div className="flex items-center gap-1.5 border rounded-lg px-3 py-1.5 bg-background">
                 <Calendar className="h-3.5 w-3.5 text-muted-foreground"/>
@@ -554,8 +554,8 @@ export default function DailySalesTab() {
                 <RefreshCw className={`h-3.5 w-3.5 ${pending?"animate-spin":""}`}/>
               </Button>
               {/* Export all */}
-              <Button variant="outline" size="sm" className="h-8" onClick={exportAll}>
-                <Download className="h-3.5 w-3.5 mr-1.5"/>Export Day
+              <Button variant="outline" size="sm" className="h-8" onClick={exportAll} title="Export Day">
+                <Download className="h-3.5 w-3.5 sm:mr-1.5"/><span className="hidden sm:inline">Export Day</span>
               </Button>
             </div>
           </div>
@@ -669,16 +669,16 @@ export default function DailySalesTab() {
           {selectedDay.orderCount > 0 && (
             <Card className="bg-muted/30">
               <CardContent className="pt-4 pb-4">
-                <div className="grid grid-cols-4 divide-x divide-border">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-4 sm:gap-y-0 sm:divide-x divide-border">
                   {[
                     { label:"Credit Sales",  value:selectedDay.totalCreditInvoiced, cls:"text-emerald-700" },
                     { label:"Revenue from POS",    value:selectedDay.totalPOS,        cls:"text-blue-700" },
                     { label:"Credit Collected",    value:selectedDay.totalCreditPaid, cls:"text-amber-700" },
                     { label:"Total Revenue",       value:selectedDay.totalRevenue,    cls:"text-emerald-700 font-bold" },
                   ].map((s,i)=>(
-                    <div key={i} className={`px-4 ${i===0?"pl-0":""} ${i===3?"pr-0":""}`}>
+                    <div key={i} className="min-w-0 px-0 sm:px-4 sm:first:pl-0 sm:last:pr-0">
                       <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">{s.label}</p>
-                      <p className={`text-base font-bold mt-0.5 ${s.cls}`}>{fmt(s.value)}</p>
+                      <p className={`text-base font-bold mt-0.5 break-words ${s.cls}`}>{fmt(s.value)}</p>
                     </div>
                   ))}
                 </div>

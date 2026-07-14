@@ -206,7 +206,7 @@ export default function StaffPerformanceTab() {
       </div>
 
       {/* ── KPI cards ────────────────────────────────────────────── */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center gap-2 mb-1">
@@ -215,7 +215,7 @@ export default function StaffPerformanceTab() {
                 Active Staff
               </span>
             </div>
-            <p className="text-2xl font-bold">{data.length}</p>
+            <p className="text-xl sm:text-2xl font-bold break-words">{data.length}</p>
           </CardContent>
         </Card>
         <Card>
@@ -279,20 +279,20 @@ export default function StaffPerformanceTab() {
                   >
                     {/* ── User header row ── */}
                     <div
-                      className="flex items-center justify-between p-4 bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
+                      className="flex items-center justify-between gap-3 p-4 bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
                       onClick={() =>
                         setExpandedUser(isUserExpanded ? null : staff.userId)
                       }
                     >
-                      <div>
-                        <p className="font-semibold">{staff.userName}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold truncate">{staff.userName}</p>
                         <p className="text-xs text-muted-foreground">
                           {staff.totalOrders} transactions ·{" "}
                           {staff.dailyBreakdown.length} active days
                         </p>
                       </div>
-                      <div className="flex items-center gap-4">
-                        <span className="text-lg font-bold text-green-700">
+                      <div className="flex items-center gap-4 flex-shrink-0">
+                        <span className="text-lg font-bold text-green-700 whitespace-nowrap">
                           {formatCurrency(staff.totalRevenue)}
                         </span>
                         {isUserExpanded ? (
@@ -313,25 +313,25 @@ export default function StaffPerformanceTab() {
                           return (
                             <div key={day.date} className="border rounded-md">
                               {/* Day header */}
-                              <div
-                                className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/20"
-                                onClick={() =>
-                                  setExpandedDay(isDayExpanded ? null : dayKey)
-                                }
-                              >
-                                <div className="flex items-center gap-3">
-                                  <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                                  <span className="font-medium">
-                                    {format(
-                                      new Date(day.date + "T00:00:00"),
-                                      "EEEE, d MMM yyyy"
-                                    )}
-                                  </span>
-                                  <Badge variant="outline">
-                                    {day.ordersCount} sales
-                                  </Badge>
-                                </div>
-                                <div className="flex items-center gap-2">
+                                <div
+                                  className="flex items-center justify-between gap-2 p-3 cursor-pointer hover:bg-muted/20"
+                                  onClick={() =>
+                                    setExpandedDay(isDayExpanded ? null : dayKey)
+                                  }
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <CalendarIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                    <span className="font-medium text-sm truncate">
+                                      {format(
+                                        new Date(day.date + "T00:00:00"),
+                                        "EEE, d MMM yyyy"
+                                      )}
+                                    </span>
+                                    <Badge variant="outline" className="flex-shrink-0 hidden sm:inline-flex">
+                                      {day.ordersCount} sales
+                                    </Badge>
+                                  </div>
+                                  <div className="flex items-center gap-2 flex-shrink-0">
                                   <span className="font-semibold text-green-700">
                                     {formatCurrency(day.totalRevenue)}
                                   </span>
@@ -350,9 +350,9 @@ export default function StaffPerformanceTab() {
                                     {day.transactions.map((tx) => (
                                       <div
                                         key={tx.id}
-                                        className="flex items-center justify-between text-sm p-2 rounded bg-white dark:bg-card"
+                                        className="flex items-center justify-between gap-2 text-sm p-2 rounded bg-white dark:bg-card"
                                       >
-                                        <div className="flex flex-col gap-1">
+                                        <div className="flex flex-col gap-1 min-w-0">
                                           <div className="flex items-center gap-2">
                                             <TxBadge type={tx.type} />
                                             <span className="font-mono text-xs">

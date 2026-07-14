@@ -57,11 +57,11 @@ function KpiCard({ label, value, sub, icon: Icon, borderCls, watermarkCls, value
   borderCls: string; watermarkCls: string; valueCls?: string; positive?: boolean;
 }) {
   return (
-    <div className={`relative bg-white dark:bg-card rounded-2xl border border-border shadow-sm border-l-4 ${borderCls} hover:shadow-md transition-shadow overflow-hidden`}>
+    <div className={`relative bg-white dark:bg-card rounded-2xl border border-border shadow-sm border-l-4 ${borderCls} hover:shadow-md transition-shadow overflow-hidden min-w-0`}>
       <Icon className={`absolute -top-2 right-1 h-24 w-24 ${watermarkCls} pointer-events-none select-none`} aria-hidden />
-      <div className="px-5 pt-5 pb-4 relative z-[1]">
+      <div className="px-5 pt-5 pb-4 relative z-[1] min-w-0">
         <p className="text-[11px] font-semibold tracking-widest uppercase text-slate-400 mb-2">{label}</p>
-        <p className={`text-[1.6rem] font-bold leading-none tracking-tight mb-2 ${valueCls ?? "text-slate-700 dark:text-slate-200"}`}>{value}</p>
+        <p className={`text-xl sm:text-[1.6rem] font-bold leading-tight tracking-tight mb-2 break-words ${valueCls ?? "text-slate-700 dark:text-slate-200"}`}>{value}</p>
         {sub && (
           <span className={`inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full ${positive === true ? "bg-emerald-50 text-emerald-600" : positive === false ? "bg-red-50 text-red-600" : "bg-slate-100 text-slate-500"}`}>
             {positive === true  && <ArrowUpRight   className="h-3 w-3 mr-0.5" />}
@@ -214,13 +214,13 @@ function ProjectionCard({ proj }: { proj: FinancialProjection }) {
   const confColor = proj.confidence === "HIGH" ? "text-emerald-600" : proj.confidence === "MEDIUM" ? "text-amber-600" : "text-slate-400";
   return (
     <div className="rounded-2xl border bg-white dark:bg-card shadow-sm p-5 space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="font-bold text-slate-700 dark:text-slate-200">{proj.period}</h3>
-        <Badge variant="outline" className={`text-[10px] ${confColor}`}>{proj.confidence} Confidence</Badge>
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="font-bold text-slate-700 dark:text-slate-200 truncate">{proj.period}</h3>
+        <Badge variant="outline" className={`text-[10px] flex-shrink-0 ${confColor}`}>{proj.confidence} Confidence</Badge>
       </div>
       <div className="grid grid-cols-3 gap-2 text-center">
         {[["Revenue", fmt(proj.projectedRevenue), "text-emerald-600"], ["COGS", fmt(proj.projectedCOGS), "text-orange-500"], ["Profit", fmt(proj.projectedProfit), isPos ? "text-violet-600" : "text-red-600"]].map(([l, v, c]) => (
-          <div key={l}><p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">{l}</p><p className={`text-sm font-bold ${c}`}>{v}</p></div>
+          <div key={l} className="min-w-0"><p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">{l}</p><p className={`text-xs sm:text-sm font-bold break-words ${c}`}>{v}</p></div>
         ))}
       </div>
       <div className="flex items-center gap-2">
@@ -253,9 +253,9 @@ function Narrative({ title, content, icon: Icon, color }: { title: string; conte
 function ReminderRow({ r }: { r: any }) {
   return (
     <div className="rounded-xl border bg-white dark:bg-card p-3 space-y-2">
-      <div className="flex items-center justify-between">
-        <p className="font-semibold text-sm">{r.name}</p>
-        <div className="flex gap-1.5 flex-wrap">
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-semibold text-sm min-w-0 truncate">{r.name}</p>
+        <div className="flex gap-1.5 flex-wrap flex-shrink-0">
           {r.channels.map((c: any, i: number) => (
             <Badge key={i} variant="outline" className={`text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200`}>
               {c.channel} — sent
