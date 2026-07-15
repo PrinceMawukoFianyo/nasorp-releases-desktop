@@ -53,9 +53,12 @@ interface LineItem {
   id: string
   itemId: string
   itemName: string
-  quantity: number
-  unitPrice: number
+  quantity: number // number of the selected "sell as" unit (e.g. 2 boxes, or 5 single units)
+  unitPrice: number // price per SINGLE base unit (always the smallest unit)
   taxRate: number
+  sellUnitId: string // "SINGLE" or an ItemPricingTier id
+  sellUnitName: string // "Single unit", "Box", "Half Box", etc.
+  unitsPerPack: number // 1 for single unit, N for a pack/box tier
 }
 
 // Custom Calendar Component to avoid nesting issues
@@ -263,6 +266,9 @@ const form = useForm({
       quantity: 1,
       unitPrice: 0,
       taxRate: 0,
+      sellUnitId: "SINGLE",
+      sellUnitName: "Single unit",
+      unitsPerPack: 1,
     }
     setLineItems([...lineItems, newItem])
   }
@@ -281,14 +287,48 @@ const form = useForm({
         if (field === "itemId") {
           const selectedItem = items.find(i => i.id === value)
           if (selectedItem) {
+            // Switching items resets the sell-as selection back to Single unit
             return {
               ...item,
               itemId: value,
               itemName: selectedItem.name,
               unitPrice: selectedItem.sellingPrice || 0,
+              sellUnitId: "SINGLE",
+              sellUnitName: "Single unit",
+              unitsPerPack: 1,
             }
           }
         }
+
+        if (field === "sellUnitId") {
+          const selectedItem = items.find(i => i.id === item.itemId)
+
+          if (value === "SINGLE" || !selectedItem) {
+            return {
+              ...item,
+              sellUnitId: "SINGLE",
+              sellUnitName: "Single unit",
+              unitsPerPack: 1,
+              unitPrice: selectedItem?.sellingPrice ?? item.unitPrice,
+            }
+          }
+
+          const tier = (selectedItem.pricingTiers || []).find((t: any) => t.id === value)
+          if (tier) {
+            return {
+              ...item,
+              sellUnitId: tier.id,
+              sellUnitName: tier.packagingUnit?.name || "Pack",
+              unitsPerPack: tier.unitsPerPack || 1,
+              // Derive the per-single-unit price from the pack's wholesale price
+              unitPrice: tier.unitsPerPack
+                ? Math.round((tier.wholesalePrice / tier.unitsPerPack) * 10000) / 10000
+                : item.unitPrice,
+            }
+          }
+          return item
+        }
+
         return { ...item, [field]: value }
       }
       return item
@@ -297,11 +337,13 @@ const form = useForm({
 
   const calculateTotals = () => {
     const subtotal = lineItems.reduce((sum, item) => {
-      return sum + (item.quantity * item.unitPrice)
+      const baseQty = item.quantity * (item.unitsPerPack || 1)
+      return sum + (baseQty * item.unitPrice)
     }, 0)
 
     const taxAmount = lineItems.reduce((sum, item) => {
-      const itemSubtotal = item.quantity * item.unitPrice
+      const baseQty = item.quantity * (item.unitsPerPack || 1)
+      const itemSubtotal = baseQty * item.unitPrice
       return sum + (itemSubtotal * item.taxRate / 100)
     }, 0)
 
@@ -362,15 +404,19 @@ const form = useForm({
         subtotal: totals.subtotal,
         taxAmount: totals.taxAmount,
         lines: {
-          create: lineItems.map(item => ({
-            itemId: item.itemId,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            taxRate: item.taxRate,
-            taxAmount: (item.quantity * item.unitPrice * item.taxRate) / 100,
-            total: item.quantity * item.unitPrice * (1 + item.taxRate / 100),
-            serialNumbers: [],
-          })),
+          create: lineItems.map(item => {
+            const baseQty = item.quantity * (item.unitsPerPack || 1)
+            return {
+              itemId: item.itemId,
+              quantity: baseQty, // always in base (single) units for inventory + reporting
+              unitPrice: item.unitPrice,
+              taxRate: item.taxRate,
+              taxAmount: (baseQty * item.unitPrice * item.taxRate) / 100,
+              total: baseQty * item.unitPrice * (1 + item.taxRate / 100),
+              serialNumbers: [],
+              notes: item.sellUnitId !== "SINGLE" ? `Sold as: ${item.quantity} x ${item.sellUnitName}` : undefined,
+            }
+          }),
         },
       }
 
@@ -673,123 +719,165 @@ const form = useForm({
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {lineItems.map((item) => (
-                    <div
-                      key={item.id}
-                      className="grid grid-cols-12 gap-4 items-end p-4 border rounded-lg bg-slate-50"
-                    >
-                      <div className="col-span-12 sm:col-span-4">
-                        <Label className="text-xs">Item *</Label>
-                        <Select
-                          value={item.itemId}
-                          onValueChange={(value) =>
-                            updateLineItem(item.id, "itemId", value)
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select item" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {visibleItems.length === 0 ? (
-                              <div className="px-3 py-4 text-sm text-muted-foreground text-center">
-                                No items available at this location
-                              </div>
-                            ) : (
-                              visibleItems.map((i) => (
-                                <SelectItem key={i.id} value={i.id}>
-                                  {i.name} - {i.sku}
-                                  {/* Show stock at selected location if we have data */}
-                                  {selectedLocationId && selectedLocationId !== "ALL_LOCATIONS" && i.inventories && (
-                                    ` (${i.inventories.find((inv: any) => inv.locationId === selectedLocationId)?.quantity ?? 0} in stock)`
-                                  )}
+                  {lineItems.map((item) => {
+                    const selectedItem = items.find((i) => i.id === item.itemId)
+                    const pricingTiers = selectedItem?.pricingTiers || []
+                    const baseQty = item.quantity * (item.unitsPerPack || 1)
+                    const lineTotal = baseQty * item.unitPrice * (1 + item.taxRate / 100)
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="grid grid-cols-12 gap-4 items-end p-4 border rounded-lg bg-slate-50"
+                      >
+                        <div className="col-span-12">
+                          <Label className="text-xs">Item *</Label>
+                          <Select
+                            value={item.itemId}
+                            onValueChange={(value) =>
+                              updateLineItem(item.id, "itemId", value)
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select item" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {visibleItems.length === 0 ? (
+                                <div className="px-3 py-4 text-sm text-muted-foreground text-center">
+                                  No items available at this location
+                                </div>
+                              ) : (
+                                visibleItems.map((i) => (
+                                  <SelectItem key={i.id} value={i.id}>
+                                    {i.name} - {i.sku}
+                                    {/* Show stock at selected location if we have data */}
+                                    {selectedLocationId && selectedLocationId !== "ALL_LOCATIONS" && i.inventories && (
+                                      ` (${i.inventories.find((inv: any) => inv.locationId === selectedLocationId)?.quantity ?? 0} in stock)`
+                                    )}
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="col-span-6 sm:col-span-3">
+                          <Label className="text-xs">Sell As</Label>
+                          <Select
+                            value={item.sellUnitId}
+                            onValueChange={(value) =>
+                              updateLineItem(item.id, "sellUnitId", value)
+                            }
+                            disabled={!item.itemId}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Single unit" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="SINGLE">
+                                Single unit
+                                {selectedItem && ` - GHS ${(selectedItem.sellingPrice || 0).toFixed(2)}/unit`}
+                              </SelectItem>
+                              {pricingTiers.map((tier: any) => (
+                                <SelectItem key={tier.id} value={tier.id}>
+                                  {tier.packagingUnit?.name || "Pack"} ({tier.unitsPerPack} units) - GHS {tier.wholesalePrice.toFixed(2)}
                                 </SelectItem>
-                              ))
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="col-span-6 sm:col-span-2">
+                          <Label className="text-xs">
+                            Quantity * {item.unitsPerPack > 1 && (
+                              <span className="text-muted-foreground normal-case">({item.sellUnitName}s)</span>
                             )}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                          </Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            onChange={(e) =>
+                              updateLineItem(
+                                item.id,
+                                "quantity",
+                                parseInt(e.target.value) || 1
+                              )
+                            }
+                          />
+                          {item.unitsPerPack > 1 && (
+                            <p className="text-[11px] text-muted-foreground mt-1">
+                              = {baseQty} unit{baseQty === 1 ? "" : "s"}
+                            </p>
+                          )}
+                        </div>
 
-                      <div className="col-span-6 sm:col-span-2">
-                        <Label className="text-xs">Quantity *</Label>
-                        <Input
-                          type="number"
-                          min="1"
-                          value={item.quantity}
-                          onChange={(e) =>
-                            updateLineItem(
-                              item.id,
-                              "quantity",
-                              parseInt(e.target.value) || 1
-                            )
-                          }
-                        />
-                      </div>
-
-                      <div className="col-span-6 sm:col-span-2">
-                        <Label className="text-xs">Unit Price *</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={item.unitPrice}
-                          onChange={(e) =>
-                            updateLineItem(
-                              item.id,
-                              "unitPrice",
-                              parseFloat(e.target.value) || 0
-                            )
-                          }
-                        />
-                      </div>
-
-                      <div className="col-span-6 sm:col-span-2">
-                        <Label className="text-xs">Tax Rate (%)</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          max="100"
-                          value={item.taxRate}
-                          onChange={(e) =>
-                            updateLineItem(
-                              item.id,
-                              "taxRate",
-                              parseFloat(e.target.value) || 0
-                            )
-                          }
-                        />
-                      </div>
-
-                      <div className="col-span-6 sm:col-span-2 flex items-end gap-2">
-                        <div className="flex-1">
-                          <Label className="text-xs">Total (editable)</Label>
+                        <div className="col-span-6 sm:col-span-2">
+                          <Label className="text-xs">Unit Price *</Label>
                           <Input
                             type="number"
                             step="0.01"
                             min="0"
-                            value={(item.quantity * item.unitPrice * (1 + item.taxRate / 100)).toFixed(2)}
-                            onChange={(e) => {
-                              // Back-calculate unit price from entered total
-                              const enteredTotal = parseFloat(e.target.value) || 0
-                              const taxMult = 1 + (item.taxRate || 0) / 100
-                              const qty = item.quantity || 1
-                              const newUnitPrice = enteredTotal / (qty * taxMult)
-                              updateLineItem(item.id, "unitPrice", Math.round(newUnitPrice * 10000) / 10000)
-                            }}
+                            value={item.unitPrice}
+                            onChange={(e) =>
+                              updateLineItem(
+                                item.id,
+                                "unitPrice",
+                                parseFloat(e.target.value) || 0
+                              )
+                            }
                           />
                         </div>
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="icon"
-                          onClick={() => removeLineItem(item.id)}
-                          className="flex-shrink-0 mb-0"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+
+                        <div className="col-span-6 sm:col-span-2">
+                          <Label className="text-xs">Tax Rate (%)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            max="100"
+                            value={item.taxRate}
+                            onChange={(e) =>
+                              updateLineItem(
+                                item.id,
+                                "taxRate",
+                                parseFloat(e.target.value) || 0
+                              )
+                            }
+                          />
+                        </div>
+
+                        <div className="col-span-12 sm:col-span-3 flex items-end gap-2">
+                          <div className="flex-1">
+                            <Label className="text-xs">Total (editable)</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={lineTotal.toFixed(2)}
+                              onChange={(e) => {
+                                // Back-calculate unit price from entered total
+                                const enteredTotal = parseFloat(e.target.value) || 0
+                                const taxMult = 1 + (item.taxRate || 0) / 100
+                                const qty = baseQty || 1
+                                const newUnitPrice = enteredTotal / (qty * taxMult)
+                                updateLineItem(item.id, "unitPrice", Math.round(newUnitPrice * 10000) / 10000)
+                              }}
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            onClick={() => removeLineItem(item.id)}
+                            className="flex-shrink-0 mb-0"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </CardContent>

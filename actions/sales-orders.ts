@@ -33,6 +33,7 @@ export async function createSalesOrder(data: {
       taxAmount: number
       total: number
       serialNumbers: string[]
+      notes?: string
     }>
   }
 }) {
@@ -953,6 +954,16 @@ export async function getSalesOrderItems() {
             locationId: true,
             quantity: true,
             reservedQuantity: true,
+          },
+        },
+        pricingTiers: {
+          select: {
+            id: true,
+            unitsPerPack: true,
+            wholesalePrice: true,
+            packagingUnit: {
+              select: { id: true, name: true },
+            },
           },
         },
       },
