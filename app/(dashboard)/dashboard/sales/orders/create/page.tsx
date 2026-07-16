@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
-import { Plus, Trash2, ArrowLeft, UserPlus, CalendarIcon } from "lucide-react"
+import { Plus, Trash2, ArrowLeft, UserPlus, CalendarIcon, ShoppingCart, Package, Check } from "lucide-react"
 import { toast } from "sonner"
 import { Spinner } from "@/components/ui/spinner"
 import Link from "next/link"
@@ -195,6 +195,7 @@ export default function CreateSalesOrderPage() {
   const [locations, setLocations] = useState<any[]>([])
   const [items, setItems] = useState<any[]>([])
   const [lineItems, setLineItems] = useState<LineItem[]>([])
+  const [openSellAsId, setOpenSellAsId] = useState<string | null>(null)
 
 
 const form = useForm({
@@ -728,9 +729,9 @@ const form = useForm({
                     return (
                       <div
                         key={item.id}
-                        className="grid grid-cols-12 gap-4 items-end p-4 border rounded-lg bg-slate-50"
+                        className="grid grid-cols-12 gap-4 items-start p-4 border rounded-lg bg-slate-50 min-w-0"
                       >
-                        <div className="col-span-12">
+                        <div className="col-span-12 sm:col-span-4 min-w-0">
                           <Label className="text-xs">Item *</Label>
                           <Select
                             value={item.itemId}
@@ -738,8 +739,8 @@ const form = useForm({
                               updateLineItem(item.id, "itemId", value)
                             }
                           >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select item" />
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Select item" className="truncate" />
                             </SelectTrigger>
                             <SelectContent>
                               {visibleItems.length === 0 ? (
@@ -761,33 +762,7 @@ const form = useForm({
                           </Select>
                         </div>
 
-                        <div className="col-span-6 sm:col-span-3">
-                          <Label className="text-xs">Sell As</Label>
-                          <Select
-                            value={item.sellUnitId}
-                            onValueChange={(value) =>
-                              updateLineItem(item.id, "sellUnitId", value)
-                            }
-                            disabled={!item.itemId}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Single unit" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="SINGLE">
-                                Single unit
-                                {selectedItem && ` - GHS ${(selectedItem.sellingPrice || 0).toFixed(2)}/unit`}
-                              </SelectItem>
-                              {pricingTiers.map((tier: any) => (
-                                <SelectItem key={tier.id} value={tier.id}>
-                                  {tier.packagingUnit?.name || "Pack"} ({tier.unitsPerPack} units) - GHS {tier.wholesalePrice.toFixed(2)}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="col-span-6 sm:col-span-2">
+                        <div className="col-span-6 sm:col-span-2 min-w-0">
                           <Label className="text-xs">
                             Quantity * {item.unitsPerPack > 1 && (
                               <span className="text-muted-foreground normal-case">({item.sellUnitName}s)</span>
@@ -812,7 +787,7 @@ const form = useForm({
                           )}
                         </div>
 
-                        <div className="col-span-6 sm:col-span-2">
+                        <div className="col-span-6 sm:col-span-2 min-w-0">
                           <Label className="text-xs">Unit Price *</Label>
                           <Input
                             type="number"
@@ -829,7 +804,7 @@ const form = useForm({
                           />
                         </div>
 
-                        <div className="col-span-6 sm:col-span-2">
+                        <div className="col-span-6 sm:col-span-2 min-w-0">
                           <Label className="text-xs">Tax Rate (%)</Label>
                           <Input
                             type="number"
@@ -847,30 +822,114 @@ const form = useForm({
                           />
                         </div>
 
-                        <div className="col-span-12 sm:col-span-3 flex items-end gap-2">
-                          <div className="flex-1">
-                            <Label className="text-xs">Total (editable)</Label>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={lineTotal.toFixed(2)}
-                              onChange={(e) => {
-                                // Back-calculate unit price from entered total
-                                const enteredTotal = parseFloat(e.target.value) || 0
-                                const taxMult = 1 + (item.taxRate || 0) / 100
-                                const qty = baseQty || 1
-                                const newUnitPrice = enteredTotal / (qty * taxMult)
-                                updateLineItem(item.id, "unitPrice", Math.round(newUnitPrice * 10000) / 10000)
-                              }}
-                            />
+                        <div className="col-span-12 sm:col-span-2 min-w-0 flex items-end gap-2">
+                          <div className="flex-1 min-w-0">
+                            <Label className="!text-xs whitespace-nowrap">Total (editable)</Label>
+                            {/* Single field does double duty: tapping/focusing it opens
+                                the POS-style Sell As popover (Single/Box/Half Box/etc),
+                                and it stays directly editable for manual corrections. */}
+                            <Popover
+                              open={openSellAsId === item.id}
+                              onOpenChange={(o) => setOpenSellAsId(o ? item.id : null)}
+                            >
+                              <PopoverTrigger asChild>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={lineTotal.toFixed(2)}
+                                  disabled={!item.itemId}
+                                  onFocus={() => item.itemId && setOpenSellAsId(item.id)}
+                                  onChange={(e) => {
+                                    // Back-calculate unit price from entered total
+                                    const enteredTotal = parseFloat(e.target.value) || 0
+                                    const taxMult = 1 + (item.taxRate || 0) / 100
+                                    const qty = baseQty || 1
+                                    const newUnitPrice = enteredTotal / (qty * taxMult)
+                                    updateLineItem(item.id, "unitPrice", Math.round(newUnitPrice * 10000) / 10000)
+                                  }}
+                                  className="h-9 !text-sm min-w-0"
+                                />
+                              </PopoverTrigger>
+                              <PopoverContent
+                                align="start"
+                                className="w-[280px] max-w-[90vw] p-3"
+                              >
+                                <p className="text-xs font-semibold text-muted-foreground tracking-wide mb-2">
+                                  SELL AS
+                                </p>
+                                <div className="space-y-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      updateLineItem(item.id, "sellUnitId", "SINGLE")
+                                      setOpenSellAsId(null)
+                                    }}
+                                    className={cn(
+                                      "w-full flex items-center gap-3 rounded-lg border p-2.5 text-left transition-colors",
+                                      item.sellUnitId === "SINGLE"
+                                        ? "border-blue-500 bg-blue-50"
+                                        : "border-border hover:bg-muted/50"
+                                    )}
+                                  >
+                                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                                      <ShoppingCart className="w-4 h-4" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-medium">Single unit</p>
+                                      <p className="text-xs text-muted-foreground">
+                                        GHS {(selectedItem?.sellingPrice || 0).toFixed(2)} / unit
+                                      </p>
+                                    </div>
+                                    {item.sellUnitId === "SINGLE" && (
+                                      <Check className="w-4 h-4 shrink-0 text-blue-600" />
+                                    )}
+                                  </button>
+
+                                  {pricingTiers.map((tier: any) => (
+                                    <button
+                                      key={tier.id}
+                                      type="button"
+                                      onClick={() => {
+                                        updateLineItem(item.id, "sellUnitId", tier.id)
+                                        setOpenSellAsId(null)
+                                      }}
+                                      className={cn(
+                                        "w-full flex items-center gap-3 rounded-lg border p-2.5 text-left transition-colors",
+                                        item.sellUnitId === tier.id
+                                          ? "border-blue-500 bg-blue-50"
+                                          : "border-border hover:bg-muted/50"
+                                      )}
+                                    >
+                                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+                                        <Package className="w-4 h-4" />
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium flex items-center gap-1.5 truncate">
+                                          {tier.packagingUnit?.name || "Pack"}
+                                          <span className="text-[10px] font-normal rounded bg-amber-100 text-amber-700 px-1.5 py-0.5 shrink-0">
+                                            {tier.unitsPerPack} units
+                                          </span>
+                                        </p>
+                                        <p className="text-xs text-muted-foreground truncate">
+                                          GHS {tier.wholesalePrice.toFixed(2)} / pack · GHS {(tier.wholesalePrice / tier.unitsPerPack).toFixed(2)}/unit
+                                        </p>
+                                      </div>
+                                      {item.sellUnitId === tier.id && (
+                                        <Check className="w-4 h-4 shrink-0 text-blue-600" />
+                                      )}
+                                    </button>
+                                  ))}
+                                </div>
+                              </PopoverContent>
+                            </Popover>
                           </div>
                           <Button
                             type="button"
                             variant="destructive"
                             size="icon"
                             onClick={() => removeLineItem(item.id)}
-                            className="flex-shrink-0 mb-0"
+                            className="flex-shrink-0 h-9 w-9"
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>

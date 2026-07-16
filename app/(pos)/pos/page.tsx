@@ -661,6 +661,15 @@ export default function POSPage() {
 
   useBarcodeScanner({ onScan: handleScan, enabled: scannerEnabled })
 
+  const handleCameraScan = useCallback((value: string) => {
+    setShowCameraScanner(false)
+    handleScan(value)
+  }, [handleScan])
+
+  const closeCameraScanner = useCallback(() => {
+    setShowCameraScanner(false)
+  }, [])
+
   // ── Cart helpers ───────────────────────────────────────────────────────────
 
   const updateLine = useCallback((cartLineId: string, update: Partial<CartLine>) => {
@@ -1215,11 +1224,8 @@ export default function POSPage() {
         {/* ── Camera barcode scanner ── */}
         <CameraBarcodeScanner
           open={showCameraScanner}
-          onClose={() => setShowCameraScanner(false)}
-          onScan={(value) => {
-            setShowCameraScanner(false)
-            handleScan(value)
-          }}
+          onClose={closeCameraScanner}
+          onScan={handleCameraScan}
         />
 
       {/* ════════════════ MODALS ════════════════ */}
