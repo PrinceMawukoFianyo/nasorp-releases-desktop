@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react"
 import { Smartphone, X, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
-import { closeScanSession, createScanSession, pollScanEvents } from "@/actions/scan-session-action"
+import { closeScanSession, createScanSession, pollScanEvents } from "@/actions/scan-session-actions"
 
 
 

@@ -4,7 +4,7 @@ import { useState, useCallback } from "react"
 import { Smartphone, Camera as CameraIcon } from "lucide-react"
 import { toast } from "sonner"
 import { CameraBarcodeScanner } from "./camera-barcode-scanner"
-import { joinScanSession, pushScanEvent } from "@/actions/scan-session-action"
+import { joinScanSession, pushScanEvent } from "@/actions/scan-session-actions"
 
 
 

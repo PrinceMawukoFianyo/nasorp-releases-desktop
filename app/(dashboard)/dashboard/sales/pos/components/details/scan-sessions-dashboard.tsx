@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react"
 import { Smartphone, RadioTower, X } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { closeScanSession, listActiveScanSessions } from "@/actions/scan-session-action"
+import { closeScanSession, listActiveScanSessions } from "@/actions/scan-session-actions"
 
 
 
