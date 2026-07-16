@@ -7,6 +7,7 @@ import { CameraBarcodeScanner } from "./camera-barcode-scanner"
 import { joinScanSession, pushScanEvent } from "@/actions/scan-session-action"
 
 
+
 interface PhoneScanSenderProps {
   open: boolean
   onClose: () => void

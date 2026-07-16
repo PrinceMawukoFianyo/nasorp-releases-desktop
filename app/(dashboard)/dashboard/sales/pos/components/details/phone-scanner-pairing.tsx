@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState, useCallback } from "react"
 import { Smartphone, X, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
 import { closeScanSession, createScanSession, pollScanEvents } from "@/actions/scan-session-action"
+
 
 
 interface PhoneScannerPairingProps {
@@ -120,9 +122,22 @@ export function PhoneScannerPairing({
         {(status === "waiting" || status === "connected") && code && (
           <>
             <p className="text-sm text-slate-500">
-              On your phone, open the scanner, choose <b>"Send scans to my PC"</b>, then enter this code:
+              On the staff phone, open the scan link below, choose <b>"Send scans to my PC"</b>, then enter this
+              code:
             </p>
             <p className="text-4xl font-bold tracking-widest">{code}</p>
+            <button
+              onClick={() => {
+                const url = `${window.location.origin}/dashboard/sales/pos/scan`
+                navigator.clipboard.writeText(url).then(
+                  () => toast.success("Scan link copied — send it to the staff phone"),
+                  () => toast.error("Couldn't copy the link")
+                )
+              }}
+              className="text-xs text-blue-600 hover:text-blue-700 underline underline-offset-2"
+            >
+              Copy staff scan link
+            </button>
             <p
               className={cn(
                 "text-xs flex items-center justify-center gap-1.5",

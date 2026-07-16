@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils"
 import { closeScanSession, listActiveScanSessions } from "@/actions/scan-session-action"
 
 
+
 type SessionRow = {
   id: string
   code: string
