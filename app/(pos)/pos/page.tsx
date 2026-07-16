@@ -9,7 +9,7 @@ import {
   Receipt, Loader2, FileText, Plus, Minus,
   Package2, ChevronDown, ScanLine, Zap,
   CheckCircle2, XCircle, AlertTriangle,
-  ArrowLeft, Camera,
+  ArrowLeft, Camera, Smartphone,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -38,6 +38,9 @@ import { lookupByBarcode } from "@/actions/barcode-actions"
 import type { PricingTierRecord } from "@/actions/pricing-tiers"
 import { cn } from "@/lib/utils"
 import { CameraBarcodeScanner } from "@/app/(dashboard)/dashboard/sales/pos/components/details/camera-barcode-scanner"
+import { PhoneScannerPairing } from "@/app/(dashboard)/dashboard/sales/pos/components/details/phone-scanner-pairing"
+import { usePermission } from "@/hooks/usePermissions"
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BARCODE SCANNER HOOK
@@ -432,7 +435,16 @@ export default function POSPage() {
   const [showPaymentModal,     setShowPaymentModal]     = useState(false)
   const [mobileCartOpen, setMobileCartOpen] = useState(false)
   const [showCameraScanner, setShowCameraScanner] = useState(false)
+  const [showPhonePairing, setShowPhonePairing] = useState(false)
   const [showInvoiceModal,     setShowInvoiceModal]     = useState(false)
+
+  // "Connect Phone Scanner" is gated behind its own dedicated permission,
+  // pos.phone_scanner (added as a POS sub-module in permissions.ts). Existing
+  // roles created before this permission existed need the one-time patch on
+  // the Roles & Permissions page to pick it up; new roles get it as a normal
+  // checkbox in RoleForm going forward.
+  const { hasPermission } = usePermission()
+  const canConnectPhoneScanners = hasPermission("pos.phone_scanner")
 
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "CARD" | "MOBILE_MONEY">("CASH")
   const [discount,      setDiscount]      = useState(0)
@@ -670,6 +682,13 @@ export default function POSPage() {
     setShowCameraScanner(false)
   }, [])
 
+  // Scans coming in from a paired staff phone land here the same way a
+  // local camera scan does — the dialog stays open since multiple staff
+  // scans can arrive over time, not just one.
+  const closePhonePairing = useCallback(() => {
+    setShowPhonePairing(false)
+  }, [])
+
   // ── Cart helpers ───────────────────────────────────────────────────────────
 
   const updateLine = useCallback((cartLineId: string, update: Partial<CartLine>) => {
@@ -837,15 +856,52 @@ export default function POSPage() {
               {isLookingUp && <Loader2 className="h-3 w-3 animate-spin" />}
               </div>
 
-              {/* ── Camera scan button ── */}
-              <button
-                onClick={() => setShowCameraScanner(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-blue-200 bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100 transition-colors"
-                title="Scan with camera"
-              >
-                <Camera className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Scan with Camera</span>
-              </button>
+              {/* ── Scan menu: this device's camera, or a paired staff phone ── */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-blue-200 bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100 transition-colors"
+                    title="Scan a barcode"
+                  >
+                    <Camera className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Scan with Camera</span>
+                    <ChevronDown className="h-3 w-3 opacity-60" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-64 p-1.5">
+                  <button
+                    onClick={() => setShowCameraScanner(true)}
+                    className="w-full flex items-start gap-2.5 px-3 py-2 rounded-lg text-left hover:bg-slate-50"
+                  >
+                    <Camera className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-slate-800">Scan with Camera</p>
+                      <p className="text-xs text-slate-400">Use this device's own camera</p>
+                    </div>
+                  </button>
+
+                  {canConnectPhoneScanners ? (
+                    <button
+                      onClick={() => setShowPhonePairing(true)}
+                      className="w-full flex items-start gap-2.5 px-3 py-2 rounded-lg text-left hover:bg-slate-50"
+                    >
+                      <Smartphone className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-slate-800">Connect Phone Scanner</p>
+                        <p className="text-xs text-slate-400">Let a staff member's phone scan into this register</p>
+                      </div>
+                    </button>
+                  ) : (
+                    <div className="w-full flex items-start gap-2.5 px-3 py-2 rounded-lg opacity-50 cursor-not-allowed">
+                      <Smartphone className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-slate-500">Connect Phone Scanner</p>
+                        <p className="text-xs text-slate-400">Requires POS scanner permission</p>
+                      </div>
+                    </div>
+                  )}
+                </PopoverContent>
+              </Popover>
 
             {lastOrderId && (
               <div className="flex items-center gap-2 bg-blue-50 rounded-lg p-2 border border-blue-200">
@@ -1221,12 +1277,21 @@ export default function POSPage() {
         </button>
       )}
 
-        {/* ── Camera barcode scanner ── */}
+        {/* ── Camera barcode scanner (this device) ── */}
         <CameraBarcodeScanner
           open={showCameraScanner}
           onClose={closeCameraScanner}
           onScan={handleCameraScan}
         />
+
+        {/* ── Paired staff phone scanner ── */}
+        {canConnectPhoneScanners && (
+          <PhoneScannerPairing
+            open={showPhonePairing}
+            onClose={closePhonePairing}
+            onScan={handleScan}
+          />
+        )}
 
       {/* ════════════════ MODALS ════════════════ */}
 

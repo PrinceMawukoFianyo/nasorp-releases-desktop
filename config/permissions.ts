@@ -266,6 +266,17 @@ export const permissions: ModulePermissions[] = [
       delete: "pos.access",
     },
   },
+  // ── POS sub-modules ──────────────────────────────────────────────
+  {
+    display: "POS - Phone Scanner",
+    name: "pos.phone_scanner",
+    permissions: {
+      create: "pos.phone_scanner.create",
+      read: "pos.phone_scanner",
+      update: "pos.phone_scanner.update",
+      delete: "pos.phone_scanner.delete",
+    },
+  },
   {
     display: "Returns",
     name: "returns",
@@ -570,6 +581,11 @@ export const managerPermissions = [
   "pos.create",
   "pos.read",
   "pos.access",
+  // Lets a manager pair staff phones as remote scanners on the POS page.
+  // Deliberately left out of userPermissions below — regular staff can
+  // scan locally, but only a manager (or a role you explicitly grant this
+  // to) can connect other people's phones.
+  "pos.phone_scanner",
 
   "returns.create",
   "returns.read",

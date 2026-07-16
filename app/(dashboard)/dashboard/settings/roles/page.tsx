@@ -5,6 +5,7 @@ import { columns } from "./columns";
 import { getOrgRoles, patchAccountingPermissions } from "@/actions/roles";
 import { getAuthenticatedUser } from "@/config/useAuth";
 import PatchPermissionsButton from "./PatchPermissionsButton";
+import PatchPhoneScannerPermissionButton from "./PatchPhoneScannerPermissionButton";
 
 
 export default async function RolesPage() {
@@ -23,8 +24,9 @@ export default async function RolesPage() {
         showImport={false}
       />
 
-      {/* ── One-time patch banner ── */}
+      {/* ── One-time patch banners ── */}
       <PatchPermissionsButton />
+      <PatchPhoneScannerPermissionButton />
 
       <DataTable columns={columns} data={roles} />
     </div>

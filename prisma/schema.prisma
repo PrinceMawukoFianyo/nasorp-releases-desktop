@@ -1135,6 +1135,35 @@ model BillingPayment {
   @@index([status])
 }
 
+ model ScanSession {
+   id              String      @id @default(cuid())
+   code            String
+   orgId           String
+   stationLabel    String?     // e.g. "Checkout 3" — set by the PC
+   createdByUserId String      // PC-side user who opened the register
+   joinedByUserId  String?     // staff member whose phone connected
+   joinedByName    String?
+   status          String      @default("ACTIVE") // ACTIVE | CLOSED
+   expiresAt       DateTime
+   lastActivityAt  DateTime    @default(now())
+   createdAt       DateTime    @default(now())
+   events          ScanEvent[]
+
+   @@index([code, orgId])
+   @@index([orgId, status])
+ }
+
+ model ScanEvent {
+   id        String      @id @default(cuid())
+   seq       Int         @default(autoincrement())
+   sessionId String
+   session   ScanSession @relation(fields: [sessionId], references: [id])
+   value     String
+   createdAt DateTime    @default(now())
+
+   @@index([sessionId, seq])
+ }
+
 enum SupplierPaymentStatus {
   UNPAID
   PARTIAL
