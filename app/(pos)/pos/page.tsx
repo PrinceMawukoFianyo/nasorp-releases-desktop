@@ -38,8 +38,10 @@ import { lookupByBarcode } from "@/actions/barcode-actions"
 import type { PricingTierRecord } from "@/actions/pricing-tiers"
 import { cn } from "@/lib/utils"
 import { CameraBarcodeScanner } from "@/app/(dashboard)/dashboard/sales/pos/components/details/camera-barcode-scanner"
-import { PhoneScannerPairing } from "@/app/(dashboard)/dashboard/sales/pos/components/details/phone-scanner-pairing"
 import { usePermission } from "@/hooks/usePermissions"
+import { useOrderTabs } from "@/hooks/use-order-tabs"
+import { OrderTabsBar } from "@/components/details/order-tabs-bar"
+import { PhoneScannerManager } from "@/components/details/phone-scanner-manager"
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -420,14 +422,29 @@ export default function POSPage() {
 
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
   const [searchQuery,      setSearchQuery]      = useState("")
-  const [cart,             setCart]             = useState<CartLine[]>([])
+
+  // Replaces the old single `cart`/`setCart` state: one cart per open order —
+  // the register's own "Walk-in Customer" tab, plus one auto-created tab per
+  // connected staff phone. `cart`/`setCart`/`selectedCustomer`/
+  // `setSelectedCustomer` are kept as aliases to the ACTIVE tab below, so
+  // every existing addToCart/updateLine/handleCompleteSale call that already
+  // referenced them keeps working unchanged — they just now operate on
+  // whichever tab is on screen instead of one global cart.
+  const {
+    tabs, activeTab, activeTabId, setActiveTabId,
+    setActiveCart, setActiveCustomer,
+    createSessionTab, addToSessionCart, closeTab, combineTabs,
+  } = useOrderTabs<CartLine>()
+  const cart = activeTab.cart
+  const setCart = setActiveCart
+  const selectedCustomer = activeTab.customerId ?? ""
+  const setSelectedCustomer = (id: string) => setActiveCustomer(id || null)
 
   // ── CHANGED: default to "ALL" so products load immediately on mount ────────
   const [selectedLocation, setSelectedLocation] = useState("ALL")
 
   // ──────────────────────────────────────────────────────────────────────────
 
-  const [selectedCustomer, setSelectedCustomer] = useState("")
   const [customerSearch,   setCustomerSearch]   = useState("")
 
   const [showCustomerModal,    setShowCustomerModal]    = useState(false)
@@ -671,7 +688,62 @@ export default function POSPage() {
     }
   }, [items, selectedLocation, addToCart, showFb])
 
+  // Same lookup + stock check + merge logic as handleScan/addToCart above,
+  // but for a scan arriving from a PAIRED STAFF PHONE — it always lands in
+  // THAT phone's own tab (via addToSessionCart), never in whatever tab
+  // happens to be on screen at the register right now.
+  const handleRemoteScan = useCallback(async (sessionId: string, scannedValue: string) => {
+    const lv = scannedValue.trim().toLowerCase()
+    let matched = items.find(item =>
+      item.barcode?.toLowerCase() === lv || item.sku?.toLowerCase() === lv
+    )
+
+    if (!matched) {
+      const result = await lookupByBarcode(scannedValue.trim())
+      if (result.found && result.item) {
+        matched = items.find(i => i.id === result.item!.id)
+      }
+    }
+
+    const tabLabel = tabs.find(t => t.sessionId === sessionId)?.label ?? "Staff order"
+
+    if (!matched) {
+      toast.error("Item not found", { description: `"${scannedValue}" (scanned for ${tabLabel})` })
+      return
+    }
+
+    const isAllLoc = !selectedLocation || selectedLocation === "ALL"
+    const stock = isAllLoc
+      ? (matched.totalStock ?? matched.inventories?.reduce((s: number, i: any) => s + (i.quantity ?? 0), 0) ?? 0)
+      : (matched.inventories?.find((i: any) => i.locationId === selectedLocation)?.quantity ?? 0)
+
+    if (stock <= 0) {
+      toast.warning(`"${matched.name}" is out of stock`)
+      return
+    }
+
+    let added = false
+    addToSessionCart(sessionId, (prevCart) => {
+      const existing = prevCart.find(l => l.itemId === matched!.id && l.saleMode === "single")
+      if (existing) {
+        if (existing.totalUnits >= stock) return prevCart
+        added = true
+        return prevCart.map(l => l.cartLineId === existing.cartLineId
+          ? { ...l, packQuantity: l.packQuantity + 1, totalUnits: l.totalUnits + 1,
+              lineTotal: l.wholesalePricePerPack * (l.packQuantity + 1) }
+          : l
+        )
+      }
+      added = true
+      return [...prevCart, makeSingleLine(matched!, stock)]
+    })
+
+    if (added) toast.success(`${matched.name} added to ${tabLabel}`)
+    else toast.error(`Only ${stock} in stock`)
+  }, [items, selectedLocation, addToSessionCart, tabs])
+
   useBarcodeScanner({ onScan: handleScan, enabled: scannerEnabled })
+
 
   const handleCameraScan = useCallback((value: string) => {
     setShowCameraScanner(false)
@@ -680,13 +752,6 @@ export default function POSPage() {
 
   const closeCameraScanner = useCallback(() => {
     setShowCameraScanner(false)
-  }, [])
-
-  // Scans coming in from a paired staff phone land here the same way a
-  // local camera scan does — the dialog stays open since multiple staff
-  // scans can arrive over time, not just one.
-  const closePhonePairing = useCallback(() => {
-    setShowPhonePairing(false)
   }, [])
 
   // ── Cart helpers ───────────────────────────────────────────────────────────
@@ -1116,6 +1181,25 @@ export default function POSPage() {
             </div>
           </div>
 
+          {tabs.length > 1 && (
+            <OrderTabsBar
+              tabs={tabs.map(t => ({ id: t.id, label: t.label, itemCount: t.cart.length }))}
+              activeTabId={activeTabId}
+              onSelect={setActiveTabId}
+              onCloseTab={closeTab}
+              onCombine={(ids, mode) => {
+                combineTabs(ids, mode)
+                if (mode === "batch") {
+                  toast.info("Kept as separate orders", {
+                    description: "Switch to each tab and complete payment individually to print them one by one.",
+                  })
+                } else {
+                  toast.success("Orders merged into one — review and Pay Now to print a single combined receipt")
+                }
+              }}
+            />
+          )}
+
           {/* Customer chip */}
           {(selectedCustomerData || selectedCustomer === "") && (
             <div className="p-2 bg-blue-50 border-b">
@@ -1284,12 +1368,14 @@ export default function POSPage() {
           onScan={handleCameraScan}
         />
 
-        {/* ── Paired staff phone scanner ── */}
-        {canConnectPhoneScanners && (
-          <PhoneScannerPairing
-            open={showPhonePairing}
-            onClose={closePhonePairing}
-            onScan={handleScan}
+        {/* ── Paired staff phones — once activated, stays mounted so
+             minimizing never disconnects anything. Each phone that
+             connects gets its own order tab (see onConnected). ── */}
+        {canConnectPhoneScanners && showPhonePairing && (
+          <PhoneScannerManager
+            open={true}
+            onConnected={(sessionId, staffName) => createSessionTab(sessionId, staffName)}
+            onScan={handleRemoteScan}
           />
         )}
 
