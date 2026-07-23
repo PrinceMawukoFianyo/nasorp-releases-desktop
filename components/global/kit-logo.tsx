@@ -43,8 +43,8 @@ const HubStackLogo = ({
           fontSize="40"
           fill={colors.textPrimary}
         >
-        RICH
-          <tspan fill={colors.textSecondary}>83VENT</tspan>
+        HABIFAZZY
+          <tspan fill={colors.textSecondary}>ENT.</tspan>
         </text>
 
         {/* Tagline */}

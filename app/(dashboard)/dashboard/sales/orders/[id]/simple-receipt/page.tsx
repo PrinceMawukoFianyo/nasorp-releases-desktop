@@ -178,7 +178,7 @@ function buildReceiptHTML(order: any, paperSize: PaperSize): string {
   <div style="text-align:center;margin-bottom:6px;padding-bottom:6px;border-bottom:1.5px dashed #000;">
     <div style="font-weight:800;font-size:${paperSize === "thermal80mm" ? "13px" : "15px"};letter-spacing:1px;
                 text-shadow:0.4px 0 0 #000,-0.4px 0 0 #000;">
-      RICH 83 VENTURES
+      HABIFAZZY ENTERPRISE
     </div>
     <div style="font-size:9px;margin-top:2px;">Near Bokankye Police Check Point</div>
     <div style="font-size:9px;">Digital Address: AA-T1257-6693</div>
@@ -305,7 +305,7 @@ export default function SimpleReceiptPage() {
     const d  = salesOrder.discount     || 0
     const sh = salesOrder.shippingCost || 0
     const total = s + t + sh - d
-    let txt = `🧾 *RICH 83 VENTURES*\nReceipt ${salesOrder.orderNumber}\n${new Date(salesOrder.createdAt).toLocaleDateString()}\n\n*ITEMS:*\n`
+    let txt = `🧾 *HABIFAZZY ENTERPRISE*\nReceipt ${salesOrder.orderNumber}\n${new Date(salesOrder.createdAt).toLocaleDateString()}\n\n*ITEMS:*\n`
     salesOrder.lines?.forEach((line: any) => {
       txt += `${line.quantity}x ${line.item?.name} — GHS${((line.quantity||0)*(line.unitPrice||0)).toFixed(2)}\n`
     })
@@ -425,7 +425,7 @@ export default function SimpleReceiptPage() {
 
             {/* Store header */}
             <div className="text-center border-b border-dashed border-gray-300 pb-3 mb-3">
-              <div style={{ fontWeight: 800, fontSize: "13px", letterSpacing: "1px" }}>RICH 83 VENTURES</div>
+              <div style={{ fontWeight: 800, fontSize: "13px", letterSpacing: "1px" }}>HABIFAZZY ENTERPRISE</div>
               <div className="text-gray-700 mt-0.5">Near Bokankye Police Check Point</div>
               <div className="text-gray-700">Digital Address: AA-T1257-6693</div>
               <div className="text-gray-700">Kumasi, Ghana</div>

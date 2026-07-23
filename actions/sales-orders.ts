@@ -1090,7 +1090,7 @@ export async function sendSOToCustomer(orderNumber: string): Promise<{ success: 
     if (!emailData.customer.email) throw new Error("Customer email address is not available")
 
     await resend.emails.send({
-      from: "Business Inventory <noreply@rich83ventures.inventpmf.com>",
+      from: "Business Inventory <noreply@habifazzyenterprise .inventpmf.com>",
       to: emailData.customer.email ?? "",
       subject: `Credit Sales Confirmation ${emailData.salesOrder.orderNumber}`,
       react: SalesOrderEmail(emailData),

@@ -613,7 +613,7 @@ export async function sendPOToSupplier(poNumber: string): Promise<{ success: boo
     const emailData = await preparePurchaseOrderEmailData(poNumber)
     if (!emailData.purchaseOrder.supplier.email) throw new Error("Supplier email address is not available")
     await resend.emails.send({
-      from: "Business Inventory <noreply@rich83ventures.inventpmf.com>",
+      from: "Business Inventory <noreply@habifazzyenterprise .inventpmf.com>",
       to: emailData.purchaseOrder.supplier.email,
       subject: `Purchase Order ${emailData.purchaseOrder.poNumber}`,
       react: PurchaseOrderEmail(emailData),
@@ -636,7 +636,7 @@ export async function sendPOEmailToRecipient(poNumber: string, recipientEmail: s
   try {
     const emailData = await preparePurchaseOrderEmailData(poNumber)
     await resend.emails.send({
-      from: "Business Inventory <noreply@rich83ventures.inventpmf.com>",
+      from: "Business Inventory <noreply@habifazzyenterprise .inventpmf.com>",
       to: recipientEmail,
       subject: `Purchase Order ${emailData.purchaseOrder.poNumber} from ${emailData.companyName}`,
       react: PurchaseOrderEmail(emailData),

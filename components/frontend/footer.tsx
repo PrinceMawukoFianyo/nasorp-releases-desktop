@@ -178,8 +178,8 @@ export default function HardwarePlumbingFooter() {
                     <Mail className="w-4 h-4 text-orange-400" />
                   </div>
                   <div>
-                    <div>info@rich83ventures.com</div>
-                    <div>service@rich83ventures.com</div>
+                    <div>info@habifazzyenterprise .com</div>
+                    <div>service@habifazzyenterprise .com</div>
                   </div>
                 </li>
                 <li className="text-gray-400 text-sm flex items-start gap-3">

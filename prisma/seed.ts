@@ -10,8 +10,8 @@ async function seedDatabase() {
     try {
       org = await db.organisation.create({
         data: {
-          name: "Rich 83 Ventures",
-          slug: "rich-83-ventures",
+          name: "Habifazzy Enterprise",
+          slug: "habifazzy-enterprise",
           industry: "Hardware & Construction",
           country: "Ghana",
           region: "Ashanti",
@@ -25,7 +25,7 @@ async function seedDatabase() {
       if (error.code === "P2002") {
         console.log("⚠️ Organisation already exists, fetching...");
         org = await db.organisation.findUnique({
-          where: { slug: "rich-83-ventures" },
+          where: { slug: "habifazzy-enterprise" },
         });
       } else {
         throw error;
@@ -122,16 +122,16 @@ async function seedDatabase() {
 
     const hashedPassword = await bcrypt.hash("Admin@2026", 10);
 
-    // ── Admin 1: akrichard2008@gmail.com ──────────────────────────────────────
+    // ── Admin 1: faizadramani@gmail.com ───────────────────────────────────────
     // Strategy: create user with scalar orgId first, then connect role in a
     // separate update — this avoids the Prisma "cannot mix scalar + relation" error.
     try {
       await db.user.create({
         data: {
-          email:     "akrichard2008@gmail.com",
-          name:      "AK Richard",
-          firstName: "AK",
-          lastName:  "Richard",
+          email:     "faizadramani@gmail.com",
+          name:      "Faiza Dramani",
+          firstName: "Faiza",
+          lastName:  "Dramani",
           phone:     "0000000001",  // placeholder — change in Settings → Profile
           isVerfied: true,
           password:  hashedPassword,
@@ -140,10 +140,10 @@ async function seedDatabase() {
         },
       });
       await db.user.update({
-        where: { email: "akrichard2008@gmail.com" },
+        where: { email: "faizadramani@gmail.com" },
         data:  { roles: { connect: { id: adminRole.id } } },
       });
-      console.log("✅ Created admin 1: akrichard2008@gmail.com");
+      console.log("✅ Created admin 1: faizadramani@gmail.com");
     } catch (error: any) {
       if (error.code === "P2002") {
         console.log("⚠️ Admin 1 already exists.");
@@ -185,7 +185,7 @@ async function seedDatabase() {
     console.log("\n🔐 LOGIN CREDENTIALS:");
     console.log("-".repeat(50));
     console.log("ADMIN 1 (Primary):");
-    console.log("  Email   : akrichard2008@gmail.com");
+    console.log("  Email   : faizadramani@gmail.com");
     console.log("  Password: Admin@2026");
     console.log("\nADMIN 2:");
     console.log("  Email   : princefianyo8@gmail.com");
