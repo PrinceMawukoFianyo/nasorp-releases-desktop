@@ -76,13 +76,13 @@ export default function HardwarePlumbingFooter() {
                   className="object-contain"
                 />
                 <div>
-                  <h3 className="text-xl font-bold text-white">A.F.K</h3>
-                  <p className="text-gray-400 text-sm">BERIMAH</p>
+                  <h3 className="text-xl font-bold text-white">HABIFAZZY </h3>
+                  <p className="text-gray-400 text-sm">ENTERPRISE</p>
                 </div>
               </div>
               <p className="text-gray-400 text-sm mb-6">
-                Serving the community for over 25 years with quality tools, 
-                reliable parts, and expert service you can trust.
+                Serving the community for over 25 years with quality goods, 
+                and expert service you can trust.
               </p>
               
               {/* Business Hours */}
