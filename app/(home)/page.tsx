@@ -33,16 +33,16 @@ export default async function page() {
       <ReUsableHero
         theme="dark"
         announcement={{
-          text: "New Arrivals: Premium Shampoos, Body Washes & Organic Skincare Products",
+          text: "New Stock: Biscuits, Beverages & Household Provisions Now Available",
         }}
         title={
               <>
-                Premium Toiletries & Personal Care
-                <br />Everyday Freshness
+                Quality Biscuits & Provisions
+                <br />Wholesale & Retail Supply
               </>
             }
-        mobileTitle="Premium Toiletries & Personal Care"
-        subtitle="Your one-stop shop for luxury shampoos, nourishing conditioners, invigorating body washes, and organic skincare products. From daily essentials to spa-quality treatments, we supply hotels, salons, and homeowners with everything needed for personal care and ultimate freshness."
+        mobileTitle="Quality Biscuits & Provisions"
+        subtitle="Your trusted source for biscuits, beverages, canned goods, and everyday household provisions. Whether you're buying in bulk or picking up a few items, we supply shops, distributors, and households with quality products at prices that work for wholesale and retail."
         buttons={[
           {
             label: "Shop Our Collection",
@@ -59,7 +59,7 @@ export default async function page() {
           { icon: Layout, position: "right" },
           { icon: Rocket, position: "center" },
         ]}
-        backgroundStyle="rose"
+        backgroundStyle="green"
         className="min-h-[70vh]"
         userCount={currentUsers > 1 ? currentUsers : null}
       />
@@ -73,7 +73,7 @@ export default async function page() {
           <BorderBeam />
           <Image
             src="/images/dash-2.webp"
-            alt="Toiletries & Personal Care Products Dashboard"
+            alt="Biscuits & Provisions Inventory Dashboard"
             width={1775}
             height={1109}
             className="w-full h-full rounded-lg object-cover  border shadow-2xl"
