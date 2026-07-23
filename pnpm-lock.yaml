@@ -164,9 +164,6 @@ importers:
       next:
         specifier: ^14.2.35
         version: 14.2.35(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      next-admin:
-        specifier: 'link:'
-        version: 'link:'
       next-auth:
         specifier: ^4.24.13
         version: 4.24.13(next@14.2.35(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
