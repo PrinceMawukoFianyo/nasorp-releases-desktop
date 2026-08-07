@@ -330,6 +330,48 @@ export default function PurchaseOrderForm({
   // Check if any item will be received
   const hasItemsToReceive = Object.values(receiveQuantities).some(q => q > 0);
 
+  // Group receipt items by their individual location and fire one
+  // createGoodsReceipt call per location group, so each item lands in the
+  // location it was actually assigned — not just the first line item's location.
+  type ReceiptItemInput = {
+    purchaseOrderLineId: string;
+    itemId: string;
+    receivedQuantity: number;
+    notes?: string;
+    locationId: string;
+  };
+
+  const receiveGoodsGroupedByLocation = async (
+    purchaseOrderId: string,
+    receiptItems: ReceiptItemInput[],
+    notes: string
+  ) => {
+    const groups = new Map<string, ReceiptItemInput[]>();
+    for (const item of receiptItems) {
+      const locId = item.locationId || formData.deliveryLocationId;
+      if (!locId) continue;
+      if (!groups.has(locId)) groups.set(locId, []);
+      groups.get(locId)!.push(item);
+    }
+
+    const results = await Promise.all(
+      Array.from(groups.entries()).map(([locId, locItems]) =>
+        createGoodsReceipt({
+          purchaseOrderId,
+          locationId: locId,
+          notes,
+          items: locItems.map(({ locationId, ...rest }) => rest),
+        })
+      )
+    );
+
+    return {
+      allSucceeded: results.every((r) => r.success),
+      locationCount: groups.size,
+      results,
+    };
+  };
+
   // Submit handler with immediate receive
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -392,7 +434,7 @@ export default function PurchaseOrderForm({
       const data = {
         poNumber: formData.poNumber,
         supplierId: formData.supplierId,
-        deliveryLocationId: itemsWithLocation[0]?.locationId ?? formData.deliveryLocationId,
+        deliveryLocationId: formData.deliveryLocationId || itemsWithLocation[0]?.locationId,
         orderDate: formData.orderDate,
         expectedDeliveryDate: formData.expectedDeliveryDate,
         deliveryAddress: formData.deliveryAddress,
@@ -427,21 +469,29 @@ export default function PurchaseOrderForm({
       if (autoCreateReceipt && result.success && result.data?.id) {
         const freshPO = await getPurchaseOrderById(result.data.id);
         if (freshPO && freshPO.lines.length > 0) {
+          // Match each PO line back to the locationId the user actually
+          // picked for that item in the form (freshPO.lines don't carry it).
+          const locationByItemId = new Map(
+            itemsWithLocation.map((li) => [li.itemId, li.locationId])
+          );
           const receiptItems = freshPO.lines.map((line: any) => ({
             purchaseOrderLineId: line.id,
             itemId: line.itemId,
             receivedQuantity: line.quantity, // full quantity
             notes: "Auto‑created from purchase order",
+            locationId: locationByItemId.get(line.itemId) || formData.deliveryLocationId,
           }));
-          const locationId = itemsWithLocation[0]?.locationId || formData.deliveryLocationId;
-          const grResult = await createGoodsReceipt({
-            purchaseOrderId: result.data.id,
-            locationId: locationId,
-            notes: "Auto‑generated receipt (full quantity)",
-            items: receiptItems,
-          });
-          if (grResult.success) {
-            toast.success("Goods receipt automatically created – stock updated");
+          const { allSucceeded, locationCount } = await receiveGoodsGroupedByLocation(
+            result.data.id,
+            receiptItems,
+            "Auto‑generated receipt (full quantity)"
+          );
+          if (allSucceeded) {
+            toast.success(
+              locationCount > 1
+                ? `Goods receipt created – stock dispersed to ${locationCount} locations`
+                : "Goods receipt automatically created – stock updated"
+            );
           } else {
             toast.warning("PO saved but auto‑receipt failed");
           }
@@ -457,7 +507,7 @@ export default function PurchaseOrderForm({
             lineIdMap.set(line.itemId, line.id);
           });
 
-          const receiptItems: any[] = [];
+          const receiptItems: ReceiptItemInput[] = [];
           for (const line of lineItems) {
             const key = line.id || line.itemId;
             const receiveNow = receiveQuantities[key] || 0;
@@ -472,21 +522,25 @@ export default function PurchaseOrderForm({
               itemId: line.itemId,
               receivedQuantity: receiveNow,
               notes: "",
+              locationId: line.locationId || formData.deliveryLocationId,
             });
           }
 
           if (receiptItems.length > 0) {
-            const locationId = itemsWithLocation[0]?.locationId || formData.deliveryLocationId;
-            const grResult = await createGoodsReceipt({
-              purchaseOrderId: result.data.id,
-              locationId: locationId,
-              notes: `Immediate receipt from ${formData.paymentStatus === "UNPAID" ? "credit" : "paid"} purchase`,
-              items: receiptItems,
-            });
-            if (grResult.success) {
-              toast.success(`Received ${receiptItems.length} item(s) – stock updated`);
+            const { allSucceeded, locationCount, results } = await receiveGoodsGroupedByLocation(
+              result.data.id,
+              receiptItems,
+              `Immediate receipt from ${formData.paymentStatus === "UNPAID" ? "credit" : "paid"} purchase`
+            );
+            if (allSucceeded) {
+              toast.success(
+                locationCount > 1
+                  ? `Received ${receiptItems.length} item(s) – stock dispersed to ${locationCount} locations`
+                  : `Received ${receiptItems.length} item(s) – stock updated`
+              );
             } else {
-              toast.warning("PO saved but stock update failed: " + grResult.error);
+              const failMsgs = results.filter(r => !r.success).map(r => r.error).join(", ");
+              toast.warning("PO saved but stock update failed: " + failMsgs);
             }
           }
         }
@@ -506,18 +560,25 @@ export default function PurchaseOrderForm({
                 itemId: item.itemId,
                 receivedQuantity: item.quantity,
                 notes: "",
+                locationId: item.locationId || formData.deliveryLocationId,
               };
             })
-            .filter(Boolean) as any[];
+            .filter(Boolean) as ReceiptItemInput[];
           if (receiptItems.length > 0) {
-            const locationId = itemsWithLocation[0]?.locationId || formData.deliveryLocationId;
-            await createGoodsReceipt({
-              purchaseOrderId: result.data.id,
-              locationId: locationId,
-              notes: `Auto‑generated from ${formData.paymentStatus === "UNPAID" ? "credit" : "paid"} purchase`,
-              items: receiptItems,
-            });
-            toast.success("All goods received – stock updated");
+            const { allSucceeded, locationCount } = await receiveGoodsGroupedByLocation(
+              result.data.id,
+              receiptItems,
+              `Auto‑generated from ${formData.paymentStatus === "UNPAID" ? "credit" : "paid"} purchase`
+            );
+            if (allSucceeded) {
+              toast.success(
+                locationCount > 1
+                  ? `All goods received – stock dispersed to ${locationCount} locations`
+                  : "All goods received – stock updated"
+              );
+            } else {
+              toast.warning("PO saved but some stock updates failed");
+            }
           }
         }
       }

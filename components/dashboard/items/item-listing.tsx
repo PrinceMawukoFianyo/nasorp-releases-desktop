@@ -177,6 +177,9 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
   const [packagingUnits, setPackagingUnits] = useState<PackagingUnitRecord[]>([]);
   const [wholesaleTiers, setWholesaleTiers] = useState<WholesaleTierDraft[]>([]);
   const [selectedDefaultLocation, setSelectedDefaultLocation] = useState<Option | null>(null);
+  // ── ADDED: tracks whether the user has manually overridden Default Location
+  // themselves. Until they do, it auto-syncs to whatever Storage Location is picked.
+  const [defaultLocationManuallySet, setDefaultLocationManuallySet] = useState(false);
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
@@ -323,6 +326,9 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
       setSelectedUnit(null);
       setSelectedLocation(null);
       setWholesaleTiers([]);
+      // ── ADDED: reset default-location + manual-override tracking too
+      setSelectedDefaultLocation(null);
+      setDefaultLocationManuallySet(false);
     }
   }, [currentProduct, form]);
 
@@ -376,6 +382,24 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
   };
 
   const clearLocationFilter = () => handleLocationSelect(null);
+
+  // ── ADDED: Storage Location change handler.
+  // Auto-syncs Default Location to match, unless the user has already
+  // manually picked a different Default Location for this item.
+  const handleStorageLocationChange = (opt: Option | null) => {
+    setSelectedLocation(opt);
+    form.setValue("initialQuantity", "0");
+    if (!defaultLocationManuallySet) {
+      setSelectedDefaultLocation(opt);
+    }
+  };
+
+  // ── ADDED: Default Location change handler — marks it as manually set
+  // so future Storage Location changes stop overriding it.
+  const handleDefaultLocationChange = (opt: Option | null) => {
+    setSelectedDefaultLocation(opt);
+    setDefaultLocationManuallySet(true);
+  };
 
   const onSubmit = async (formData: ProductFormValues) => {
     if (isSubmitting || isUploading) {
@@ -485,6 +509,9 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
       setSelectedCategory(null); setSelectedBrand(null);
       setSelectedUnit(null); setSelectedLocation(null);
       setWholesaleTiers([]);
+      // ── ADDED: reset default-location + manual-override tracking too
+      setSelectedDefaultLocation(null);
+      setDefaultLocationManuallySet(false);
       form.reset();
       await refreshAll();
 
@@ -911,7 +938,7 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
               <FormSelectInput
                 label="Select Location" options={locationOptions}
                 option={selectedLocation}
-                setOption={(opt) => { setSelectedLocation(opt); form.setValue("initialQuantity", "0"); }}
+                setOption={handleStorageLocationChange}
                 toolTipText="Manage Locations" href="/dashboard/inventory/locations"
               />
             )}
@@ -925,7 +952,7 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
                   </div>
                   <button
                     type="button"
-                    onClick={() => { setSelectedLocation(null); form.setValue("initialQuantity", "0"); }}
+                    onClick={() => handleStorageLocationChange(null)}
                     className="text-xs text-muted-foreground underline hover:text-foreground"
                   >
                     Clear
@@ -980,7 +1007,9 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
               <div>
                 <h4 className="text-sm font-semibold">Default Location (Auto‑disperse)</h4>
                 <p className="text-xs text-muted-foreground">
-                  When receiving this item, it will be auto‑routed here if "Auto‑disperse" is enabled.
+                  {defaultLocationManuallySet
+                    ? "When receiving this item, it will be auto‑routed here if \"Auto‑disperse\" is enabled."
+                    : "Matches your Storage Location by default — change it here if this item should route elsewhere when received."}
                 </p>
               </div>
             </div>
@@ -1002,7 +1031,7 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
                 label="Select Default Location"
                 options={locationOptions}
                 option={selectedDefaultLocation}
-                setOption={setSelectedDefaultLocation}
+                setOption={handleDefaultLocationChange}
                 toolTipText="Manage Locations"
                 href="/dashboard/inventory/locations"
               />
