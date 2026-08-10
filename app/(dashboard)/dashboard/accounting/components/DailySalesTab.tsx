@@ -27,7 +27,7 @@ import {
   ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
   Download, RefreshCw, ShoppingCart, Banknote, CreditCard,
   Smartphone, WalletCards, User, Package2, Clock, CheckCircle2,
-  AlertTriangle, Calendar, TrendingUp,
+  AlertTriangle, Calendar, TrendingUp, Undo2,
 } from "lucide-react";
 import { getDailySales, DaySummary, DailySaleOrder } from "@/actions/daily-sales";
 import { toast } from "sonner";
@@ -79,7 +79,7 @@ function statusBadge(status: string, paymentStatus: string) {
 // ══════════════════════════════════════════════════════════════════════
 // ORDER ROW — expandable
 // ══════════════════════════════════════════════════════════════════════
-function OrderRow({ order, accent="default" }: { order: DailySaleOrder; accent?: "green"|"blue"|"amber"|"purple"|"default" }) {
+function OrderRow({ order, accent="default" }: { order: DailySaleOrder; accent?: "green"|"blue"|"amber"|"purple"|"rose"|"default" }) {
   const [expanded, setExpanded] = useState(false);
 
   const accentCls = {
@@ -87,6 +87,7 @@ function OrderRow({ order, accent="default" }: { order: DailySaleOrder; accent?:
     blue:    "border-blue-200    bg-blue-50/40    dark:bg-blue-950/10",
     amber:   "border-amber-200   bg-amber-50/40   dark:bg-amber-950/10",
     purple:  "border-purple-200  bg-purple-50/40  dark:bg-purple-950/10",
+    rose:    "border-rose-200    bg-rose-50/40    dark:bg-rose-950/10",
     default: "border-border      bg-muted/20",
   }[accent];
 
@@ -95,6 +96,7 @@ function OrderRow({ order, accent="default" }: { order: DailySaleOrder; accent?:
     blue:   "text-blue-700    dark:text-blue-400",
     amber:  "text-amber-700   dark:text-amber-400",
     purple: "text-purple-700  dark:text-purple-400",
+    rose:   "text-rose-700    dark:text-rose-400",
     default:"text-foreground",
   }[accent];
 
@@ -133,12 +135,23 @@ function OrderRow({ order, accent="default" }: { order: DailySaleOrder; accent?:
         {/* Payment status */}
         <div className="flex-shrink-0">{statusBadge(order.status, order.paymentStatus)}</div>
 
+        {/* Refund status */}
+        {order.isRefunded && (
+          <div className="flex-shrink-0">
+            <Badge variant="outline" className="text-[10px] font-semibold gap-1 bg-rose-100 text-rose-700 border-rose-200">
+              <Undo2 className="h-3 w-3"/>Refunded
+            </Badge>
+          </div>
+        )}
+
         {/* Amounts */}
         <div className="text-right flex-shrink-0 min-w-[100px]">
           <p className={`text-sm font-bold ${headerCls}`}>{fmt(order.total)}</p>
-          {order.amountOwing > 0 && (
+          {order.isRefunded ? (
+            <p className="text-[10px] text-rose-600 font-semibold">Refunded: {fmt(order.refundAmount)}</p>
+          ) : order.amountOwing > 0 ? (
             <p className="text-[10px] text-red-500">Owing: {fmt(order.amountOwing)}</p>
-          )}
+          ) : null}
         </div>
 
         {/* Expand icon */}
@@ -194,7 +207,14 @@ function OrderRow({ order, accent="default" }: { order: DailySaleOrder; accent?:
                     <td colSpan={4} className="py-1.5 px-2 font-semibold text-right text-muted-foreground">Order Total</td>
                     <td className="py-1.5 px-2 text-right font-bold">{fmt(order.total)}</td>
                   </tr>
-                  {order.amountPaid > 0 && order.amountPaid < order.total && (
+                  {order.isRefunded ? (
+                    <tr>
+                      <td colSpan={4} className="py-1 px-2 text-right text-[10px] text-muted-foreground">
+                        Refunded{order.refundReference ? ` (${order.refundReference})` : ""}
+                      </td>
+                      <td className="py-1 px-2 text-right text-[10px] text-rose-600 font-semibold">{fmt(order.refundAmount)}</td>
+                    </tr>
+                  ) : order.amountPaid > 0 && order.amountPaid < order.total && (
                     <>
                       <tr>
                         <td colSpan={4} className="py-1 px-2 text-right text-[10px] text-muted-foreground">Amount Paid</td>
@@ -231,7 +251,7 @@ function SalesSection({
   icon:     React.ElementType;
   orders:   DailySaleOrder[];
   total:    number;
-  accent:   "green"|"blue"|"amber"|"purple";
+  accent:   "green"|"blue"|"amber"|"purple"|"rose";
   emptyMsg: string;
   onExport: ()=>void;
 }) {
@@ -242,6 +262,7 @@ function SalesSection({
     blue:   "border-blue-200    dark:border-blue-800",
     amber:  "border-amber-200   dark:border-amber-800",
     purple: "border-purple-200  dark:border-purple-800",
+    rose:   "border-rose-200    dark:border-rose-800",
   }[accent];
 
   const bgCls = {
@@ -249,6 +270,7 @@ function SalesSection({
     blue:   "bg-blue-50/60    dark:bg-blue-950/20",
     amber:  "bg-amber-50/60   dark:bg-amber-950/20",
     purple: "bg-purple-50/60  dark:bg-purple-950/20",
+    rose:   "bg-rose-50/60    dark:bg-rose-950/20",
   }[accent];
 
   const textCls = {
@@ -256,6 +278,7 @@ function SalesSection({
     blue:   "text-blue-700    dark:text-blue-400",
     amber:  "text-amber-700   dark:text-amber-400",
     purple: "text-purple-700  dark:text-purple-400",
+    rose:   "text-rose-700    dark:text-rose-400",
   }[accent];
 
   return (
@@ -303,6 +326,95 @@ function SalesSection({
 }
 
 // ══════════════════════════════════════════════════════════════════════
+// KPI CARD 4: Credit Collected / Refunded — dynamic split
+//   • Only credit collected → full amber box, labeled "Credit Collected"
+//   • Only refunds          → full rose box,  labeled "Refunded"
+//   • Both                  → one box split horizontally, collected on
+//                              top, refunded on the bottom
+// ══════════════════════════════════════════════════════════════════════
+function CreditRefundCard({
+  collected, refunded, paymentsCount, refundsCount,
+}: {
+  collected: number; refunded: number; paymentsCount: number; refundsCount: number;
+}) {
+  const hasCollected = collected > 0;
+  const hasRefunded  = refunded > 0;
+
+  const half = (
+    variant: "collected" | "refunded",
+    className = ""
+  ) => {
+    const isCollected = variant === "collected";
+    return (
+      <div
+        className={`px-4 pt-3 pb-3 min-w-0 ${
+          isCollected ? "bg-amber-50 dark:bg-amber-950/20" : "bg-rose-50 dark:bg-rose-950/20"
+        } ${className}`}
+      >
+        <div className="flex items-start justify-between mb-1 gap-2">
+          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+            {isCollected ? "Credit Collected" : "Refunded"}
+          </p>
+          {isCollected
+            ? <CreditCard className="h-4 w-4 flex-shrink-0 text-amber-600"/>
+            : <Undo2 className="h-4 w-4 flex-shrink-0 text-rose-600"/>}
+        </div>
+        <p className={`text-lg sm:text-xl font-bold break-words ${
+          isCollected ? "text-amber-900 dark:text-amber-100" : "text-rose-900 dark:text-rose-100"
+        }`}>
+          {fmt(isCollected ? collected : refunded)}
+        </p>
+        <p className="text-xs text-muted-foreground mt-1">
+          {isCollected ? `${paymentsCount} payment${paymentsCount!==1?"s":""}` : `${refundsCount} refund${refundsCount!==1?"s":""}`}
+        </p>
+      </div>
+    );
+  };
+
+  // Both present → split box, collected on top / refunded on bottom
+  if (hasCollected && hasRefunded) {
+    return (
+      <Card className="border bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800 overflow-hidden p-0">
+        <div className="flex flex-col h-full divide-y divide-amber-200 dark:divide-amber-800">
+          {half("collected")}
+          {half("refunded")}
+        </div>
+      </Card>
+    );
+  }
+
+  // Only refunds → full rose box
+  if (hasRefunded) {
+    return (
+      <Card className="border bg-rose-50 border-rose-200 dark:bg-rose-950/20 dark:border-rose-800">
+        <CardContent className="pt-4 pb-3 min-w-0">
+          <div className="flex items-start justify-between mb-1 gap-2">
+            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Refunded</p>
+            <Undo2 className="h-4 w-4 flex-shrink-0 text-rose-600"/>
+          </div>
+          <p className="text-lg sm:text-xl font-bold break-words text-rose-900 dark:text-rose-100">{fmt(refunded)}</p>
+          <p className="text-xs text-muted-foreground mt-1">{refundsCount} refund{refundsCount!==1?"s":""}</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Default (including zero) → full amber "Credit Collected" box
+  return (
+    <Card className="border bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800">
+      <CardContent className="pt-4 pb-3 min-w-0">
+        <div className="flex items-start justify-between mb-1 gap-2">
+          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Credit Collected</p>
+          <CreditCard className="h-4 w-4 flex-shrink-0 text-amber-600"/>
+        </div>
+        <p className="text-lg sm:text-xl font-bold break-words text-amber-900 dark:text-amber-100">{fmt(collected)}</p>
+        <p className="text-xs text-muted-foreground mt-1">{paymentsCount} payment{paymentsCount!==1?"s":""}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════
 // DAY STRIP BUTTON
 // ══════════════════════════════════════════════════════════════════════
 function DayChip({
@@ -344,6 +456,7 @@ function DayChip({
           {day.salesOrders.length>0 && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"/>}
           {day.posOrders.length>0    && <span className="w-1.5 h-1.5 rounded-full bg-blue-500"/>}
           {day.creditPaid.length>0   && <span className="w-1.5 h-1.5 rounded-full bg-amber-500"/>}
+          {day.refundCount>0         && <span className="w-1.5 h-1.5 rounded-full bg-rose-500"/>}
         </div>
       )}
     </button>
@@ -422,11 +535,14 @@ export default function DailySalesTab() {
       salesOrders:     [],
       posOrders:       [],
       creditPaid:      [],
+      refunds:         [],
       totalRevenue:    0,
       totalPOS:        0,
       totalCreditInvoiced: 0,  // ← FIXED: Added missing property
       totalCredit:     0,
       totalCreditPaid: 0,
+      totalRefunded:   0,
+      refundCount:     0,
       orderCount:      0,
     };
   });
@@ -441,11 +557,14 @@ export default function DailySalesTab() {
     salesOrders:     [],
     posOrders:       [],
     creditPaid:      [],
+    refunds:         [],
     totalRevenue:    0,
     totalPOS:        0,
     totalCreditInvoiced: 0,  // ← FIXED: Added missing property
     totalCredit:     0,
     totalCreditPaid: 0,
+    totalRefunded:   0,
+    refundCount:     0,
     orderCount:      0,
   };
 
@@ -487,7 +606,7 @@ export default function DailySalesTab() {
   };
 
   const exportAll = () => {
-    const allOrders = [...selectedDay.salesOrders, ...selectedDay.posOrders, ...selectedDay.creditPaid];
+    const allOrders = [...selectedDay.salesOrders, ...selectedDay.posOrders, ...selectedDay.creditPaid, ...selectedDay.refunds];
     exportSection(allOrders, `daily-sales`);
   };
 
@@ -500,28 +619,34 @@ export default function DailySalesTab() {
           { label:"Total Revenue",   value:selectedDay.totalRevenue,         accent:"green",   icon:TrendingUp,   sub:`${selectedDay.orderCount} orders` },
           { label:"Credit Saless",    value:selectedDay.totalCreditInvoiced,  accent:"emerald", icon:ShoppingCart, sub:`${selectedDay.salesOrders.length} orders · ${fmt(selectedDay.totalCredit)} received` },
           { label:"POS / Cash",      value:selectedDay.totalPOS,             accent:"blue",    icon:Banknote,     sub:`${selectedDay.posOrders.length} transactions` },
-          { label:"Credit Collected",value:selectedDay.totalCreditPaid,      accent:"amber",   icon:CreditCard,   sub:`${selectedDay.creditPaid.length} payments` },
         ].map((s,i) => (
           <Card key={i} className={`border ${
             s.accent==="green" ?"bg-emerald-50  border-emerald-200  dark:bg-emerald-950/20  dark:border-emerald-800":
             s.accent==="emerald"?"bg-teal-50   border-teal-200    dark:bg-teal-950/20    dark:border-teal-800":
-            s.accent==="blue"  ?"bg-blue-50    border-blue-200    dark:bg-blue-950/20    dark:border-blue-800":
-                                 "bg-amber-50   border-amber-200   dark:bg-amber-950/20   dark:border-amber-800"
+                                 "bg-blue-50    border-blue-200    dark:bg-blue-950/20    dark:border-blue-800"
           }`}>
             <CardContent className="pt-4 pb-3 min-w-0">
               <div className="flex items-start justify-between mb-1 gap-2">
                 <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{s.label}</p>
                 <s.icon className={`h-4 w-4 flex-shrink-0 ${
-                  s.accent==="green"?"text-emerald-600":s.accent==="emerald"?"text-teal-600":s.accent==="blue"?"text-blue-600":"text-amber-600"
+                  s.accent==="green"?"text-emerald-600":s.accent==="emerald"?"text-teal-600":"text-blue-600"
                 }`}/>
               </div>
               <p className={`text-lg sm:text-xl font-bold break-words ${
-                s.accent==="green"?"text-emerald-900 dark:text-emerald-100":s.accent==="emerald"?"text-teal-900 dark:text-teal-100":s.accent==="blue"?"text-blue-900 dark:text-blue-100":"text-amber-900 dark:text-amber-100"
+                s.accent==="green"?"text-emerald-900 dark:text-emerald-100":s.accent==="emerald"?"text-teal-900 dark:text-teal-100":"text-blue-900 dark:text-blue-100"
               }`}>{fmt(s.value)}</p>
               <p className="text-xs text-muted-foreground mt-1">{s.sub}</p>
             </CardContent>
           </Card>
         ))}
+
+        {/* 4th card: dynamic Credit Collected / Refunded split */}
+        <CreditRefundCard
+          collected={selectedDay.totalCreditPaid}
+          refunded={selectedDay.totalRefunded}
+          paymentsCount={selectedDay.creditPaid.length}
+          refundsCount={selectedDay.refundCount}
+        />
       </div>
 
       {/* ── DAY NAVIGATOR ────────────────────────────────────────── */}
@@ -601,6 +726,7 @@ export default function DailySalesTab() {
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"/>Credit Saless</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block"/>POS/Cash</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500 inline-block"/>Credit Collected</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-500 inline-block"/>Refunded</span>
           </div>
         </CardContent>
       </Card>
@@ -665,6 +791,19 @@ export default function DailySalesTab() {
             onExport={() => exportSection(selectedDay.creditPaid, "credit-paid")}
           />
 
+          {/* ── REFUNDS SECTION — only shown when there's something to show ── */}
+          {selectedDay.refunds.length > 0 && (
+            <SalesSection
+              title="Refunds"
+              icon={Undo2}
+              orders={selectedDay.refunds}
+              total={selectedDay.totalRefunded}
+              accent="rose"
+              emptyMsg="No refunds processed this day"
+              onExport={() => exportSection(selectedDay.refunds, "refunds")}
+            />
+          )}
+
           {/* ── DAILY SUMMARY FOOTER ─────────────────────────────── */}
           {selectedDay.orderCount > 0 && (
             <Card className="bg-muted/30">
@@ -674,6 +813,9 @@ export default function DailySalesTab() {
                     { label:"Credit Sales",  value:selectedDay.totalCreditInvoiced, cls:"text-emerald-700" },
                     { label:"Revenue from POS",    value:selectedDay.totalPOS,        cls:"text-blue-700" },
                     { label:"Credit Collected",    value:selectedDay.totalCreditPaid, cls:"text-amber-700" },
+                    ...(selectedDay.totalRefunded > 0
+                      ? [{ label:"Refunded", value:selectedDay.totalRefunded, cls:"text-rose-700" }]
+                      : []),
                     { label:"Total Revenue",       value:selectedDay.totalRevenue,    cls:"text-emerald-700 font-bold" },
                   ].map((s,i)=>(
                     <div key={i} className="min-w-0 px-0 sm:px-4 sm:first:pl-0 sm:last:pr-0">

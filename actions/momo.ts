@@ -205,3 +205,94 @@ function detectNetwork(phone: string): "mtn" | "vodafone" | "tgo" {
   if (/^(20|50)/.test(n)) return "vodafone";
   return "tgo";
 }
+
+// ── Look up a customer's name by phone number ─────────────────────────────────
+// IMPORTANT: there is no Paystack (or telco) API that resolves a MoMo phone
+// number to the name the SIM is registered under. Paystack's /bank/resolve
+// only works for bank accounts (NG/GH), and mobile_money transfer recipients
+// always come back with account_name: null. The only "name" we can honestly
+// show is one we've captured ourselves — the senderName MTN/Vodafone/AirtelTigo
+// put in their own SMS whenever this number has paid us before (see
+// lib/momo-sms-parser.ts). So this is a "known customer" lookup, not a live
+// network lookup: first-time numbers will come back with name: null, and the
+// UI should say "new customer" rather than imply we verified anything.
+function normalizePhone(p: string) {
+  return p.replace(/^\+?233/, "0").replace(/\s/g, "");
+}
+
+export async function lookupCustomerName(phone: string) {
+  try {
+    const user = await getAuthenticatedUser();
+    const normalized = normalizePhone(phone);
+    if (normalized.replace(/\D/g, "").length < 9) return { success: true, name: null, lastSeen: null };
+
+    const candidates = [normalized, normalized.replace(/^0/, "+233"), normalized.replace(/^0/, "233")];
+
+    const match = await db.momoTransaction.findFirst({
+      where: {
+        orgId: user.orgId,
+        type: "INCOMING",
+        fromNumber: { in: candidates },
+        NOT: { fromName: { in: ["", "Unknown", "Customer"] } },
+      },
+      orderBy: { createdAt: "desc" },
+      select: { fromName: true, createdAt: true },
+    });
+
+    return {
+      success: true,
+      name: match?.fromName ?? null,
+      lastSeen: match?.createdAt.toISOString() ?? null,
+    };
+  } catch (err: any) {
+    return { success: false, name: null, lastSeen: null, error: err.message };
+  }
+}
+
+// ── Who gets notified when money lands, independent of the dashboard ─────────
+// Admin-configurable list of phone numbers (owner, sales rep, whoever) that
+// get an SMS/WhatsApp alert the moment a payment is recorded — regardless of
+// whether anyone has the dashboard open, or whether the SIM phone itself is
+// nearby. Scoped per-org, stored the same way momo_fees is (systemConfig
+// key/value), just namespaced by orgId since systemConfig has no orgId column.
+export async function getMomoNotifyPhones(): Promise<string[]> {
+  try {
+    const user = await getAuthenticatedUser();
+    const cfg = await db.systemConfig.findFirst({ where: { key: `momo_notify_phones:${user.orgId}` } });
+    if (!cfg) return [];
+    const parsed = JSON.parse(cfg.value as string);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function setMomoNotifyPhones(phones: string[]) {
+  try {
+    const user = await getAuthenticatedUser();
+    const cleaned = phones.map((p) => p.trim()).filter(Boolean);
+    await db.systemConfig.upsert({
+      where: { key: `momo_notify_phones:${user.orgId}` },
+      update: { value: JSON.stringify(cleaned) },
+      create: { key: `momo_notify_phones:${user.orgId}`, value: JSON.stringify(cleaned) },
+    });
+    revalidatePath("/dashboard/momo");
+    return { success: true, phones: cleaned };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+// Internal helper — used by the webhook + SMS routes, NOT auth-gated, since
+// those routes run without a logged-in user session (they're called by
+// Paystack / the SMS gateway). Takes orgId explicitly instead.
+export async function getMomoNotifyPhonesForOrg(orgId: string): Promise<string[]> {
+  try {
+    const cfg = await db.systemConfig.findFirst({ where: { key: `momo_notify_phones:${orgId}` } });
+    if (!cfg) return [];
+    const parsed = JSON.parse(cfg.value as string);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}

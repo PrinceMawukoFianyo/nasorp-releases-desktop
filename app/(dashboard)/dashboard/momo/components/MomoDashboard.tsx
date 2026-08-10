@@ -15,6 +15,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import {
   Bell, Plus, RefreshCw, Send, X, CheckCircle2, Clock,
   Smartphone, TrendingUp, DollarSign, ArrowDownLeft, ArrowUpRight,
@@ -26,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import Image from "next/image";
+import { lookupCustomerName, setMomoNotifyPhones } from "@/actions/momo";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Network = "MTN" | "Vodafone" | "AirtelTigo";
@@ -64,6 +66,33 @@ type IncomingAlert = {
   timestamp: Date;
   lineNumber: string;
 };
+
+// ── Shapes coming back from actions/momo.ts (server) ───────────────────────────
+type ServerLine = {
+  id: string; name: string; number: string;
+  network: Network; isActive: boolean; balance: number;
+};
+
+type ServerTransaction = {
+  id: string;
+  type: "INCOMING" | "OUTGOING" | "REQUEST" | "TRANSFER" | "CARD";
+  amount: number; fee: number; net: number;
+  fromName: string; fromNumber: string;
+  toNumber?: string; toBank?: string;
+  status: "COMPLETED" | "PENDING" | "FAILED";
+  message: string; reference: string;
+  createdAt: string;
+};
+
+function toClientTx(t: ServerTransaction): MoMoTransaction {
+  return {
+    id: t.id, type: t.type, amount: t.amount, fee: t.fee, net: t.net,
+    senderName: t.fromName, senderNumber: t.fromNumber,
+    recipientNumber: t.toNumber, recipientBank: t.toBank,
+    status: t.status, message: t.message,
+    timestamp: new Date(t.createdAt), reference: t.reference,
+  };
+}
 
 // ── Fee config (fetched from super admin settings in production) ───────────────
 const FEE_CONFIG = {
@@ -116,37 +145,93 @@ function playAlertSound() {
   } catch {}
 }
 
-// ── Simulate incoming alert (replace with SSE / Pusher webhook) ───────────────
+// ── Live incoming alerts via Server-Sent Events ────────────────────────────────
+// Backed by app/api/momo/stream/route.ts, which polls the momoAlert table and
+// pushes a "payment" event whenever the webhook or SMS route creates one.
 function useMoMoAlerts(onAlert: (a: IncomingAlert) => void) {
+  const onAlertRef = useRef(onAlert);
+  onAlertRef.current = onAlert;
+
   useEffect(() => {
-    const t = setTimeout(() => onAlert({
-      id: `alert_${Date.now()}`,
-      amount: 350,
-      senderName: "Ama Boateng",
-      senderNumber: "0277654321",
-      message: "MoMo: GHS 350.00 received from Ama Boateng 0277654321. Balance: GHS 12,830.50. Ref:AFK20240417X.",
-      timestamp: new Date(),
-      lineNumber: "0244000001",
-    }), 10000);
-    return () => clearTimeout(t);
-  }, [onAlert]);
+    let es: EventSource | null = null;
+    let retryTimer: ReturnType<typeof setTimeout>;
+
+    const connect = () => {
+      es = new EventSource("/api/momo/stream");
+
+      es.addEventListener("payment", (e: MessageEvent) => {
+        try {
+          const payload = JSON.parse(e.data);
+          onAlertRef.current({
+            id: payload.id,
+            amount: payload.amount,
+            senderName: payload.senderName ?? "Unknown",
+            senderNumber: payload.senderNumber ?? "",
+            message: payload.message ?? "",
+            timestamp: payload.timestamp ? new Date(payload.timestamp) : new Date(),
+            lineNumber: payload.lineNumber ?? "",
+          });
+        } catch {
+          // Malformed alert payload — skip rather than crash the stream
+        }
+      });
+
+      es.onerror = () => {
+        // Browser auto-reconnects EventSource on transient errors; if the
+        // connection is fully closed (e.g. auth expired), retry with backoff.
+        if (es?.readyState === EventSource.CLOSED) {
+          es?.close();
+          retryTimer = setTimeout(connect, 5000);
+        }
+      };
+    };
+
+    connect();
+    return () => {
+      es?.close();
+      clearTimeout(retryTimer);
+    };
+  }, []);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-export default function MomoDashboard() {
-  const [tab, setTab] = useState<"dashboard" | "lines" | "history" | "request" | "transfer" | "card">("dashboard");
+export default function MomoDashboard({
+  initialLines = [],
+  initialTransactions = [],
+  canViewBalance = true,
+  initialNotifyPhones = [],
+  initialTab = "dashboard",
+  businessName = "Your Business",
+  
+}: {
+  initialLines?: ServerLine[];
+  initialTransactions?: ServerTransaction[];
+  canViewBalance?: boolean;
+  initialNotifyPhones?: string[];
+  initialTab?: "dashboard" | "lines" | "history" | "request" | "transfer" | "card";
+  businessName?: string;
+}) {
+  const [tab, setTabState] = useState<"dashboard" | "lines" | "history" | "request" | "transfer" | "card">(initialTab);
+  const router = useRouter();
+  const pathname = usePathname();
 
-  const [lines, setLines] = useState<MerchantLine[]>([
-    { id: "1", name: "Main Merchant Line", number: "0244000001", network: "MTN",       isActive: true, balance: 12480.50 },
-    { id: "2", name: "Prince Fianyo",      number: "0549272251", network: "MTN",       isActive: true, balance: 3200.00 },
-  ]);
+  // Keep the tab in sync with ?tab= — so refreshing, using browser
+  // back/forward, or clicking a sidebar link all land on the right tab.
+  useEffect(() => {
+    setTabState(initialTab);
+  }, [initialTab]);
 
-  const [transactions, setTransactions] = useState<MoMoTransaction[]>([
-    { id:"t1", type:"INCOMING", amount:500,  fee:14.75,  net:485.25, senderName:"Ama Boateng",  senderNumber:"0277123456", status:"COMPLETED", message:"MoMo: GHS 500.00 received from Ama Boateng 0277123456. Balance: GHS 12,480.50. Ref:AFK20240417A.",  timestamp:new Date(Date.now()-3600000),   reference:"AFK20240417A" },
-    { id:"t2", type:"INCOMING", amount:1200, fee:35.34,  net:1164.66,senderName:"Kofi Mensah",  senderNumber:"0554987654", status:"COMPLETED", message:"MoMo: GHS 1,200.00 received from Kofi Mensah 0554987654. Balance: GHS 11,980.50. Ref:AFK20240416B.",  timestamp:new Date(Date.now()-86400000),  reference:"AFK20240416B" },
-    { id:"t3", type:"REQUEST",  amount:350,  fee:10.33,  net:339.67, senderName:"Abena Owusu",  senderNumber:"0241765432", status:"PENDING",   message:"Payment request sent to 0241765432 for GHS 350.00.",  timestamp:new Date(Date.now()-7200000),   reference:"REQ20240417C" },
-    { id:"t4", type:"TRANSFER", amount:800,  fee:25.60,  net:774.40, senderName:"You",          senderNumber:"0244000001", recipientBank:"Fidelity Bank", status:"COMPLETED", message:"Transfer GHS 800.00 to Fidelity Bank acc. Fee: GHS 25.60. Ref:TRF20240416D.", timestamp:new Date(Date.now()-172800000), reference:"TRF20240416D" },
-  ]);
+  const setTab = (next: typeof tab) => {
+    setTabState(next);
+    const query = next === "dashboard" ? "" : `?tab=${next}`;
+    router.replace(`${pathname}${query}`, { scroll: false });
+  };
+
+  const [lines, setLines] = useState<MerchantLine[]>(initialLines);
+
+  const [transactions, setTransactions] = useState<MoMoTransaction[]>(
+    initialTransactions.map(toClientTx)
+  );
 
   const [notifications, setNotifications] = useState<IncomingAlert[]>([]);
   const [activeAlert, setActiveAlert] = useState<IncomingAlert | null>(null);
@@ -155,10 +240,60 @@ export default function MomoDashboard() {
   // Add line form
   const [addForm, setAddForm] = useState({ name: "", number: "", network: "MTN" as Network });
 
+  // Who gets an SMS/WhatsApp alert on every payment, independent of the
+  // dashboard being open — admin-managed, see actions/momo.ts.
+  const [notifyPhones, setNotifyPhones] = useState<string[]>(initialNotifyPhones);
+  const [newNotifyPhone, setNewNotifyPhone] = useState("");
+  const [savingNotify, setSavingNotify] = useState(false);
+
+  async function saveNotifyPhones(next: string[]) {
+    setNotifyPhones(next);
+    setSavingNotify(true);
+    try {
+      const res = await setMomoNotifyPhones(next);
+      if (!res.success) toast.error("Couldn't save — try again");
+    } catch {
+      toast.error("Couldn't save — try again");
+    } finally {
+      setSavingNotify(false);
+    }
+  }
+
   // Request payment form
   const [reqForm, setReqForm] = useState({ customerNumber: "", amount: "", note: "" });
   const [showFees, setShowFees] = useState(false); // hidden from client by default
   const [sending, setSending] = useState(false);
+
+  // Customer name lookup — matched against numbers that have paid us before
+  // (captured from real incoming MoMo SMS). New numbers show "New customer".
+  // There is no live telco/Paystack API for this — see actions/momo.ts.
+  const [custLookup, setCustLookup] = useState<{
+    status: "idle" | "checking" | "known" | "new";
+    name: string | null;
+    lastSeen: string | null;
+  }>({ status: "idle", name: null, lastSeen: null });
+
+  useEffect(() => {
+    const digits = reqForm.customerNumber.replace(/\D/g, "");
+    if (digits.length < 9) {
+      setCustLookup({ status: "idle", name: null, lastSeen: null });
+      return;
+    }
+    setCustLookup(p => ({ ...p, status: "checking" }));
+    const t = setTimeout(async () => {
+      try {
+        const res = await lookupCustomerName(reqForm.customerNumber);
+        if (res.success && res.name) {
+          setCustLookup({ status: "known", name: res.name, lastSeen: res.lastSeen });
+        } else {
+          setCustLookup({ status: "new", name: null, lastSeen: null });
+        }
+      } catch {
+        setCustLookup({ status: "idle", name: null, lastSeen: null });
+      }
+    }, 450); // debounce while typing
+    return () => clearTimeout(t);
+  }, [reqForm.customerNumber]);
 
   // Transfer form
   const [xferForm, setXferForm] = useState({
@@ -266,7 +401,7 @@ export default function MomoDashboard() {
         toast.error(data.error ?? "Failed to send request");
       }
     } catch {
-      toast.info("Request queued — API not connected yet in dev");
+      toast.error("Couldn't reach the server — check your connection and try again");
     } finally {
       setSending(false);
     }
@@ -349,6 +484,10 @@ export default function MomoDashboard() {
   const totalBalance = lines.reduce((s, l) => s + l.balance, 0);
   const pending = transactions.filter(t => t.status === "PENDING").length;
 
+  // Balance figures are gated behind the "momo.balance.read" permission —
+  // everything else on this page (requests, transaction history) is not.
+  const balanceText = (n: number) => (canViewBalance ? fmt(n) : "•••••");
+
   const TABS = [
     { id: "dashboard" as const, label: "Dashboard" },
     { id: "lines"     as const, label: "Merchant Lines" },
@@ -377,7 +516,7 @@ export default function MomoDashboard() {
                   <div className="h-7 w-7 rounded-full bg-white flex items-center justify-center overflow-hidden">
                     <img src="/logo.png" alt="AFK" className="h-6 w-6 object-contain" onError={e => { (e.target as any).style.display="none"; }} />
                   </div>
-                  <span className="font-black text-yellow-900 text-sm">AFK Berimah — MoMo Alert!</span>
+                  <span className="font-black text-yellow-900 text-sm">{businessName} — MoMo Alert!</span>
                 </div>
                 <button onClick={dismissAlert} className="text-yellow-800 hover:text-yellow-900">
                   <X className="h-4 w-4" />
@@ -417,7 +556,7 @@ export default function MomoDashboard() {
             </div>
             <div>
               <h1 className="text-lg font-bold">MoMo Payments</h1>
-              <p className="text-xs text-muted-foreground">Mobile Money Management · Powered by AFK Berimah</p>
+              <p className="text-xs text-muted-foreground">Mobile Money Management · Powered by {businessName}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -433,7 +572,7 @@ export default function MomoDashboard() {
             )}
             <div className="text-right hidden md:block">
               <p className="text-[10px] text-muted-foreground">Total Wallet Balance</p>
-              <p className="font-black text-emerald-600 text-lg">{fmt(totalBalance)}</p>
+              <p className="font-black text-emerald-600 text-lg">{balanceText(totalBalance)}</p>
             </div>
           </div>
         </div>
@@ -462,7 +601,7 @@ export default function MomoDashboard() {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {[
                 { label: "Total Received",   value: fmt(totalIn),      icon: ArrowDownLeft, color: "text-emerald-600", bg: "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20" },
-                { label: "Wallet Balance",   value: fmt(totalBalance), icon: Wallet,        color: "text-blue-600",   bg: "bg-blue-50 border-blue-200 dark:bg-blue-950/20" },
+                { label: "Wallet Balance",   value: balanceText(totalBalance), icon: Wallet,        color: "text-blue-600",   bg: "bg-blue-50 border-blue-200 dark:bg-blue-950/20" },
                 { label: "Pending",          value: String(pending),   icon: Clock,         color: "text-amber-600",  bg: "bg-amber-50 border-amber-200 dark:bg-amber-950/20" },
               ].map((c, i) => (
                 <Card key={i} className={`border ${c.bg}`}>
@@ -482,6 +621,11 @@ export default function MomoDashboard() {
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
                   <Smartphone className="h-4 w-4 text-yellow-500" /> MoMo Line Balances
+                  {!canViewBalance && (
+                    <span className="text-[10px] font-normal text-muted-foreground ml-1">
+                      (ask an admin to enable balance visibility)
+                    </span>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
@@ -496,7 +640,7 @@ export default function MomoDashboard() {
                         <p className="text-xs text-muted-foreground font-mono">{l.number} · {l.network}</p>
                       </div>
                     </div>
-                    <p className="font-black text-emerald-600">{fmt(l.balance)}</p>
+                    <p className="font-black text-emerald-600">{balanceText(l.balance)}</p>
                   </div>
                 ))}
               </CardContent>
@@ -589,7 +733,7 @@ export default function MomoDashboard() {
                       <div className="flex items-center gap-3">
                         <div className="text-right">
                           <p className="text-xs text-muted-foreground">Balance</p>
-                          <p className="font-black text-emerald-600 text-lg">{fmt(line.balance)}</p>
+                          <p className="font-black text-emerald-600 text-lg">{balanceText(line.balance)}</p>
                         </div>
                         <Badge className={line.isActive ? "bg-green-100 text-green-700 border-green-200" : "bg-gray-100 text-gray-500"}>
                           {line.isActive ? "Active" : "Inactive"}
@@ -617,6 +761,58 @@ export default function MomoDashboard() {
                 </div>
               )}
             </div>
+
+            {/* Who gets alerted, independent of the dashboard being open */}
+            <Card className="mt-4">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <Bell className="h-4 w-4 text-yellow-500" /> Payment Alert Numbers
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Every number here gets an SMS the moment a payment lands — even if nobody has this
+                  dashboard open, and even if the MoMo SIM phone itself isn't around.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-2 mb-3">
+                  <input
+                    value={newNotifyPhone}
+                    onChange={e => setNewNotifyPhone(e.target.value)}
+                    placeholder="e.g. 0244123456"
+                    className={inp}
+                  />
+                  <Button
+                    size="sm"
+                    disabled={!newNotifyPhone.trim() || savingNotify}
+                    onClick={() => {
+                      const next = [...notifyPhones, newNotifyPhone.trim()];
+                      setNewNotifyPhone("");
+                      saveNotifyPhones(next);
+                    }}
+                  >
+                    Add
+                  </Button>
+                </div>
+                {notifyPhones.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No numbers set — nobody gets alerted outside this dashboard yet.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {notifyPhones.map(p => (
+                      <div key={p} className="flex items-center justify-between px-3 py-2 rounded-lg border bg-muted/20">
+                        <span className="text-sm font-mono">{p}</span>
+                        <button
+                          className="text-xs text-red-600 hover:underline"
+                          disabled={savingNotify}
+                          onClick={() => saveNotifyPhones(notifyPhones.filter(n => n !== p))}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </>
         )}
 
@@ -694,6 +890,20 @@ export default function MomoDashboard() {
                   <div>
                     <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1 block">Customer MoMo Number</label>
                     <input value={reqForm.customerNumber} onChange={e => setReqForm(p => ({ ...p, customerNumber: e.target.value }))} placeholder="e.g. 0244123456" className={inp} />
+                    {custLookup.status === "checking" && (
+                      <p className="text-[11px] text-muted-foreground mt-1">Checking…</p>
+                    )}
+                    {custLookup.status === "known" && (
+                      <p className="text-[11px] text-emerald-600 font-medium mt-1 flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" /> {custLookup.name}
+                        <span className="text-muted-foreground font-normal">· paid you before</span>
+                      </p>
+                    )}
+                    {custLookup.status === "new" && (
+                      <p className="text-[11px] text-amber-600 mt-1 flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" /> New customer — no prior payments on file
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1 block">Amount (GHS)</label>
@@ -734,7 +944,7 @@ export default function MomoDashboard() {
                   <div className="h-4 w-4 rounded-sm bg-yellow-400 flex items-center justify-center overflow-hidden">
                     <img src="/logo.png" alt="AFK" className="h-4 w-4 object-contain" onError={e => { (e.target as any).style.display="none"; }} />
                   </div>
-                  <span>AFK Berimah Payments · Secured by Paystack · Instant settlement</span>
+                  <span>FiTech Payments · Secured by Paystack · Instant settlement</span>
                 </div>
               </CardContent>
             </Card>
@@ -788,7 +998,7 @@ export default function MomoDashboard() {
                     <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1 block">From MoMo Line</label>
                     <select value={xferForm.fromLine} onChange={e => setXferForm(p => ({ ...p, fromLine: e.target.value }))} className={sel}>
                       <option value="">Select line…</option>
-                      {lines.map(l => <option key={l.id} value={l.number}>{l.name} — {l.number} ({fmt(l.balance)})</option>)}
+                      {lines.map(l => <option key={l.id} value={l.number}>{l.name} — {l.number} ({balanceText(l.balance)})</option>)}
                     </select>
                   </div>
 
@@ -872,7 +1082,7 @@ export default function MomoDashboard() {
                   <div className="h-4 w-4 rounded-sm bg-yellow-400 flex items-center justify-center overflow-hidden">
                     <img src="/logo.png" alt="AFK" className="h-4 w-4 object-contain" onError={e => { (e.target as any).style.display="none"; }} />
                   </div>
-                  <span>AFK Berimah Payments · Secured by Paystack</span>
+                  <span>FiTech Payments · Secured by Paystack</span>
                 </div>
               </CardContent>
             </Card>
@@ -934,10 +1144,10 @@ export default function MomoDashboard() {
                   <div className="flex items-center justify-between bg-muted/40 rounded-xl px-4 py-3">
                     <div className="flex items-center gap-2">
                       <div className="h-9 w-9 rounded-lg bg-yellow-400 flex items-center justify-center overflow-hidden">
-                        <img src="/logo.png" alt="AFK Berimah" className="h-8 w-8 object-contain" onError={e => { (e.target as any).style.display="none"; }} />
+                        <img src="/logo.png" alt={businessName} className="h-8 w-8 object-contain" onError={e => { (e.target as any).style.display="none"; }} />
                       </div>
                       <div>
-                        <p className="text-sm font-bold">AFK Berimah Hardware</p>
+                        <p className="text-sm font-bold">{businessName}</p>
                         <p className="text-[10px] text-muted-foreground">Secure Payment</p>
                       </div>
                     </div>
@@ -978,7 +1188,7 @@ export default function MomoDashboard() {
                   <div className="flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground">
                     <span>🔒 Secured by Paystack</span>
                     <span>·</span>
-                    <span>AFK Berimah Hardware</span>
+                    <span>{businessName}</span>
                   </div>
                 </CardContent>
               </Card>

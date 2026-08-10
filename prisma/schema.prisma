@@ -295,6 +295,7 @@ model Item {
   salesReturnLines      SalesReturnLine[]
   defaultLocationId     String?                @map("default_location_id")
   defaultLocation       Location?              @relation(fields: [defaultLocationId], references: [id])
+  priceAdjustmentLogs    PriceAdjustmentLog[]
 }
 
 model Supplier {
@@ -1163,6 +1164,44 @@ model BillingPayment {
 
    @@index([sessionId, seq])
  }
+
+// Adopted so `prisma db push` / `migrate` stop trying to drop these —
+// they're manual backup tables, not managed by the app.
+model Inventory_backup_20260731 {
+  id String @id
+
+  @@ignore
+}
+
+model SalesOrderLine_backup_20260731 {
+  id String @id
+
+  @@ignore
+}
+
+model SalesOrder_backup_20260731 {
+  id String @id
+
+  @@ignore
+}
+
+ model PriceAdjustmentLog {
+  id                    String   @id @default(cuid())
+  itemId                String
+  item                  Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  orgId                 String
+  userId                String
+  userEmail             String?  // denormalized snapshot in case the user is later deleted
+  previousCostPrice     Float
+  newCostPrice          Float
+  previousSellingPrice  Float
+  newSellingPrice       Float
+  createdAt             DateTime @default(now())
+
+  @@index([itemId])
+  @@index([orgId])
+  @@index([createdAt])
+}
 
 enum SupplierPaymentStatus {
   UNPAID

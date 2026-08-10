@@ -788,11 +788,11 @@ export default function ItemListing({ title, orgId }: ItemListingProps) {
       {/* Data Table */}
       <DataTable<BriefItemResponse>
         title={title}
-        subtitle={
-          displayItems.length > 0
-            ? `${displayItems.length} ${displayItems.length === 1 ? "item" : "items"} | Cost Value: ${formatCurrency(getInventoryCostValue(displayItems))} | Retail Value: ${formatCurrency(getInventoryRetailValue(displayItems))}`
-            : selectedLocationId ? "No items in this location" : "No items found"
-        }
+        // subtitle={
+        //   displayItems.length > 0
+        //     ? `${displayItems.length} ${displayItems.length === 1 ? "item" : "items"} | Cost Value: ${formatCurrency(getInventoryCostValue(displayItems))} | Retail Value: ${formatCurrency(getInventoryRetailValue(displayItems))}`
+        //     : selectedLocationId ? "No items in this location" : "No items found"
+        // }
         data={displayItems}
         columns={columns}
         keyField="id"

@@ -4,6 +4,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { db } from "@/prisma/db";
+import { getMomoNotifyPhonesForOrg } from "@/actions/momo";
+import { notifyPaymentReceived } from "@/lib/notify";
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
@@ -73,6 +75,15 @@ export async function POST(req: NextRequest) {
         }),
       },
     });
+
+    // Also reach a real phone directly — SMS/WhatsApp don't need the
+    // dashboard open or the SIM phone to be nearby, just cell signal.
+    const notifyPhones = await getMomoNotifyPhonesForOrg(orgId);
+    if (notifyPhones.length > 0) {
+      // Fire-and-forget: never let a notification failure affect the
+      // webhook's response to Paystack.
+      notifyPaymentReceived(notifyPhones, message).catch(() => {});
+    }
   }
 
   return NextResponse.json({ received: true });

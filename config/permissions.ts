@@ -1,5 +1,4 @@
 // config/permissions.ts
-
 import { sidebarLinks } from "./sidebar";
 
 export type Permission = {
@@ -67,6 +66,24 @@ export const permissions: ModulePermissions[] = [
       read: "momo.read",
       update: "momo.update",
       delete: "momo.request",
+    },
+  },
+  // NEW: gates whether a role can see wallet/line BALANCE FIGURES inside
+  // the MoMo dashboard. Kept separate from "momo.read" on purpose — a
+  // sales rep can have momo.read (see the page, send requests, see
+  // transaction history) without seeing how much money is sitting on the
+  // merchant lines. Only the `read` permission is meaningful here; the
+  // create/update/delete slots exist to satisfy the Permission type and
+  // match how every other sub-module is defined (see accounting.payroll
+  // above), but nothing currently checks them.
+  {
+    display: "MoMo Payments - Balance Visibility",
+    name: "momo.balance",
+    permissions: {
+      create: "momo.balance.create",
+      read: "momo.balance.read",
+      update: "momo.balance.update",
+      delete: "momo.balance.delete",
     },
   },
 
@@ -158,6 +175,18 @@ export const permissions: ModulePermissions[] = [
       read: "serial.numbers.read",
       update: "serial.numbers.update",
       delete: "serial.numbers.delete",
+    },
+  },
+
+  // ── Cost Adjustment ─────────────────────────────────────────
+  {
+    display: "Cost Adjustment",
+    name: "cost_adjustment",
+    permissions: {
+      create: "cost_adjustment.create",
+      read: "cost_adjustment.read",
+      update: "cost_adjustment.update",
+      delete: "cost_adjustment.delete",
     },
   },
 
@@ -521,6 +550,10 @@ export const managerPermissions = [
 
   "momo.read",
   "momo.update",
+  // NOTE: "momo.balance.read" is intentionally NOT included here. Managers
+  // get the MoMo dashboard (send requests, see transaction history) but not
+  // wallet balances by default. An admin can grant it per-role from
+  // Settings → Roles & Permissions if a given manager should see it.
 
   "inventory.read",
   "inventory.update",
@@ -549,6 +582,10 @@ export const managerPermissions = [
 
   "serial.numbers.read",
   "serial.numbers.update",
+
+  "cost_adjustment.create",
+  "cost_adjustment.read",
+  "cost_adjustment.update",
 
   "purchases.create",
   "purchases.read",
@@ -630,6 +667,8 @@ export const userPermissions = [
   "accounting.read",
 
   "momo.read",
+  // Same note as managerPermissions above — no "momo.balance.read" by
+  // default for regular/sales users.
 
   "inventory.read",
   "items.read",
@@ -655,6 +694,8 @@ export const userPermissions = [
   "reports.products.read",
 
   "purchases.read",
+
+  "cost_adjustment.read",
 
   "suppliers.read",
 

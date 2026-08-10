@@ -29,8 +29,8 @@ export type DailySaleOrder = {
   customerId:    string;
   customerEmail: string;
   customerPhone: string;
-  /** SALES_ORDER = credit/invoice order | POS = walk-in cash | CREDIT_PAYMENT = payment collected on old credit */
-  type:          "SALES_ORDER" | "POS" | "CREDIT_PAYMENT";
+  /** SALES_ORDER = credit/invoice order | POS = walk-in cash | CREDIT_PAYMENT = payment collected on old credit | REFUND = money paid back on a return */
+  type:          "SALES_ORDER" | "POS" | "CREDIT_PAYMENT" | "REFUND";
   status:        string;
   paymentStatus: string;
   total:         number;
@@ -41,6 +41,10 @@ export type DailySaleOrder = {
   time:          string;   // "HH:mm"
   items:         SaleLineItem[];
   notes:         string | null;
+  /** true when this order has a negative (refund) SalesOrderPayment against it, or status === "RETURNED" */
+  isRefunded:      boolean;
+  refundAmount:    number;
+  refundReference: string | null;
 };
 
 export type DaySummary = {
@@ -51,11 +55,14 @@ export type DaySummary = {
   salesOrders:          DailySaleOrder[];   // source = SALES_ORDER
   posOrders:            DailySaleOrder[];   // source = POS
   creditPaid:           DailySaleOrder[];   // SalesOrderPayment + ManualDebtPayment records
+  refunds:              DailySaleOrder[];   // negative SalesOrderPayment records (money paid back)
   totalRevenue:         number;             // POS + upfront deposits + credit payments collected
   totalPOS:             number;
   totalCreditInvoiced:  number;             // full billed value of all Credit Saless (the invoice total)
   totalCredit:          number;             // cash actually received upfront from Credit Saless
   totalCreditPaid:      number;             // credit payments collected on this day (including manual debts)
+  totalRefunded:        number;             // sum of refunds processed on this day (nets out of revenue)
+  refundCount:          number;             // number of orders refunded this day
   orderCount:           number;
 };
 
@@ -96,13 +103,24 @@ function emptyDay(date: Date, today: Date): DaySummary {
     salesOrders:     [],
     posOrders:       [],
     creditPaid:      [],
+    refunds:         [],
     totalRevenue:        0,
     totalPOS:            0,
     totalCreditInvoiced: 0,
     totalCredit:         0,
     totalCreditPaid:     0,
+    totalRefunded:       0,
+    refundCount:         0,
     orderCount:          0,
   };
+}
+
+// Refund payment references are written as "REFUND — RET-20260806-8873"
+// (see actions/retuns.ts). Pull the RMA number back out for display/linking.
+function parseRmaFromReference(reference: string | null): string | null {
+  if (!reference) return null;
+  const match = reference.match(/REFUND\s*[—-]\s*(\S+)/i);
+  return match ? match[1] : null;
 }
 
 // ── Main action ───────────────────────────────────────────────────────────────
@@ -120,25 +138,15 @@ export async function getDailySales(params: {
     const from  = startOfDay(params.fromDate);
     const to    = endOfDay(params.toDate);
 
-    // ── 1. Fetch all orders (sales orders + POS) ──────────────────────────
-    const orders = await db.salesOrder.findMany({
-      where: {
-        orgId,
-        createdAt: { gte: from, lte: to },
-        status: { not: "DRAFT" },
-      },
-      include: {
-        customer: { select: { id: true, name: true, email: true, phone: true } },
-        lines: { include: { item: { select: { name: true, sku: true } } } },
-      },
-      orderBy: { createdAt: "asc" },
-    });
-
-    // ── 2. Fetch all payments collected in the date range (Credit Sales) ──
+    // ── 2. Fetch positive credit payments collected in the date range ─────
+    //    (amount > 0 — refunds are negative and are handled separately below,
+    //     otherwise a refund on a credit order shows up here as a negative
+    //     "payment collected", which is wrong.)
     const payments = await db.salesOrderPayment.findMany({
       where: {
         orgId,
         paidAt: { gte: from, lte: to },
+        amount: { gt: 0 },
         order: { source: "SALES_ORDER" },
       },
       include: {
@@ -152,6 +160,60 @@ export async function getDailySales(params: {
       },
       orderBy: { paidAt: "asc" },
     });
+
+    // ── 2b. Fetch refund payments processed in the date range ─────────────
+    //    (amount < 0 — covers BOTH POS and credit orders; a refund on a POS
+    //     order previously fell through every query entirely.)
+    const refundPayments = await db.salesOrderPayment.findMany({
+      where: {
+        orgId,
+        paidAt: { gte: from, lte: to },
+        amount: { lt: 0 },
+      },
+      include: {
+        order: {
+          include: {
+            customer: { select: { id: true, name: true, email: true, phone: true } },
+            lines: { include: { item: { select: { name: true, sku: true } } } },
+          },
+        },
+      },
+      orderBy: { paidAt: "asc" },
+    });
+
+    // ── 2c. Fetch refund totals for orders in this window, regardless of ──
+    //    when the refund itself was paid — so an order's row still shows
+    //    "Refunded" even if the refund happened on a later day.
+    const orders = await db.salesOrder.findMany({
+      where: {
+        orgId,
+        createdAt: { gte: from, lte: to },
+        status: { not: "DRAFT" },
+      },
+      include: {
+        customer: { select: { id: true, name: true, email: true, phone: true } },
+        lines: { include: { item: { select: { name: true, sku: true } } } },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    const orderIds = orders.map(o => o.id);
+    const orderRefunds = orderIds.length
+      ? await db.salesOrderPayment.findMany({
+          where: { orgId, orderId: { in: orderIds }, amount: { lt: 0 } },
+          select: { orderId: true, amount: true, reference: true },
+        })
+      : [];
+
+    const refundInfoByOrderId = new Map<string, { amount: number; reference: string | null }>();
+    for (const r of orderRefunds) {
+      const amt = Math.abs(Number(r.amount));
+      const existing = refundInfoByOrderId.get(r.orderId);
+      refundInfoByOrderId.set(r.orderId, {
+        amount:    (existing?.amount ?? 0) + amt,
+        reference: existing?.reference ?? parseRmaFromReference(r.reference),
+      });
+    }
 
     // ── 2b. Fetch manual debt payments collected in the date range ─────────
     const manualDebtPayments = await db.manualDebtPayment.findMany({
@@ -186,6 +248,10 @@ export async function getDailySales(params: {
 
       const total = orderTotal(o);
       const isPOS = o.orderNumber.startsWith("POS-") || o.source === "POS";
+      const refundInfo = refundInfoByOrderId.get(o.id);
+      // Trust real refund payments first; fall back to status === "RETURNED"
+      // for the rare case a return was recorded with no monetary refund.
+      const isRefunded = !!refundInfo || o.status === "RETURNED";
 
       const lineItems: SaleLineItem[] = o.lines.map(li => ({
         itemName:  li.item?.name  ?? "Unknown Item",
@@ -207,12 +273,19 @@ export async function getDailySales(params: {
         paymentStatus: o.paymentStatus,
         total,
         amountPaid:    Number(o.amountPaid ?? 0),
-        amountOwing:   Number(o.amountOwing ?? 0),
+        // NOTE: the refund flow (actions/retuns.ts) currently recomputes
+        // amountOwing as (orderTotal - amountPaid) after a refund, which
+        // makes a fully-refunded order look like it's still owed its full
+        // value. We mask that here — a refunded order is never "owing".
+        amountOwing:   isRefunded ? 0 : Number(o.amountOwing ?? 0),
         paymentMethod: o.paymentMethod ?? null,
         createdAt:     o.createdAt.toISOString(),
         time:          format(o.createdAt, "HH:mm"),
         items:         lineItems,
         notes:         o.notes ?? null,
+        isRefunded,
+        refundAmount:    refundInfo?.amount    ?? 0,
+        refundReference: refundInfo?.reference ?? null,
       };
 
       if (isPOS) {
@@ -226,6 +299,7 @@ export async function getDailySales(params: {
         day.totalCreditInvoiced += total;   // full invoice amount (info only)
         // ✨ Do NOT add amountPaid here – payments will be added from the payment loop
       }
+
       day.orderCount++;
     }
 
@@ -263,6 +337,9 @@ export async function getDailySales(params: {
         time:          format(pmt.paidAt, "HH:mm"),
         items:         lineItems,
         notes:         `Payment on order ${o.orderNumber}${pmt.recordedBy ? ` · recorded by ${pmt.recordedBy.name}` : ""}`,
+        isRefunded:      false,
+        refundAmount:    0,
+        refundReference: null,
       };
 
       day.creditPaid.push(entry);
@@ -297,11 +374,66 @@ export async function getDailySales(params: {
         time:          format(pmt.paidAt, "HH:mm"),
         items:         [],   // manual debts have no line items
         notes:         `Manual debt payment${pmt.reference ? ` (${pmt.reference})` : ""}${pmt.recordedBy ? ` · recorded by ${pmt.recordedBy.name}` : ""}`,
+        isRefunded:      false,
+        refundAmount:    0,
+        refundReference: null,
       };
 
       day.creditPaid.push(entry);
       day.totalCreditPaid += Number(pmt.amount);
       day.totalRevenue    += Number(pmt.amount);
+    }
+
+    // ── 5c. Process refund payments — money paid back to customers ────────
+    //    Bucketed by the day the refund itself happened (paidAt), covering
+    //    both POS and credit orders. This is what nets out of revenue and
+    //    feeds the "Refunded" KPI card.
+    for (const pmt of refundPayments) {
+      const key = format(pmt.paidAt, "yyyy-MM-dd");
+      const day = dayMap.get(key);
+      if (!day) continue;
+
+      const o = pmt.order;
+      const refundAmt = Math.abs(Number(pmt.amount));
+      const isPOS = o.orderNumber.startsWith("POS-") || o.source === "POS";
+      const rmaNumber = parseRmaFromReference(pmt.reference);
+
+      const lineItems: SaleLineItem[] = o.lines.map(li => ({
+        itemName:  li.item?.name  ?? "Unknown Item",
+        sku:       li.item?.sku   ?? "—",
+        quantity:  li.quantity,
+        unitPrice: Number(li.unitPrice),
+        lineTotal: Number(li.total),
+      }));
+
+      const entry: DailySaleOrder = {
+        orderId:       o.id,
+        orderNumber:   o.orderNumber,
+        customerName:  o.customer?.name  ?? "Walk-in",
+        customerId:    o.customer?.id    ?? "",
+        customerEmail: o.customer?.email ?? "",
+        customerPhone: o.customer?.phone ?? "",
+        type:          "REFUND",
+        status:        o.status,
+        paymentStatus: o.paymentStatus,
+        total:         refundAmt,
+        amountPaid:    0,
+        amountOwing:   0,
+        paymentMethod: pmt.method,
+        createdAt:     pmt.paidAt.toISOString(),
+        time:          format(pmt.paidAt, "HH:mm"),
+        items:         lineItems,   // full order's items — see note re: exact returned lines
+        notes:         `Refund on order ${o.orderNumber}${rmaNumber ? ` (${rmaNumber})` : ""}`,
+        isRefunded:      true,
+        refundAmount:    refundAmt,
+        refundReference: rmaNumber,
+      };
+
+      day.refunds.push(entry);
+      day.totalRefunded += refundAmt;
+      day.refundCount++;
+      day.totalRevenue  -= refundAmt;
+      if (isPOS) day.totalPOS -= refundAmt;
     }
 
     // ── 6. Build result ───────────────────────────────────────────────────

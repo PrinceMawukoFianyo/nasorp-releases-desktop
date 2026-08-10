@@ -132,18 +132,28 @@ export const sidebarLinks: ISidebarLink[] = [
       },
       {
         title: "Merchant Lines",
-        href: "/dashboard/momo/merchant-lines",
+        href: "/dashboard/momo?tab=lines",
         permission: "momo.read",
       },
       {
         title: "Transaction History",
-        href: "/dashboard/momo/transactions",
+        href: "/dashboard/momo?tab=history",
         permission: "momo.read",
       },
       {
         title: "Request Payment",
-        href: "/dashboard/momo/request",
+        href: "/dashboard/momo?tab=request",
         permission: "momo.request",
+      },
+      {
+        title: "Transfer Money",
+        href: "/dashboard/momo?tab=transfer",
+        permission: "momo.read",
+      },
+      {
+        title: "Card Payment",
+        href: "/dashboard/momo?tab=card",
+        permission: "momo.read",
       },
     ],
   },
@@ -203,6 +213,11 @@ export const sidebarLinks: ISidebarLink[] = [
         title: "Stock Adjustment",
         href: "/dashboard/inventory/adjustments",
         permission: "adjustments.read",
+      },
+      {
+        title: "Cost Adjustment",
+        href: "/dashboard/inventory/cost-adjustment",
+        permission: "cost_adjustment.read",
       },
       /*
       {
@@ -442,7 +457,13 @@ export const filterSidebarByPermissions = (
   userPermissions: string[]
 ): ISidebarLink[] => {
   return links
-    .filter((link) => userPermissions.includes(link.permission))
+    .filter((link) => {
+      const hasOwn = userPermissions.includes(link.permission);
+      const hasChild = link.dropdownMenu?.some((item) =>
+        userPermissions.includes(item.permission)
+      );
+      return hasOwn || hasChild;
+    })
     .map((link) => {
       if (link.dropdown && link.dropdownMenu) {
         return {
@@ -454,10 +475,5 @@ export const filterSidebarByPermissions = (
       }
       return link;
     })
-    .filter((link) => {
-      if (link.dropdown && link.dropdownMenu) {
-        return link.dropdownMenu.length > 0;
-      }
-      return true;
-    });
+    .filter((link) => (link.dropdown && link.dropdownMenu ? link.dropdownMenu.length > 0 : true));
 };

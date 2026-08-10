@@ -12,6 +12,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseMomoSMS } from "@/lib/momo-sms-parser";
 import { db } from "@/prisma/db";
+import { getMomoNotifyPhonesForOrg } from "@/actions/momo";
+import { notifyPaymentReceived } from "@/lib/notify";
 
 // Shared secret to verify requests come from your phone/AT, not random internet
 const SMS_WEBHOOK_SECRET = process.env.SMS_WEBHOOK_SECRET ?? "";
@@ -126,6 +128,17 @@ export async function POST(req: NextRequest) {
           }),
         },
       });
+
+      // ── 7. Notify a real person directly ────────────────────────────────────
+      // This is the case that matters most here: the MoMo SIM phone itself
+      // already received the money (that's how we got this SMS at all), but
+      // nobody may be physically holding that phone right now. An SMS/WhatsApp
+      // to the assigned notify numbers reaches a person, not a phone sitting
+      // in a drawer.
+      const notifyPhones = await getMomoNotifyPhonesForOrg(targetLine.orgId);
+      if (notifyPhones.length > 0) {
+        notifyPaymentReceived(notifyPhones, text).catch(() => {});
+      }
     }
 
     return NextResponse.json({

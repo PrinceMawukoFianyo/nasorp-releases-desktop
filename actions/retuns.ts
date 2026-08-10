@@ -383,13 +383,20 @@ export async function receiveSalesReturn(
         const currentPaid   = linkedOrder.amountPaid ?? linkedOrder.payments.reduce((s: number, p: any) => s + p.amount, 0)
         // Refund reduces what was paid
         const newAmountPaid  = Math.max(0, currentPaid - totalRefundValue)
-        const newAmountOwing = Math.max(0, orderTotal - newAmountPaid)
+        // The returned items are no longer part of what's owed — shrink the
+        // order's effective total by the refunded value before comparing
+        // against what's been paid. Without this, a fully-refunded order
+        // (amountPaid -> 0) looks like it still owes its full original total.
+        const effectiveTotal = Math.max(0, orderTotal - totalRefundValue)
+        const newAmountOwing = Math.max(0, effectiveTotal - newAmountPaid)
 
-        // Determine new payment status after refund
+        // Determine new payment status after refund — compare against the
+        // shrunk effective total, not the pre-refund total, so a fully-paid
+        // partial refund reads as PAID rather than incorrectly PARTIAL.
         let newPaymentStatus: PaymentStatus
         if (newAmountPaid <= 0) {
           newPaymentStatus = PaymentStatus.REFUNDED
-        } else if (newAmountPaid < orderTotal) {
+        } else if (newAmountPaid < effectiveTotal) {
           newPaymentStatus = PaymentStatus.PARTIAL
         } else {
           newPaymentStatus = PaymentStatus.PAID
@@ -577,12 +584,16 @@ export async function quickReturnFromOrder(data: {
 
       const currentPaid   = order.amountPaid ?? order.payments.reduce((s: number, p: any) => s + p.amount, 0)
       const newAmountPaid  = Math.max(0, currentPaid - totalRefundValue)
-      const newAmountOwing = Math.max(0, orderTotal - newAmountPaid)
+      // Same fix as receiveSalesReturn: shrink the order's effective total
+      // by the refunded value before comparing against what's been paid, so
+      // a fully-refunded order doesn't come out looking like it's still owed.
+      const effectiveTotal = Math.max(0, orderTotal - totalRefundValue)
+      const newAmountOwing = Math.max(0, effectiveTotal - newAmountPaid)
 
       let newPaymentStatus: PaymentStatus
       if (newAmountPaid <= 0) {
         newPaymentStatus = PaymentStatus.REFUNDED
-      } else if (newAmountPaid < orderTotal) {
+      } else if (newAmountPaid < effectiveTotal) {
         newPaymentStatus = PaymentStatus.PARTIAL
       } else {
         newPaymentStatus = PaymentStatus.PAID
