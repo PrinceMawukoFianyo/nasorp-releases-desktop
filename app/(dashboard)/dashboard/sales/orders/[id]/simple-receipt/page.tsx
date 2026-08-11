@@ -180,10 +180,10 @@ function buildReceiptHTML(order: any, paperSize: PaperSize): string {
                 text-shadow:0.4px 0 0 #000,-0.4px 0 0 #000;">
       HABIFAZZY ENTERPRISE
     </div>
-    <div style="font-size:9px;margin-top:2px;">Near Bokankye Police Check Point</div>
+    <div style="font-size:9px;margin-top:2px;">Aprade-Mesewam Junction</div>
     <div style="font-size:9px;">Digital Address: AA-T1257-6693</div>
     <div style="font-size:9px;">Sunyani, Ghana</div>
-    <div style="font-size:9px;margin-top:2px;">Tel: +233 243 826 232</div>
+    <div style="font-size:9px;margin-top:2px;">Tel: +233 246 668 686</div>
   </div>
 
   <!-- Date / Receipt Number -->
