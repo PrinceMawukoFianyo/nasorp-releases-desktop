@@ -15,6 +15,7 @@ import { adminPermissions, userPermissions } from "@/config/permissions";
 import { InviteData } from "@/components/Forms/user/UserInvitationForm";
 import UserInvitation from "@/components/email-templates/user-invite";
 import { generateAPIKey } from "@/lib/generateAPIKey";
+import WelcomeWithPasswordEmail from "@/components/email-templates/welcome-with-password";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
@@ -259,6 +260,77 @@ export async function createInvitedUser(data: InvitedUserProps) {
       status: 500,
       data: null,
     };
+  }
+}
+
+// Add this function to actions/users.ts (alongside createInvitedUser)
+
+export async function createUserWithPassword(data: InvitedUserProps) {
+  try {
+    // Verify the role belongs to the organization
+    const role = await db.role.findFirst({
+      where: { id: data.roleId, orgId: data.orgId },
+    });
+    if (!role) {
+      return { error: "Invalid role for this organization", status: 400, data: null };
+    }
+
+    // Prevent duplicates
+    const existingUserByEmail = await db.user.findUnique({ where: { email: data.email } });
+    if (existingUserByEmail) {
+      return { error: `This email ${data.email} is already in use`, status: 409, data: null };
+    }
+    const existingUserByPhone = await db.user.findUnique({ where: { phone: data.phone } });
+    if (existingUserByPhone) {
+      return { error: `This phone number ${data.phone} is already in use`, status: 409, data: null };
+    }
+
+    // Use an admin-supplied password, or fall back to a default
+    const plainPassword = data.password?.trim() || "Admin@2026";
+    const hashedPassword = await bcrypt.hash(plainPassword, 10);
+
+    const newUser = await db.user.create({
+      data: {
+        email: data.email,
+        password: hashedPassword,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        name: data.name,
+        orgId: data.orgId,
+        orgName: data.orgName,
+        phone: data.phone,
+        locationId: data.locationId,
+        locationName: data.locationName,
+        image: data.image,
+        isVerfied: true,
+        roles: { connect: { id: data.roleId } },
+      },
+    });
+
+    // Email them their login details + a link to change the password
+    const changePasswordUrl = `${baseUrl}/reset-password?email=${encodeURIComponent(data.email)}`;
+    const { error: emailError } = await resend.emails.send({
+      from: process.env.EMAIL_FROM as string,
+      to: data.email,
+      subject: `Your ${data.orgName} account is ready`,
+      react: WelcomeWithPasswordEmail({
+        orgName: data.orgName ?? "",
+        email: data.email,
+        password: plainPassword,
+        changePasswordUrl,
+      }),
+    });
+
+    if (emailError) {
+      // User is already created — log it but don't fail the whole action
+      console.error("Welcome email failed to send:", emailError);
+    }
+
+    revalidatePath("/dashboard/users");
+    return { error: null, status: 200, data: { id: newUser.id, email: newUser.email } };
+  } catch (error: any) {
+    console.error("createUserWithPassword error:", error);
+    return { error: `Database error: ${error.message}`, status: 500, data: null };
   }
 }
 

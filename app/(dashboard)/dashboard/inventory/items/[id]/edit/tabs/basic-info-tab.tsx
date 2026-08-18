@@ -477,9 +477,10 @@ export default function BasicInfoTab({ item, brandOptions, categoryOptions, onUp
     <div className="grid gap-6">
       <UpdateCard
         title="Identity"
-        subtitle="Name and URL slug"
+        subtitle="Name, SKU, and URL slug"
         fields={[
           { name: "name", label: "Item Name", type: "text", defaultValue: item.name, required: true },
+          { name: "sku",  label: "SKU",       type: "text", defaultValue: item.sku, required: true, placeholder: "e.g., ITEM-001" },
           { name: "slug", label: "URL Slug",  type: "text", defaultValue: item.slug, required: true },
         ]}
         onSubmit={handleUpdate}
