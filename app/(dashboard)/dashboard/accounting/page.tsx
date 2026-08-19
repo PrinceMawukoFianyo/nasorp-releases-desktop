@@ -13,6 +13,8 @@ import { getFinancialSummaries }      from "@/actions/dashboard";
 //   • uses real amountPaid / amountOwing from the DB columns
 import { getLedgerStats }             from "@/actions/credit-ledger";
 import { getOrgExpenses, getOrgPayroll } from "@/actions/accounting";
+// ADDED — needed to know which tabs this user is allowed to see.
+import { getAuthenticatedUser }       from "@/config/useAuth";
 import AccountantDashboard            from "./components/accountantdashboard";
 
 // ── Valid tab IDs ─────────────────────────────────────────────────────────────
@@ -49,6 +51,12 @@ export default async function AccountingPage({
   const initialTab: TabId = (VALID_TABS as readonly string[]).includes(rawTab)
     ? (rawTab as TabId)
     : "overview";
+
+  // ADDED — the logged-in user's permission strings (e.g. "accounting.read",
+  // "accounting.payroll", "accounting.admin"), used client-side to gate
+  // which tabs are visible/clickable in AccountantDashboard.
+  const user = await getAuthenticatedUser();
+  const userPermissions = user.permissions ?? [];
 
   // Fetch all data in parallel — never throws (Promise.allSettled)
   const [dashResult, locationResult, financialResult, creditResult, expensesResult, payrollResult] =
@@ -111,6 +119,7 @@ export default async function AccountingPage({
         initialExpenses={initialExpenses}
         initialPayroll={initialPayroll}
         initialTab={initialTab}
+        userPermissions={userPermissions}
       />
     </Suspense>
   );

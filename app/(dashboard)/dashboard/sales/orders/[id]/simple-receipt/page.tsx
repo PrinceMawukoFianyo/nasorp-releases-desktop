@@ -426,10 +426,10 @@ export default function SimpleReceiptPage() {
             {/* Store header */}
             <div className="text-center border-b border-dashed border-gray-300 pb-3 mb-3">
               <div style={{ fontWeight: 800, fontSize: "13px", letterSpacing: "1px" }}>HABIFAZZY ENTERPRISE</div>
-              <div className="text-gray-700 mt-0.5">Near Bokankye Police Check Point</div>
+              <div className="text-gray-700 mt-0.5">Aprade-mesewam junction</div>
               <div className="text-gray-700">Digital Address: AA-T1257-6693</div>
-              <div className="text-gray-700">Kumasi, Ghana</div>
-              <div className="text-gray-700 mt-0.5">Tel: +233 546 722 768</div>
+              <div className="text-gray-700">Aprade, Ghana</div>
+              <div className="text-gray-700 mt-0.5">Tel: 0246668686/ 0593041947</div>
             </div>
 
             {/* Receipt meta */}

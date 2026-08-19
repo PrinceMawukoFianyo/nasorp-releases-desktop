@@ -246,7 +246,7 @@ export default function PricingStockTab({
       {
         packagingUnitId: "",
         packagingUnitName: "",
-        unitsPerPack: 1,
+        unitsPerPack: 0,        // 0 = "not yet entered" → shows as empty w/ placeholder
         wholesalePrice: 0,
         enableHalf: true,
         enableQuarter: true,
@@ -947,8 +947,11 @@ export default function PricingStockTab({
                           <Input
                             type="number"
                             min={1}
-                            value={tier.unitsPerPack}
-                            onChange={(e) => updateTier(idx, "unitsPerPack", parseInt(e.target.value) || 1)}
+                            placeholder="1"
+                            value={tier.unitsPerPack === 0 ? "" : tier.unitsPerPack}
+                            onChange={(e) =>
+                              updateTier(idx, "unitsPerPack", e.target.value === "" ? 0 : parseInt(e.target.value) || 0)
+                            }
                             className="h-8 text-sm text-center"
                           />
                         </div>
@@ -961,8 +964,11 @@ export default function PricingStockTab({
                               type="number"
                               min={0}
                               step="0.01"
-                              value={tier.wholesalePrice}
-                              onChange={(e) => updateTier(idx, "wholesalePrice", parseFloat(e.target.value) || 0)}
+                              placeholder="0.00"
+                              value={tier.wholesalePrice === 0 ? "" : tier.wholesalePrice}
+                              onChange={(e) =>
+                                updateTier(idx, "wholesalePrice", e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)
+                              }
                               className="pl-6 h-8 text-sm"
                             />
                           </div>

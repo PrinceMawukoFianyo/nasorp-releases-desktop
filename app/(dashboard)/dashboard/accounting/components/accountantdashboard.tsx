@@ -21,8 +21,11 @@ import {
   MapPin, Users, CreditCard, Layers, AlertTriangle, CheckCircle2,
   Clock, Ban, ArrowUpRight, Package2, Receipt, Building2,
   Smartphone, WalletCards, Banknote, Calendar, Printer,
-  PieChart, FileText, Settings, ShieldCheck, Zap, ShoppingBag,
+  PieChart, FileText, Settings, ShieldCheck, Zap, ShoppingBag, Lock, ShieldAlert,
 } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { createExpense, createPayrollEntry, markPayrollPaid, deletePayrollEntry } from "@/actions/accounting";
 import DailySalesTab from "./DailySalesTab";
@@ -82,6 +85,7 @@ type Props = {
   initialExpenses?: ExpenseRecord[];
   initialPayroll?: PayrollRecord[];
   initialTab?: TabId;
+  userPermissions?: string[];
 };
 
 // ══════════════════════════════════════════════════════════════════════
@@ -512,12 +516,22 @@ const TABS: { id: TabId; label: string; icon: React.ElementType; permission: str
 export default function AccountantDashboard({
   dashboardData, locationSales, financials, creditSummary,
   initialExpenses = [], initialPayroll = [], initialTab = "overview",
+  userPermissions = [],
 }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const [tab, setTab] = useState<TabId>(initialTab);
+  // ── Permission check ──────────────────────────────────────────────
+  const can = (permission: string) => userPermissions.includes(permission);
+  const firstAuthorizedTab = TABS.find(t => can(t.permission))?.id ?? null;
+  const [unauthorizedTab, setUnauthorizedTab] = useState<TabId | null>(null);
+
+  const [tab, setTab] = useState<TabId>(() => {
+    const meta = TABS.find(t => t.id === initialTab);
+    if (meta && can(meta.permission)) return initialTab;
+    return firstAuthorizedTab ?? initialTab;
+  });
   const [expenses, setExpenses] = useState<ExpenseRecord[]>(initialExpenses);
   const [payroll, setPayroll] = useState<PayrollRecord[]>(initialPayroll);
   const [expSearch, setExpSearch] = useState("");
@@ -569,6 +583,11 @@ export default function AccountantDashboard({
 
   // Sync tab → URL without full navigation
   const changeTab = (newTab: TabId) => {
+    const meta = TABS.find(t => t.id === newTab);
+    if (meta && !can(meta.permission)) {
+      setUnauthorizedTab(newTab);
+      return;
+    }
     setTab(newTab);
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", newTab);
@@ -577,7 +596,13 @@ export default function AccountantDashboard({
 
   useEffect(() => {
     const urlTab = searchParams.get("tab") as TabId | null;
-    if (urlTab && VALID_TABS.includes(urlTab) && urlTab !== tab) setTab(urlTab);
+    if (!urlTab || !VALID_TABS.includes(urlTab) || urlTab === tab) return;
+    const meta = TABS.find(t => t.id === urlTab);
+    if (meta && !can(meta.permission)) {
+      setUnauthorizedTab(urlTab);
+      return;
+    }
+    setTab(urlTab);
   }, [searchParams]);
 
   // ── Fetch statement for a customer ───────────────────────────────────
@@ -1121,15 +1146,16 @@ export default function AccountantDashboard({
         <div className="flex gap-1 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
           {TABS.map(t => {
             const active = tab === t.id;
+            const locked = !can(t.permission);
             const badge = t.id === "expenses" && expenses.length > 0 ? expenses.length
               : t.id === "payroll" && payroll.length > 0 ? payroll.length
                 : t.id === "credit" && (creditSummary?.activeDebtors ?? 0) > 0 ? creditSummary!.activeDebtors
                   : null;
             return (
               <button key={t.id} onClick={() => changeTab(t.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors flex-shrink-0 ${active ? "bg-emerald-600 text-white shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
-                <t.icon className="h-3.5 w-3.5" />{t.label}
-                {badge != null && (
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors flex-shrink-0 ${active ? "bg-emerald-600 text-white shadow-sm" : locked ? "text-muted-foreground/40 hover:bg-muted/50" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
+                {locked ? <Lock className="h-3.5 w-3.5" /> : <t.icon className="h-3.5 w-3.5" />}{t.label}
+                {badge != null && !locked && (
                   <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${active ? "bg-white/25 text-white" : t.id === "credit" ? "bg-red-100 text-red-700" : "bg-muted text-muted-foreground"}`}>{badge}</span>
                 )}
               </button>
@@ -1539,7 +1565,7 @@ export default function AccountantDashboard({
                                                     <ReceiptIcon className="h-4 w-4 inline" />
                                                   </a>
                                                 )}
-                                                 
+                                                 
                                               </td>
                                             </tr>
                                           ))}
@@ -2091,6 +2117,26 @@ export default function AccountantDashboard({
           Accounts &amp; Finance · Live data · {TABS.find(t => t.id === tab)?.label} · Last rendered {new Date().toLocaleTimeString("en-GH")}
         </p>
       </div>
+
+      {/* ── UNAUTHORIZED POPUP ───────────────────────────────────── */}
+      <Dialog open={unauthorizedTab !== null} onOpenChange={(open) => !open && setUnauthorizedTab(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/30 flex items-center justify-center mb-2">
+              <ShieldAlert className="h-6 w-6 text-red-600" />
+            </div>
+            <DialogTitle>Unauthorized</DialogTitle>
+            <DialogDescription>
+              You don&apos;t have permission to access{" "}
+              {unauthorizedTab ? TABS.find(t => t.id === unauthorizedTab)?.label : "this section"}.
+              Contact your organization admin if you believe this is a mistake.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setUnauthorizedTab(null)}>OK</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
