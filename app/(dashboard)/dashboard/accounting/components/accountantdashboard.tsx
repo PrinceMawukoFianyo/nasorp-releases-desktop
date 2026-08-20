@@ -495,19 +495,28 @@ function PaystackBanner() {
 // ══════════════════════════════════════════════════════════════════════
 // TAB META
 // ══════════════════════════════════════════════════════════════════════
+// NOTE: each tab's permission string now matches the distinct entries in
+// config/sidebar.ts's Accounting dropdownMenu. Previously overview, daily,
+// expenses, credit, locations, forecast, and billing all checked the same
+// "accounting.read" string, so granting one silently granted all of them.
+// "customers", "suppliers", and "staff" have no dedicated checkbox in the
+// Role form yet (sidebar.ts only lists 9 accounting items) — they stay
+// bundled with "accounting.read" (Overview) for now. Give them their own
+// sidebar.ts entries + permissions.ts modules if you want those split out
+// too.
 const TABS: { id: TabId; label: string; icon: React.ElementType; permission: string }[] = [
   { id: "overview", label: "Overview", icon: BarChart2, permission: "accounting.read" },
-  { id: "daily", label: "Daily Sales", icon: Calendar, permission: "accounting.read" },
-  { id: "expenses", label: "Expenses", icon: Receipt, permission: "accounting.read" },
+  { id: "daily", label: "Daily Sales", icon: Calendar, permission: "accounting.daily" },
+  { id: "expenses", label: "Expenses", icon: Receipt, permission: "accounting.expenses" },
   { id: "payroll", label: "Payroll", icon: Users, permission: "accounting.payroll" },
   { id: "customers", label: "Customers", icon: Users, permission: "accounting.read" },
   { id: "suppliers", label: "Suppliers", icon: Building2, permission: "accounting.read" },
-  { id: "locations", label: "Locations P&L", icon: MapPin, permission: "accounting.read" },
-  { id: "credit", label: "Credit & Payments", icon: CreditCard, permission: "accounting.read" },
-  { id: "forecast", label: "Forecast", icon: TrendingUp, permission: "accounting.read" },
+  { id: "locations", label: "Locations P&L", icon: MapPin, permission: "accounting.locations" },
+  { id: "credit", label: "Credit & Payments", icon: CreditCard, permission: "accounting.credit" },
+  { id: "forecast", label: "Forecast", icon: TrendingUp, permission: "accounting.forecast" },
   { id: "staff", label: "Staff Performance", icon: Users, permission: "accounting.read" },
   { id: "paystack", label: "Paystack Settings", icon: Layers, permission: "accounting.admin" },
-  { id: "billing", label: "Billing & Plan", icon: DollarSign, permission: "accounting.read" },
+  { id: "billing", label: "Billing & Plan", icon: DollarSign, permission: "accounting.billing" },
 ];
 
 // ══════════════════════════════════════════════════════════════════════

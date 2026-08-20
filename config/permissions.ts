@@ -36,6 +36,32 @@ export const permissions: ModulePermissions[] = [
     },
   },
   // ── Accounting sub-modules ──────────────────────────────────────
+  // NOTE: each accounting tab now has its own distinct permission string
+  // (previously Daily Sales, Expenses, Credit & Payments, Locations P&L,
+  // Forecast, and Billing & Plan all shared "accounting.read", so granting
+  // one silently granted all six). "Overview" intentionally keeps using
+  // the base "accounting.read" module permission — it's the one tab with
+  // a Create/Read/Update/Delete dropdown in the Role form.
+  {
+    display: "Accounting - Daily Sales",
+    name: "accounting.daily",
+    permissions: {
+      create: "accounting.daily.create",
+      read: "accounting.daily",
+      update: "accounting.daily.update",
+      delete: "accounting.daily.delete",
+    },
+  },
+  {
+    display: "Accounting - Expenses",
+    name: "accounting.expenses",
+    permissions: {
+      create: "accounting.expenses.create",
+      read: "accounting.expenses",
+      update: "accounting.expenses.update",
+      delete: "accounting.expenses.delete",
+    },
+  },
   {
     display: "Accounting - Payroll",
     name: "accounting.payroll",
@@ -44,6 +70,46 @@ export const permissions: ModulePermissions[] = [
       read: "accounting.payroll",
       update: "accounting.payroll.update",
       delete: "accounting.payroll.delete",
+    },
+  },
+  {
+    display: "Accounting - Credit & Payments",
+    name: "accounting.credit",
+    permissions: {
+      create: "accounting.credit.create",
+      read: "accounting.credit",
+      update: "accounting.credit.update",
+      delete: "accounting.credit.delete",
+    },
+  },
+  {
+    display: "Accounting - Locations P&L",
+    name: "accounting.locations",
+    permissions: {
+      create: "accounting.locations.create",
+      read: "accounting.locations",
+      update: "accounting.locations.update",
+      delete: "accounting.locations.delete",
+    },
+  },
+  {
+    display: "Accounting - Forecast",
+    name: "accounting.forecast",
+    permissions: {
+      create: "accounting.forecast.create",
+      read: "accounting.forecast",
+      update: "accounting.forecast.update",
+      delete: "accounting.forecast.delete",
+    },
+  },
+  {
+    display: "Accounting - Billing & Plan",
+    name: "accounting.billing",
+    permissions: {
+      create: "accounting.billing.create",
+      read: "accounting.billing",
+      update: "accounting.billing.update",
+      delete: "accounting.billing.delete",
     },
   },
   {
@@ -546,7 +612,15 @@ export const managerPermissions = [
 
   "accounting.read",
   "accounting.update",
+  "accounting.daily",
+  "accounting.expenses",
   "accounting.payroll",
+  "accounting.credit",
+  "accounting.locations",
+  "accounting.forecast",
+  "accounting.billing",
+  // NOTE: "accounting.admin" (Paystack Settings) intentionally excluded —
+  // that's the one accounting tab managers don't get by default.
 
   "momo.read",
   "momo.update",
@@ -665,6 +739,15 @@ export const userPermissions = [
   "dashboard.read",
 
   "accounting.read",
+  "accounting.daily",
+  "accounting.expenses",
+  "accounting.credit",
+  "accounting.locations",
+  "accounting.forecast",
+  "accounting.billing",
+  // NOTE: same as before this change — regular users never got
+  // "accounting.payroll" or "accounting.admin" (Payroll / Paystack
+  // Settings stay manager/admin-only).
 
   "momo.read",
   // Same note as managerPermissions above — no "momo.balance.read" by

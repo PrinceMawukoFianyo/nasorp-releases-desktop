@@ -100,8 +100,11 @@ function buildReceiptHTML(order: any, paperSize: PaperSize): string {
       ${order.customer.phone ? `<br>Tel: ${order.customer.phone}` : ""}
     </div>` : ""
 
-  // FIX: Simpler font stack — Courier New is the most reliable for all ASCII chars
-  const ocrFontStack = `'Share Tech Mono', 'Courier New', Courier, monospace`
+  // FONT: Courier Prime — a proper typewriter-style monospace font (closer
+  // to classic receipt-printer output than the old Share Tech Mono, which
+  // has a thinner "digital LCD" look). Courier New is the fallback if the
+  // Google Font fails to load in time.
+  const ocrFontStack = `'Courier Prime', 'Courier New', Courier, monospace`
 
   // FIX: Reduced text-shadow to 0.3px (was 0.5px) — heavy shadows caused
   // characters like #, +, 0 to bleed and look garbled on thermal paper.
@@ -166,7 +169,7 @@ function buildReceiptHTML(order: any, paperSize: PaperSize): string {
   <title>Receipt ${order.orderNumber}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
   <style>
     ${boldPrintBase}
     ${pageCSS}
@@ -350,11 +353,13 @@ export default function SimpleReceiptPage() {
   const discount  = salesOrder.discount     || 0
   const shipping  = salesOrder.shippingCost || 0
   const total     = subtotal + taxAmount + shipping - discount
-  const ocrFont   = `'Share Tech Mono', 'Courier New', Courier, monospace`
+  // FONT: Courier Prime — typewriter-style monospace, matches classic
+  // receipt-printer output (see FIX note in buildReceiptHTML above).
+  const ocrFont   = `'Courier Prime', 'Courier New', Courier, monospace`
 
   return (
     <div className="min-h-screen bg-gray-100 p-4">
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');`}</style>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap');`}</style>
 
       {/* ── Toolbar ─────────────────────────────────────────────────────── */}
       <div className="max-w-lg mx-auto mb-5">

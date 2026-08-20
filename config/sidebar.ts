@@ -77,12 +77,12 @@ export const sidebarLinks: ISidebarLink[] = [
       {
         title: "Daily Sales",
         href: "/dashboard/accounting?tab=daily",
-        permission: "accounting.read",
+        permission: "accounting.daily",
       },
       {
         title: "Expenses",
         href: "/dashboard/accounting?tab=expenses",
-        permission: "accounting.read",
+        permission: "accounting.expenses",
       },
       {
         title: "Payroll",
@@ -92,17 +92,17 @@ export const sidebarLinks: ISidebarLink[] = [
       {
         title: "Credit & Payments",
         href: "/dashboard/accounting?tab=credit",
-        permission: "accounting.read",
+        permission: "accounting.credit",
       },
       {
         title: "Locations P&L",
         href: "/dashboard/accounting?tab=locations",
-        permission: "accounting.read",
+        permission: "accounting.locations",
       },
       {
         title: "Forecast",
         href: "/dashboard/accounting?tab=forecast",
-        permission: "accounting.read",
+        permission: "accounting.forecast",
       },
       {
         title: "Paystack Settings",
@@ -112,7 +112,7 @@ export const sidebarLinks: ISidebarLink[] = [
       {
         title: "Billing & Plan",
         href: "/dashboard/accounting?tab=billing",
-        permission: "accounting.read",
+        permission: "accounting.billing",
       },
     ],
   },
