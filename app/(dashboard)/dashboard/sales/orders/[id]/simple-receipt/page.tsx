@@ -39,60 +39,62 @@ function buildReceiptHTML(order: any, paperSize: PaperSize): string {
 
   // ── Items rows HTML ──────────────────────────────────────────────────────
   const itemRows = (order.lines ?? []).map((line: any) => {
-    let displayQty  = line.quantity
-    let displayDesc = line.item?.name || "Unknown Item"
-    let displayAmt  = (line.quantity || 0) * (line.unitPrice || 0)
+    let displayQty   = line.quantity
+    let displayDesc  = line.item?.name || "Unknown Item"
+    let unitPrice    = line.unitPrice || 0
+    let displayAmt   = (line.quantity || 0) * unitPrice
 
     try {
       if (line.notes) {
         const meta = JSON.parse(line.notes)
         if (meta.tierId) {
           displayQty  = `${meta.packQty} ${meta.tierName}`
-          displayAmt  = meta.packQty * meta.wholesalePricePerPack
+          unitPrice   = meta.wholesalePricePerPack
+          displayAmt  = meta.packQty * unitPrice
         }
       }
     } catch { /* plain notes */ }
 
     return `
       <tr>
-        <td style="padding:2px 0;vertical-align:top;width:28px;white-space:nowrap;">${displayQty}</td>
-        <td style="padding:2px 3px;vertical-align:top;word-break:break-word;">${displayDesc}</td>
-        <td style="padding:2px 0 2px 3px;vertical-align:top;text-align:right;white-space:nowrap;width:68px;">GHS${displayAmt.toFixed(2)}</td>
+        <td style="padding:2px 0;vertical-align:top;width:24px;white-space:nowrap;">${displayQty}</td>
+        <td style="padding:2px 2px;vertical-align:top;word-break:break-word;">${displayDesc}</td>
+        <td style="padding:2px 2px;vertical-align:top;text-align:right;white-space:nowrap;width:52px;">${unitPrice.toFixed(2)}</td>
+        <td style="padding:2px 0 2px 2px;vertical-align:top;text-align:right;white-space:nowrap;width:56px;">${displayAmt.toFixed(2)}</td>
       </tr>`
   }).join("")
 
   // ── Totals rows ──────────────────────────────────────────────────────────
   let totalRows = `
     <tr>
-      <td colspan="2" style="padding:2px 0;">SUBTOTAL</td>
-      <td style="text-align:right;padding:2px 0 2px 3px;white-space:nowrap;width:68px;">GHS${subtotal.toFixed(2)}</td>
+      <td colspan="3" style="padding:2px 0;">SUBTOTAL</td>
+      <td style="text-align:right;padding:2px 0 2px 2px;white-space:nowrap;">GHS${subtotal.toFixed(2)}</td>
     </tr>`
 
   if (taxAmount > 0) totalRows += `
     <tr>
-      <td colspan="2" style="padding:2px 0;">TAX</td>
-      <td style="text-align:right;padding:2px 0 2px 3px;white-space:nowrap;width:68px;">GHS${taxAmount.toFixed(2)}</td>
+      <td colspan="3" style="padding:2px 0;">TAX</td>
+      <td style="text-align:right;padding:2px 0 2px 2px;white-space:nowrap;">GHS${taxAmount.toFixed(2)}</td>
     </tr>`
 
   if (discount > 0) totalRows += `
     <tr>
-      <td colspan="2" style="padding:2px 0;color:#c00;">DISCOUNT</td>
-      <td style="text-align:right;padding:2px 0 2px 3px;white-space:nowrap;width:68px;color:#c00;">-GHS${discount.toFixed(2)}</td>
+      <td colspan="3" style="padding:2px 0;color:#c00;">DISCOUNT</td>
+      <td style="text-align:right;padding:2px 0 2px 2px;white-space:nowrap;color:#c00;">-GHS${discount.toFixed(2)}</td>
     </tr>`
 
   if (shipping > 0) totalRows += `
     <tr>
-      <td colspan="2" style="padding:2px 0;">SHIPPING</td>
-      <td style="text-align:right;padding:2px 0 2px 3px;white-space:nowrap;width:68px;">GHS${shipping.toFixed(2)}</td>
+      <td colspan="3" style="padding:2px 0;">SHIPPING</td>
+      <td style="text-align:right;padding:2px 0 2px 2px;white-space:nowrap;">GHS${shipping.toFixed(2)}</td>
     </tr>`
 
   totalRows += `
     <tr style="border-top:2px solid #000;font-size:${paperSize === "thermal80mm" ? "11px" : "13px"};">
-      <td colspan="2" style="padding:4px 0 2px;">TOTAL</td>
-      <td style="text-align:right;padding:4px 0 2px 3px;white-space:nowrap;width:68px;">GHS${total.toFixed(2)}</td>
+      <td colspan="3" style="padding:4px 0 2px;">TOTAL</td>
+      <td style="text-align:right;padding:4px 0 2px 2px;white-space:nowrap;">GHS${total.toFixed(2)}</td>
     </tr>`
 
-  // ── Customer section ─────────────────────────────────────────────────────
   const customerSection = order.customer ? `
     <div style="border-top:1px dashed #000;margin:6px 0;padding-top:6px;font-size:9px;">
       <strong>CUSTOMER</strong><br>
@@ -100,15 +102,8 @@ function buildReceiptHTML(order: any, paperSize: PaperSize): string {
       ${order.customer.phone ? `<br>Tel: ${order.customer.phone}` : ""}
     </div>` : ""
 
-  // FONT: Courier Prime — a proper typewriter-style monospace font (closer
-  // to classic receipt-printer output than the old Share Tech Mono, which
-  // has a thinner "digital LCD" look). Courier New is the fallback if the
-  // Google Font fails to load in time.
   const ocrFontStack = `'Courier Prime', 'Courier New', Courier, monospace`
 
-  // FIX: Reduced text-shadow to 0.3px (was 0.5px) — heavy shadows caused
-  // characters like #, +, 0 to bleed and look garbled on thermal paper.
-  // font-weight reduced to 700 (was 900) — 900 caused stroke bleed on thermal heads.
   const boldPrintBase = `
     * {
       margin: 0; padding: 0; box-sizing: border-box;
@@ -116,49 +111,34 @@ function buildReceiptHTML(order: any, paperSize: PaperSize): string {
       print-color-adjust: exact !important;
       color-adjust: exact !important;
     }
-
     body, table, td, div, span, p {
       font-weight: 700;
       color: #000000 !important;
       text-shadow: 0.3px 0 0 #000, -0.3px 0 0 #000 !important;
       letter-spacing: 0.03em;
     }
-
     strong, b {
       font-weight: 800;
       text-shadow: 0.4px 0 0 #000, -0.4px 0 0 #000, 0 0.3px 0 #000 !important;
     }
-
     table { border-collapse: collapse; width: 100%; }
     td { vertical-align: top; }
     @media print { .no-print { display: none !important; } }`
 
-  // FIX: width reduced to 70mm with 3mm padding — stops right-edge AMT clipping
   const thermalCSS = `
     @page { size: 80mm auto; margin: 0; }
     html, body {
-      width: 70mm;
-      margin: 0 auto;
-      padding: 3mm 3mm 5mm 3mm;
-      font-family: ${ocrFontStack};
-      font-size: 10px;
-      line-height: 1.45;
-      background: white;
+      width: 70mm; margin: 0 auto; padding: 3mm;
+      font-family: ${ocrFontStack}; font-size: 9.5px; line-height: 1.4; background: white;
     }`
 
   const letterCSS = `
     @page { size: letter; margin: 0.5in; }
-    html, body {
-      width: 100%; max-width: 3.5in; margin: 0 auto; padding: 0;
-      font-family: ${ocrFontStack}; font-size: 11px; line-height: 1.4; background: white;
-    }`
+    html, body { width: 100%; max-width: 3.5in; margin: 0 auto; padding: 0; font-family: ${ocrFontStack}; font-size: 11px; background: white; }`
 
   const a4CSS = `
     @page { size: A4; margin: 15mm; }
-    html, body {
-      width: 100%; max-width: 90mm; margin: 0 auto; padding: 0;
-      font-family: ${ocrFontStack}; font-size: 11px; line-height: 1.4; background: white;
-    }`
+    html, body { width: 100%; max-width: 90mm; margin: 0 auto; padding: 0; font-family: ${ocrFontStack}; font-size: 11px; background: white; }`
 
   const pageCSS = paperSize === "a4" ? a4CSS : paperSize === "letter" ? letterCSS : thermalCSS
 
@@ -170,33 +150,22 @@ function buildReceiptHTML(order: any, paperSize: PaperSize): string {
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
-  <style>
-    ${boldPrintBase}
-    ${pageCSS}
-  </style>
+  <style>${boldPrintBase} ${pageCSS}</style>
 </head>
 <body>
-
-  <!-- Store Header -->
   <div style="text-align:center;margin-bottom:6px;padding-bottom:6px;border-bottom:1.5px dashed #000;">
-    <div style="font-weight:800;font-size:${paperSize === "thermal80mm" ? "13px" : "15px"};letter-spacing:1px;
-                text-shadow:0.4px 0 0 #000,-0.4px 0 0 #000;">
-      HABIFAZZY ENTERPRISE
-    </div>
+    <div style="font-weight:800;font-size:13px;letter-spacing:1px;">HABIFAZZY ENTERPRISE</div>
     <div style="font-size:9px;margin-top:2px;">Aprade-Mesewam Junction</div>
     <div style="font-size:9px;">Digital Address: AA-T1257-6693</div>
     <div style="font-size:9px;">Sunyani, Ghana</div>
     <div style="font-size:9px;margin-top:2px;">Tel: +233 246 668 686</div>
   </div>
 
-  <!-- Date / Receipt Number -->
-  <!-- FIX: Changed "RECEIPT #" to "RECEIPT NO." — # was printing as 8 on thermal -->
   <div style="text-align:center;margin-bottom:6px;font-size:9px;">
     ${dateStr}&nbsp;&nbsp;${timeStr}<br>
     <span style="font-size:10px;font-weight:800;">RECEIPT NO. ${order.orderNumber}</span>
   </div>
 
-  <!-- Transaction meta -->
   <table style="margin-bottom:4px;font-size:9px;table-layout:fixed;">
     <tr>
       <td>TABLE 1</td>
@@ -204,17 +173,17 @@ function buildReceiptHTML(order: any, paperSize: PaperSize): string {
     </tr>
     <tr>
       <td>${order.paymentMethod || "CASH"}</td>
-      <!-- FIX: Replaced "#########19883" with "REF: 19883" — # was printing as 8 -->
       <td style="text-align:right;">REF: 19883</td>
     </tr>
   </table>
 
-  <!-- Column headers -->
+  <!-- Column headers with UNIT PRICE -->
   <table style="border-top:2.5px solid #000;border-bottom:1.5px solid #000;margin:4px 0;font-size:9px;table-layout:fixed;">
     <tr>
-      <td style="padding:3px 0;width:28px;">QTY</td>
-      <td style="padding:3px 3px;">DESC</td>
-      <td style="padding:3px 0 3px 3px;text-align:right;width:68px;">AMT</td>
+      <td style="padding:3px 0;width:24px;">QTY</td>
+      <td style="padding:3px 2px;">DESC</td>
+      <td style="padding:3px 2px;text-align:right;width:52px;">PRICE</td>
+      <td style="padding:3px 0 3px 2px;text-align:right;width:56px;">AMT</td>
     </tr>
   </table>
 
@@ -231,34 +200,25 @@ function buildReceiptHTML(order: any, paperSize: PaperSize): string {
 
   ${customerSection}
 
-  <!-- Footer -->
-  <!-- FIX: Replaced "•" bullet with "-" dash — special chars can garble on thermal -->
   <div style="margin-top:8px;padding-top:6px;border-top:1.5px dashed #000;text-align:center;font-size:9px;">
     <strong>Thank you for your patronage!</strong><br>
     <span style="font-size:8px;">${order.orderNumber} - ${dateStr}</span>
-    <div style="margin-top:6px;width:40px;height:40px;background:#f0f0f0;display:inline-flex;
-                align-items:center;justify-content:center;font-size:7px;">
-      QR CODE
-    </div>
   </div>
-
 </body>
 </html>`
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-
 export default function SimpleReceiptPage() {
-  const params  = useParams()
-  const router  = useRouter()
+  const params = useParams()
+  const router = useRouter()
   const orderId = params.id as string
 
-  const [isLoading,  setIsLoading]  = useState(true)
+  const [isLoading, setIsLoading] = useState(true)
   const [salesOrder, setSalesOrder] = useState<any>(null)
   const [isPrinting, setIsPrinting] = useState(false)
-  const [copied,     setCopied]     = useState(false)
-  const [paperSize,  setPaperSize]  = useState<PaperSize>("thermal80mm")
-  const [showMenu,   setShowMenu]   = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [paperSize, setPaperSize] = useState<PaperSize>("thermal80mm")
+  const [showMenu, setShowMenu] = useState(false)
 
   useEffect(() => { loadSalesOrder() }, [orderId])
 
@@ -280,12 +240,11 @@ export default function SimpleReceiptPage() {
     }
   }
 
-  // ── Print ────────────────────────────────────────────────────────────────
   const handlePrint = () => {
     if (!salesOrder) return
     setIsPrinting(true)
     const html = buildReceiptHTML(salesOrder, paperSize)
-    const win  = window.open("", "_blank", "width=400,height=600")
+    const win = window.open("", "_blank", "width=400,height=600")
     if (!win) {
       toast.error("Please allow pop-ups for printing")
       setIsPrinting(false)
@@ -300,7 +259,6 @@ export default function SimpleReceiptPage() {
     setTimeout(() => setIsPrinting(false), 1500)
   }
 
-  // ── Share text ───────────────────────────────────────────────────────────
   const getReceiptText = () => {
     if (!salesOrder) return ""
     const s  = salesOrder.subtotal     || 0
@@ -310,7 +268,7 @@ export default function SimpleReceiptPage() {
     const total = s + t + sh - d
     let txt = `🧾 *HABIFAZZY ENTERPRISE*\nReceipt ${salesOrder.orderNumber}\n${new Date(salesOrder.createdAt).toLocaleDateString()}\n\n*ITEMS:*\n`
     salesOrder.lines?.forEach((line: any) => {
-      txt += `${line.quantity}x ${line.item?.name} — GHS${((line.quantity||0)*(line.unitPrice||0)).toFixed(2)}\n`
+      txt += `${line.quantity}x ${line.item?.name} @ GHS${(line.unitPrice||0).toFixed(2)} — GHS${((line.quantity||0)*(line.unitPrice||0)).toFixed(2)}\n`
     })
     txt += `\n*TOTAL: GHS${total.toFixed(2)}*\nPayment: ${salesOrder.paymentMethod || "CASH"}\n\nThank you for your patronage!`
     return txt
@@ -334,7 +292,6 @@ export default function SimpleReceiptPage() {
     toast.success("Receipt downloaded")
   }
 
-  // ── Loading / Not found ──────────────────────────────────────────────────
   if (isLoading) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <Spinner className="size-8 mr-3" />
@@ -353,15 +310,13 @@ export default function SimpleReceiptPage() {
   const discount  = salesOrder.discount     || 0
   const shipping  = salesOrder.shippingCost || 0
   const total     = subtotal + taxAmount + shipping - discount
-  // FONT: Courier Prime — typewriter-style monospace, matches classic
-  // receipt-printer output (see FIX note in buildReceiptHTML above).
   const ocrFont   = `'Courier Prime', 'Courier New', Courier, monospace`
 
   return (
     <div className="min-h-screen bg-gray-100 p-4">
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap');`}</style>
 
-      {/* ── Toolbar ─────────────────────────────────────────────────────── */}
+      {/* Toolbar */}
       <div className="max-w-lg mx-auto mb-5">
         <div className="bg-white rounded-xl shadow-sm px-4 py-3 flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
@@ -374,7 +329,6 @@ export default function SimpleReceiptPage() {
             </Link>
           </div>
           <div className="flex items-center gap-2">
-            {/* Paper size picker */}
             <div className="relative">
               <Button variant="outline" size="sm" onClick={() => setShowMenu(v => !v)} className="gap-1.5 text-xs">
                 <Printer className="w-3.5 h-3.5" />
@@ -397,7 +351,6 @@ export default function SimpleReceiptPage() {
                 </>
               )}
             </div>
-            {/* Share */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-1.5 text-xs">
@@ -414,7 +367,6 @@ export default function SimpleReceiptPage() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            {/* Print */}
             <Button size="sm" onClick={handlePrint} disabled={isPrinting} className="gap-1.5 text-xs min-w-[110px]">
               {isPrinting ? <Spinner className="w-3.5 h-3.5" /> : <Printer className="w-3.5 h-3.5" />}
               {isPrinting ? "Printing…" : "Print Receipt"}
@@ -423,14 +375,14 @@ export default function SimpleReceiptPage() {
         </div>
       </div>
 
-      {/* ── Screen Preview ───────────────────────────────────────────────── */}
+      {/* Screen Preview */}
       <div className="max-w-xs mx-auto">
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-          <div className="p-6 leading-relaxed" style={{ fontFamily: ocrFont, fontSize: "11px", fontWeight: 700 }}>
+          <div className="p-5 leading-relaxed" style={{ fontFamily: ocrFont, fontSize: "10px", fontWeight: 700 }}>
 
             {/* Store header */}
             <div className="text-center border-b border-dashed border-gray-300 pb-3 mb-3">
-              <div style={{ fontWeight: 800, fontSize: "13px", letterSpacing: "1px" }}>HABIFAZZY ENTERPRISE</div>
+              <div style={{ fontWeight: 800, fontSize: "12px", letterSpacing: "1px" }}>HABIFAZZY ENTERPRISE</div>
               <div className="text-gray-700 mt-0.5">Aprade-mesewam junction</div>
               <div className="text-gray-700">Digital Address: AA-T1257-6693</div>
               <div className="text-gray-700">Aprade, Ghana</div>
@@ -447,7 +399,6 @@ export default function SimpleReceiptPage() {
               <div style={{ fontWeight: 800 }} className="mt-1">RECEIPT NO. {salesOrder.orderNumber}</div>
             </div>
 
-            {/* Staff / payment */}
             <div className="flex justify-between text-gray-800 mb-1">
               <span>TABLE 1</span>
               <span>STAFF {salesOrder.createdBy?.name?.split(" ")[0]?.toUpperCase() || "CASHIER"}</span>
@@ -459,9 +410,10 @@ export default function SimpleReceiptPage() {
 
             {/* Column headers */}
             <div className="flex justify-between border-t-2 border-b border-black py-1 mb-2" style={{ fontWeight: 800 }}>
-              <span style={{ width: "28px", flexShrink: 0 }}>QTY</span>
+              <span style={{ width: "24px", flexShrink: 0 }}>QTY</span>
               <span className="flex-1 px-1">DESC</span>
-              <span style={{ width: "72px", textAlign: "right", flexShrink: 0 }}>AMT</span>
+              <span style={{ width: "50px", textAlign: "right", flexShrink: 0 }}>PRICE</span>
+              <span style={{ width: "50px", textAlign: "right", flexShrink: 0 }}>AMT</span>
             </div>
 
             {/* Line items */}
@@ -469,22 +421,29 @@ export default function SimpleReceiptPage() {
               {salesOrder.lines?.map((line: any) => {
                 let displayQty  = `${line.quantity}`
                 let displayDesc = line.item?.name || "Unknown"
-                let displayAmt  = (line.quantity || 0) * (line.unitPrice || 0)
+                let unitPrice   = line.unitPrice || 0
+                let displayAmt  = (line.quantity || 0) * unitPrice
+
                 try {
                   if (line.notes) {
                     const meta = JSON.parse(line.notes)
                     if (meta.tierId) {
                       displayQty = `${meta.packQty} ${meta.tierName}`
-                      displayAmt = meta.packQty * meta.wholesalePricePerPack
+                      unitPrice  = meta.wholesalePricePerPack
+                      displayAmt = meta.packQty * unitPrice
                     }
                   }
                 } catch { /* ok */ }
+
                 return (
                   <div key={line.id} className="flex items-start">
-                    <span style={{ width: "28px", flexShrink: 0, fontWeight: 700 }}>{displayQty}</span>
+                    <span style={{ width: "24px", flexShrink: 0, fontWeight: 700 }}>{displayQty}</span>
                     <span className="flex-1 px-1">{displayDesc}</span>
-                    <span style={{ width: "72px", textAlign: "right", flexShrink: 0, fontWeight: 700 }}>
-                      GHS{displayAmt.toFixed(2)}
+                    <span style={{ width: "50px", textAlign: "right", flexShrink: 0, fontWeight: 700 }}>
+                      {unitPrice.toFixed(2)}
+                    </span>
+                    <span style={{ width: "50px", textAlign: "right", flexShrink: 0, fontWeight: 700 }}>
+                      {displayAmt.toFixed(2)}
                     </span>
                   </div>
                 )
@@ -500,22 +459,21 @@ export default function SimpleReceiptPage() {
               ].filter(r => r.show).map(r => (
                 <div key={r.label} className="flex items-center">
                   <span className="flex-1">{r.label}</span>
-                  <span style={{ width: "72px", textAlign: "right", flexShrink: 0 }}>GHS{r.value.toFixed(2)}</span>
+                  <span style={{ width: "90px", textAlign: "right", flexShrink: 0 }}>GHS{r.value.toFixed(2)}</span>
                 </div>
               ))}
               {discount > 0 && (
                 <div className="flex items-center text-red-600">
                   <span className="flex-1">DISCOUNT</span>
-                  <span style={{ width: "72px", textAlign: "right", flexShrink: 0 }}>-GHS{discount.toFixed(2)}</span>
+                  <span style={{ width: "90px", textAlign: "right", flexShrink: 0 }}>-GHS{discount.toFixed(2)}</span>
                 </div>
               )}
-              <div className="flex items-center border-t-2 border-black pt-2 mt-1" style={{ fontWeight: 800, fontSize: "13px" }}>
+              <div className="flex items-center border-t-2 border-black pt-2 mt-1" style={{ fontWeight: 800, fontSize: "12px" }}>
                 <span className="flex-1">TOTAL</span>
-                <span style={{ width: "72px", textAlign: "right", flexShrink: 0 }}>GHS{total.toFixed(2)}</span>
+                <span style={{ width: "90px", textAlign: "right", flexShrink: 0 }}>GHS{total.toFixed(2)}</span>
               </div>
             </div>
 
-            {/* Customer */}
             {salesOrder.customer && (
               <div className="border-t border-dashed border-gray-400 pt-2 mt-3">
                 <div style={{ fontWeight: 800 }}>CUSTOMER</div>
@@ -524,14 +482,11 @@ export default function SimpleReceiptPage() {
               </div>
             )}
 
-            {/* Footer */}
             <div className="border-t border-dashed border-gray-400 mt-3 pt-3 text-center">
               <div style={{ fontWeight: 800 }}>Thank you for your patronage!</div>
               <div className="text-gray-500 mt-1" style={{ fontSize: "9px" }}>
                 {salesOrder.orderNumber} - {new Date(salesOrder.createdAt).toLocaleDateString()}
               </div>
-              <div className="mt-3 w-10 h-10 bg-gray-100 rounded mx-auto flex items-center justify-center text-gray-400"
-                style={{ fontSize: "7px" }}>QR CODE</div>
             </div>
           </div>
         </div>
