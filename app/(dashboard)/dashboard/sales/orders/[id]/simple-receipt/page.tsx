@@ -1,4 +1,3 @@
-// app/dashboard/sales/order/[id]/simple-receipt/page.tsx
 "use client"
 
 import { useState, useEffect } from "react"
@@ -48,7 +47,7 @@ function buildReceiptHTML(order: any, paperSize: PaperSize): string {
       if (line.notes) {
         const meta = JSON.parse(line.notes)
         if (meta.tierId) {
-          displayQty  = `${meta.packQty} ${meta.tierName}`
+          displayQty   = `${meta.packQty} ${meta.tierName}`
           unitPrice   = meta.wholesalePricePerPack
           displayAmt  = meta.packQty * unitPrice
         }
@@ -57,46 +56,46 @@ function buildReceiptHTML(order: any, paperSize: PaperSize): string {
 
     return `
       <tr>
-        <td style="padding:2px 0;vertical-align:top;width:24px;white-space:nowrap;">${displayQty}</td>
-        <td style="padding:2px 2px;vertical-align:top;word-break:break-word;">${displayDesc}</td>
-        <td style="padding:2px 2px;vertical-align:top;text-align:right;white-space:nowrap;width:52px;">${unitPrice.toFixed(2)}</td>
-        <td style="padding:2px 0 2px 2px;vertical-align:top;text-align:right;white-space:nowrap;width:56px;">${displayAmt.toFixed(2)}</td>
+        <td style="padding:3px 0;vertical-align:top;width:28px;white-space:nowrap;">${displayQty}</td>
+        <td style="padding:3px 3px;vertical-align:top;word-break:break-word;">${displayDesc}</td>
+        <td style="padding:3px 3px;vertical-align:top;text-align:right;white-space:nowrap;width:58px;">${unitPrice.toFixed(2)}</td>
+        <td style="padding:3px 0 3px 3px;vertical-align:top;text-align:right;white-space:nowrap;width:62px;">${displayAmt.toFixed(2)}</td>
       </tr>`
   }).join("")
 
   // ── Totals rows ──────────────────────────────────────────────────────────
   let totalRows = `
     <tr>
-      <td colspan="3" style="padding:2px 0;">SUBTOTAL</td>
-      <td style="text-align:right;padding:2px 0 2px 2px;white-space:nowrap;">GHS${subtotal.toFixed(2)}</td>
+      <td colspan="3" style="padding:3px 0;">SUBTOTAL</td>
+      <td style="text-align:right;padding:3px 0 3px 3px;white-space:nowrap;">GHS${subtotal.toFixed(2)}</td>
     </tr>`
 
   if (taxAmount > 0) totalRows += `
     <tr>
-      <td colspan="3" style="padding:2px 0;">TAX</td>
-      <td style="text-align:right;padding:2px 0 2px 2px;white-space:nowrap;">GHS${taxAmount.toFixed(2)}</td>
+      <td colspan="3" style="padding:3px 0;">TAX</td>
+      <td style="text-align:right;padding:3px 0 3px 3px;white-space:nowrap;">GHS${taxAmount.toFixed(2)}</td>
     </tr>`
 
   if (discount > 0) totalRows += `
     <tr>
-      <td colspan="3" style="padding:2px 0;color:#c00;">DISCOUNT</td>
-      <td style="text-align:right;padding:2px 0 2px 2px;white-space:nowrap;color:#c00;">-GHS${discount.toFixed(2)}</td>
+      <td colspan="3" style="padding:3px 0;color:#c00;">DISCOUNT</td>
+      <td style="text-align:right;padding:3px 0 3px 3px;white-space:nowrap;color:#c00;">-GHS${discount.toFixed(2)}</td>
     </tr>`
 
   if (shipping > 0) totalRows += `
     <tr>
-      <td colspan="3" style="padding:2px 0;">SHIPPING</td>
-      <td style="text-align:right;padding:2px 0 2px 2px;white-space:nowrap;">GHS${shipping.toFixed(2)}</td>
+      <td colspan="3" style="padding:3px 0;">SHIPPING</td>
+      <td style="text-align:right;padding:3px 0 3px 3px;white-space:nowrap;">GHS${shipping.toFixed(2)}</td>
     </tr>`
 
   totalRows += `
-    <tr style="border-top:2px solid #000;font-size:${paperSize === "thermal80mm" ? "11px" : "13px"};">
-      <td colspan="3" style="padding:4px 0 2px;">TOTAL</td>
-      <td style="text-align:right;padding:4px 0 2px 2px;white-space:nowrap;">GHS${total.toFixed(2)}</td>
+    <tr style="border-top:2px solid #000;font-size:${paperSize === "thermal80mm" ? "14px" : "15px"};">
+      <td colspan="3" style="padding:6px 0 3px;">TOTAL</td>
+      <td style="text-align:right;padding:6px 0 3px 3px;white-space:nowrap;">GHS${total.toFixed(2)}</td>
     </tr>`
 
   const customerSection = order.customer ? `
-    <div style="border-top:1px dashed #000;margin:6px 0;padding-top:6px;font-size:9px;">
+    <div style="border-top:1px dashed #000;margin:8px 0;padding-top:8px;font-size:13px;">
       <strong>CUSTOMER</strong><br>
       ${order.customer.name}
       ${order.customer.phone ? `<br>Tel: ${order.customer.phone}` : ""}
@@ -129,16 +128,16 @@ function buildReceiptHTML(order: any, paperSize: PaperSize): string {
     @page { size: 80mm auto; margin: 0; }
     html, body {
       width: 70mm; margin: 0 auto; padding: 3mm;
-      font-family: ${ocrFontStack}; font-size: 9.5px; line-height: 1.4; background: white;
+      font-family: ${ocrFontStack}; font-size: 13px; line-height: 1.4; background: white;
     }`
 
   const letterCSS = `
     @page { size: letter; margin: 0.5in; }
-    html, body { width: 100%; max-width: 3.5in; margin: 0 auto; padding: 0; font-family: ${ocrFontStack}; font-size: 11px; background: white; }`
+    html, body { width: 100%; max-width: 3.5in; margin: 0 auto; padding: 0; font-family: ${ocrFontStack}; font-size: 14px; background: white; }`
 
   const a4CSS = `
     @page { size: A4; margin: 15mm; }
-    html, body { width: 100%; max-width: 90mm; margin: 0 auto; padding: 0; font-family: ${ocrFontStack}; font-size: 11px; background: white; }`
+    html, body { width: 100%; max-width: 90mm; margin: 0 auto; padding: 0; font-family: ${ocrFontStack}; font-size: 14px; background: white; }`
 
   const pageCSS = paperSize === "a4" ? a4CSS : paperSize === "letter" ? letterCSS : thermalCSS
 
@@ -153,20 +152,20 @@ function buildReceiptHTML(order: any, paperSize: PaperSize): string {
   <style>${boldPrintBase} ${pageCSS}</style>
 </head>
 <body>
-  <div style="text-align:center;margin-bottom:6px;padding-bottom:6px;border-bottom:1.5px dashed #000;">
-    <div style="font-weight:800;font-size:13px;letter-spacing:1px;">HABIFAZZY ENTERPRISE</div>
-    <div style="font-size:9px;margin-top:2px;">Aprade-Mesewam Junction</div>
-    <div style="font-size:9px;">Digital Address: AA-T1257-6693</div>
-    <div style="font-size:9px;">Sunyani, Ghana</div>
-    <div style="font-size:9px;margin-top:2px;">Tel: +233 246 668 686</div>
+  <div style="text-align:center;margin-bottom:8px;padding-bottom:8px;border-bottom:1.5px dashed #000;">
+    <div style="font-weight:800;font-size:15px;letter-spacing:1px;">HABIFAZZY ENTERPRISE</div>
+    <div style="font-size:13px;margin-top:2px;">Aprade-Mesewam Junction</div>
+    <div style="font-size:13px;">Digital Address: AA-T1257-6693</div>
+    <div style="font-size:13px;">Kumasi, Ghana</div>
+    <div style="font-size:13px;margin-top:2px;">Tel: +233 246 668 686</div>
   </div>
 
-  <div style="text-align:center;margin-bottom:6px;font-size:9px;">
+  <div style="text-align:center;margin-bottom:8px;font-size:13px;">
     ${dateStr}&nbsp;&nbsp;${timeStr}<br>
-    <span style="font-size:10px;font-weight:800;">RECEIPT NO. ${order.orderNumber}</span>
+    <span style="font-size:13px;font-weight:800;">RECEIPT NO. ${order.orderNumber}</span>
   </div>
 
-  <table style="margin-bottom:4px;font-size:9px;table-layout:fixed;">
+  <table style="margin-bottom:6px;font-size:13px;table-layout:fixed;">
     <tr>
       <td>TABLE 1</td>
       <td style="text-align:right;">STAFF ${cashierName}</td>
@@ -178,31 +177,31 @@ function buildReceiptHTML(order: any, paperSize: PaperSize): string {
   </table>
 
   <!-- Column headers with UNIT PRICE -->
-  <table style="border-top:2.5px solid #000;border-bottom:1.5px solid #000;margin:4px 0;font-size:9px;table-layout:fixed;">
+  <table style="border-top:2.5px solid #000;border-bottom:1.5px solid #000;margin:6px 0;font-size:13px;table-layout:fixed;">
     <tr>
-      <td style="padding:3px 0;width:24px;">QTY</td>
-      <td style="padding:3px 2px;">DESC</td>
-      <td style="padding:3px 2px;text-align:right;width:52px;">PRICE</td>
-      <td style="padding:3px 0 3px 2px;text-align:right;width:56px;">AMT</td>
+      <td style="padding:4px 0;width:28px;">QTY</td>
+      <td style="padding:4px 3px;">DESC</td>
+      <td style="padding:4px 3px;text-align:right;width:58px;">PRICE</td>
+      <td style="padding:4px 0 4px 3px;text-align:right;width:62px;">AMT</td>
     </tr>
   </table>
 
   <!-- Items -->
-  <table style="margin-bottom:4px;font-size:9px;table-layout:fixed;">
+  <table style="margin-bottom:6px;font-size:13px;table-layout:fixed;">
     ${itemRows}
   </table>
 
   <!-- Totals -->
-  <div style="border-top:1.5px dashed #000;margin:4px 0;"></div>
-  <table style="font-size:9px;table-layout:fixed;">
+  <div style="border-top:1.5px dashed #000;margin:6px 0;"></div>
+  <table style="font-size:13px;table-layout:fixed;">
     ${totalRows}
   </table>
 
   ${customerSection}
 
-  <div style="margin-top:8px;padding-top:6px;border-top:1.5px dashed #000;text-align:center;font-size:9px;">
+  <div style="margin-top:10px;padding-top:8px;border-top:1.5px dashed #000;text-align:center;font-size:13px;">
     <strong>Thank you for your patronage!</strong><br>
-    <span style="font-size:8px;">${order.orderNumber} - ${dateStr}</span>
+    <span style="font-size:10px;">${order.orderNumber} - ${dateStr}</span>
   </div>
 </body>
 </html>`
@@ -378,46 +377,46 @@ export default function SimpleReceiptPage() {
       {/* Screen Preview */}
       <div className="max-w-xs mx-auto">
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-          <div className="p-5 leading-relaxed" style={{ fontFamily: ocrFont, fontSize: "10px", fontWeight: 700 }}>
+          <div className="p-5 leading-relaxed" style={{ fontFamily: ocrFont, fontSize: "13px", fontWeight: 700 }}>
 
             {/* Store header */}
             <div className="text-center border-b border-dashed border-gray-300 pb-3 mb-3">
-              <div style={{ fontWeight: 800, fontSize: "12px", letterSpacing: "1px" }}>HABIFAZZY ENTERPRISE</div>
-              <div className="text-gray-700 mt-0.5">Aprade-mesewam junction</div>
-              <div className="text-gray-700">Digital Address: AA-T1257-6693</div>
-              <div className="text-gray-700">Aprade, Ghana</div>
-              <div className="text-gray-700 mt-0.5">Tel: 0246668686/ 0593041947</div>
+              <div style={{ fontWeight: 800, fontSize: "14px", letterSpacing: "1px" }}>HABIFAZZY ENTERPRISE</div>
+              <div className="text-gray-700 mt-0.5" style={{ fontSize: "13px" }}>Aprade-mesewam junction</div>
+              <div className="text-gray-700" style={{ fontSize: "13px" }}>Digital Address: AA-T1257-6693</div>
+              <div className="text-gray-700" style={{ fontSize: "13px" }}>Aprade, Ghana</div>
+              <div className="text-gray-700 mt-0.5" style={{ fontSize: "13px" }}>Tel: 0246668686/ 0593041947</div>
             </div>
 
             {/* Receipt meta */}
-            <div className="text-center mb-3">
+            <div className="text-center mb-3" style={{ fontSize: "13px" }}>
               <div className="text-gray-800">
                 {new Date(salesOrder.createdAt).toLocaleDateString("en-GH", { month: "2-digit", day: "2-digit", year: "numeric" })}
                 &nbsp;&nbsp;
                 {new Date(salesOrder.createdAt).toLocaleTimeString("en-GH", { hour: "2-digit", minute: "2-digit", hour12: true }).toUpperCase()}
               </div>
-              <div style={{ fontWeight: 800 }} className="mt-1">RECEIPT NO. {salesOrder.orderNumber}</div>
+              <div style={{ fontWeight: 800, fontSize: "14px" }} className="mt-1">RECEIPT NO. {salesOrder.orderNumber}</div>
             </div>
 
-            <div className="flex justify-between text-gray-800 mb-1">
+            <div className="flex justify-between text-gray-800 mb-1" style={{ fontSize: "13px" }}>
               <span>TABLE 1</span>
               <span>STAFF {salesOrder.createdBy?.name?.split(" ")[0]?.toUpperCase() || "CASHIER"}</span>
             </div>
-            <div className="flex justify-between text-gray-800 mb-3">
+            <div className="flex justify-between text-gray-800 mb-3" style={{ fontSize: "13px" }}>
               <span>{salesOrder.paymentMethod || "CASH"}</span>
               <span className="text-gray-500">REF: 19883</span>
             </div>
 
             {/* Column headers */}
-            <div className="flex justify-between border-t-2 border-b border-black py-1 mb-2" style={{ fontWeight: 800 }}>
-              <span style={{ width: "24px", flexShrink: 0 }}>QTY</span>
+            <div className="flex justify-between border-t-2 border-b border-black py-1.5 mb-2" style={{ fontWeight: 800, fontSize: "13px" }}>
+              <span style={{ width: "28px", flexShrink: 0 }}>QTY</span>
               <span className="flex-1 px-1">DESC</span>
-              <span style={{ width: "50px", textAlign: "right", flexShrink: 0 }}>PRICE</span>
-              <span style={{ width: "50px", textAlign: "right", flexShrink: 0 }}>AMT</span>
+              <span style={{ width: "58px", textAlign: "right", flexShrink: 0 }}>PRICE</span>
+              <span style={{ width: "62px", textAlign: "right", flexShrink: 0 }}>AMT</span>
             </div>
 
             {/* Line items */}
-            <div className="space-y-1.5 mb-3">
+            <div className="space-y-1.5 mb-3" style={{ fontSize: "13px" }}>
               {salesOrder.lines?.map((line: any) => {
                 let displayQty  = `${line.quantity}`
                 let displayDesc = line.item?.name || "Unknown"
@@ -437,12 +436,12 @@ export default function SimpleReceiptPage() {
 
                 return (
                   <div key={line.id} className="flex items-start">
-                    <span style={{ width: "24px", flexShrink: 0, fontWeight: 700 }}>{displayQty}</span>
+                    <span style={{ width: "28px", flexShrink: 0, fontWeight: 700 }}>{displayQty}</span>
                     <span className="flex-1 px-1">{displayDesc}</span>
-                    <span style={{ width: "50px", textAlign: "right", flexShrink: 0, fontWeight: 700 }}>
+                    <span style={{ width: "58px", textAlign: "right", flexShrink: 0, fontWeight: 700 }}>
                       {unitPrice.toFixed(2)}
                     </span>
-                    <span style={{ width: "50px", textAlign: "right", flexShrink: 0, fontWeight: 700 }}>
+                    <span style={{ width: "62px", textAlign: "right", flexShrink: 0, fontWeight: 700 }}>
                       {displayAmt.toFixed(2)}
                     </span>
                   </div>
@@ -451,7 +450,7 @@ export default function SimpleReceiptPage() {
             </div>
 
             {/* Totals */}
-            <div className="border-t border-dashed border-gray-400 pt-2 space-y-1">
+            <div className="border-t border-dashed border-gray-400 pt-2 space-y-1" style={{ fontSize: "13px" }}>
               {[
                 { label: "SUBTOTAL", value: subtotal,  show: true },
                 { label: "TAX",      value: taxAmount,  show: taxAmount > 0 },
@@ -468,23 +467,23 @@ export default function SimpleReceiptPage() {
                   <span style={{ width: "90px", textAlign: "right", flexShrink: 0 }}>-GHS{discount.toFixed(2)}</span>
                 </div>
               )}
-              <div className="flex items-center border-t-2 border-black pt-2 mt-1" style={{ fontWeight: 800, fontSize: "12px" }}>
+              <div className="flex items-center border-t-2 border-black pt-2 mt-1" style={{ fontWeight: 800, fontSize: "14px" }}>
                 <span className="flex-1">TOTAL</span>
                 <span style={{ width: "90px", textAlign: "right", flexShrink: 0 }}>GHS{total.toFixed(2)}</span>
               </div>
             </div>
 
             {salesOrder.customer && (
-              <div className="border-t border-dashed border-gray-400 pt-2 mt-3">
+              <div className="border-t border-dashed border-gray-400 pt-2 mt-3" style={{ fontSize: "13px" }}>
                 <div style={{ fontWeight: 800 }}>CUSTOMER</div>
                 <div className="text-gray-800">{salesOrder.customer.name}</div>
                 {salesOrder.customer.phone && <div className="text-gray-800">Tel: {salesOrder.customer.phone}</div>}
               </div>
             )}
 
-            <div className="border-t border-dashed border-gray-400 mt-3 pt-3 text-center">
+            <div className="border-t border-dashed border-gray-400 mt-3 pt-3 text-center" style={{ fontSize: "13px" }}>
               <div style={{ fontWeight: 800 }}>Thank you for your patronage!</div>
-              <div className="text-gray-500 mt-1" style={{ fontSize: "9px" }}>
+              <div className="text-gray-500 mt-1" style={{ fontSize: "10px" }}>
                 {salesOrder.orderNumber} - {new Date(salesOrder.createdAt).toLocaleDateString()}
               </div>
             </div>
