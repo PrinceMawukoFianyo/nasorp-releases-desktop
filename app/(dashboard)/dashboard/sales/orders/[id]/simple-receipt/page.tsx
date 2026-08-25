@@ -1,3 +1,4 @@
+// app/dashboard/sales/order/[id]/simple-receipt/page.tsx
 "use client"
 
 import { useState, useEffect } from "react"
@@ -23,6 +24,50 @@ const PAPER_LABELS: Record<PaperSize, string> = {
   a4: "A4 (210 × 297 mm)",
 }
 
+// ─── Shared helper: work out what a line item should display ────────────────
+// Handles three cases per your instructions:
+//   1. Plain retail line  -> just the retail unit price
+//   2. Wholesale/pack line -> retail per-pack price struck through + wholesale price
+//   3. Mixed order        -> each line decides for itself, independently
+function getLinePricing(line: any) {
+  const qty = line.quantity || 0
+  const retailUnitPrice = line.unitPrice || line.item?.sellingPrice || 0
+
+  let isWholesale = false
+  let displayQty: string | number = qty
+  let wholesalePerPack = 0
+  let retailPerPack = 0
+  let displayAmt = qty * retailUnitPrice
+
+  try {
+    if (line.notes) {
+      const meta = JSON.parse(line.notes)
+      if (meta.tierId) {
+        isWholesale = true
+        displayQty = `${meta.packQty} ${meta.tierName}`
+        wholesalePerPack = meta.wholesalePricePerPack || 0
+        // Retail equivalent for the same pack, so the customer can see the saving
+        const unitsPerPack = meta.unitsPerPack || 0
+        const retailFallback = line.item?.sellingPrice || 0
+        retailPerPack = unitsPerPack ? unitsPerPack * retailFallback : 0
+        displayAmt = (meta.packQty || 0) * wholesalePerPack
+      }
+    }
+  } catch {
+    /* plain notes, not JSON — treat as normal retail line */
+  }
+
+  return {
+    displayQty,
+    displayDesc: line.item?.name || "Unknown Item",
+    isWholesale,
+    retailUnitPrice,
+    retailPerPack,
+    wholesalePerPack,
+    displayAmt,
+  }
+}
+
 // ─── Build self-contained receipt HTML ───────────────────────────────────────
 function buildReceiptHTML(order: any, paperSize: PaperSize): string {
   const subtotal  = order.subtotal     || 0
@@ -38,28 +83,23 @@ function buildReceiptHTML(order: any, paperSize: PaperSize): string {
 
   // ── Items rows HTML ──────────────────────────────────────────────────────
   const itemRows = (order.lines ?? []).map((line: any) => {
-    let displayQty   = line.quantity
-    let displayDesc  = line.item?.name || "Unknown Item"
-    let unitPrice    = line.unitPrice || 0
-    let displayAmt   = (line.quantity || 0) * unitPrice
+    const p = getLinePricing(line)
 
-    try {
-      if (line.notes) {
-        const meta = JSON.parse(line.notes)
-        if (meta.tierId) {
-          displayQty   = `${meta.packQty} ${meta.tierName}`
-          unitPrice   = meta.wholesalePricePerPack
-          displayAmt  = meta.packQty * unitPrice
-        }
-      }
-    } catch { /* plain notes */ }
+    // Price cell: wholesale lines get the retail price struck through, stacked
+    // above the wholesale price (only when we actually know the retail figure —
+    // falls back to just the wholesale price if unitsPerPack wasn't recorded).
+    const priceCell = p.isWholesale
+      ? (p.retailPerPack > 0
+          ? `<div style="font-size:9px;line-height:1.15;text-decoration:line-through;opacity:0.55;">${p.retailPerPack.toFixed(2)}</div><div>${p.wholesalePerPack.toFixed(2)}</div>`
+          : `${p.wholesalePerPack.toFixed(2)}`)
+      : `${p.retailUnitPrice.toFixed(2)}`
 
     return `
       <tr>
-        <td style="padding:3px 0;vertical-align:top;width:28px;white-space:nowrap;">${displayQty}</td>
-        <td style="padding:3px 3px;vertical-align:top;word-break:break-word;">${displayDesc}</td>
-        <td style="padding:3px 3px;vertical-align:top;text-align:right;white-space:nowrap;width:58px;">${unitPrice.toFixed(2)}</td>
-        <td style="padding:3px 0 3px 3px;vertical-align:top;text-align:right;white-space:nowrap;width:62px;">${displayAmt.toFixed(2)}</td>
+        <td style="padding:3px 0;vertical-align:top;width:28px;white-space:nowrap;">${p.displayQty}</td>
+        <td style="padding:3px 3px;vertical-align:top;word-break:break-word;">${p.displayDesc}</td>
+        <td style="padding:3px 3px;vertical-align:top;text-align:right;white-space:nowrap;width:58px;">${priceCell}</td>
+        <td style="padding:3px 0 3px 3px;vertical-align:top;text-align:right;white-space:nowrap;width:62px;">${p.displayAmt.toFixed(2)}</td>
       </tr>`
   }).join("")
 
@@ -101,7 +141,10 @@ function buildReceiptHTML(order: any, paperSize: PaperSize): string {
       ${order.customer.phone ? `<br>Tel: ${order.customer.phone}` : ""}
     </div>` : ""
 
-  const ocrFontStack = `'Courier Prime', 'Courier New', Courier, monospace`
+  // Font stack: 'Share Tech Mono' with 'Courier New' fallback. Ported over from
+  // the older receipt template — Courier New renders every ASCII character
+  // reliably on thermal printers, avoiding bleed/garbling on #, +, 0, etc.
+  const ocrFontStack = `'Share Tech Mono', 'Courier New', Courier, monospace`
 
   const boldPrintBase = `
     * {
@@ -127,7 +170,7 @@ function buildReceiptHTML(order: any, paperSize: PaperSize): string {
   const thermalCSS = `
     @page { size: 80mm auto; margin: 0; }
     html, body {
-      width: 70mm; margin: 0 auto; padding: 3mm;
+      width: 70mm; margin: 0 auto; padding: 3mm 3mm 5mm 3mm;
       font-family: ${ocrFontStack}; font-size: 13px; line-height: 1.4; background: white;
     }`
 
@@ -148,7 +191,7 @@ function buildReceiptHTML(order: any, paperSize: PaperSize): string {
   <title>Receipt ${order.orderNumber}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
   <style>${boldPrintBase} ${pageCSS}</style>
 </head>
 <body>
@@ -202,6 +245,10 @@ function buildReceiptHTML(order: any, paperSize: PaperSize): string {
   <div style="margin-top:10px;padding-top:8px;border-top:1.5px dashed #000;text-align:center;font-size:13px;">
     <strong>Thank you for your patronage!</strong><br>
     <span style="font-size:10px;">${order.orderNumber} - ${dateStr}</span>
+    <div style="margin-top:6px;width:40px;height:40px;background:#f0f0f0;display:inline-flex;
+                align-items:center;justify-content:center;font-size:7px;">
+      QR CODE
+    </div>
   </div>
 </body>
 </html>`
@@ -267,7 +314,12 @@ export default function SimpleReceiptPage() {
     const total = s + t + sh - d
     let txt = `🧾 *HABIFAZZY ENTERPRISE*\nReceipt ${salesOrder.orderNumber}\n${new Date(salesOrder.createdAt).toLocaleDateString()}\n\n*ITEMS:*\n`
     salesOrder.lines?.forEach((line: any) => {
-      txt += `${line.quantity}x ${line.item?.name} @ GHS${(line.unitPrice||0).toFixed(2)} — GHS${((line.quantity||0)*(line.unitPrice||0)).toFixed(2)}\n`
+      const p = getLinePricing(line)
+      if (p.isWholesale) {
+        txt += `${p.displayQty}x ${p.displayDesc} (wholesale) — GHS${p.displayAmt.toFixed(2)}\n`
+      } else {
+        txt += `${p.displayQty}x ${p.displayDesc} @ GHS${p.retailUnitPrice.toFixed(2)} — GHS${p.displayAmt.toFixed(2)}\n`
+      }
     })
     txt += `\n*TOTAL: GHS${total.toFixed(2)}*\nPayment: ${salesOrder.paymentMethod || "CASH"}\n\nThank you for your patronage!`
     return txt
@@ -309,11 +361,11 @@ export default function SimpleReceiptPage() {
   const discount  = salesOrder.discount     || 0
   const shipping  = salesOrder.shippingCost || 0
   const total     = subtotal + taxAmount + shipping - discount
-  const ocrFont   = `'Courier Prime', 'Courier New', Courier, monospace`
+  const ocrFont   = `'Share Tech Mono', 'Courier New', Courier, monospace`
 
   return (
     <div className="min-h-screen bg-gray-100 p-4">
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap');`}</style>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');`}</style>
 
       {/* Toolbar */}
       <div className="max-w-lg mx-auto mb-5">
@@ -418,31 +470,27 @@ export default function SimpleReceiptPage() {
             {/* Line items */}
             <div className="space-y-1.5 mb-3" style={{ fontSize: "13px" }}>
               {salesOrder.lines?.map((line: any) => {
-                let displayQty  = `${line.quantity}`
-                let displayDesc = line.item?.name || "Unknown"
-                let unitPrice   = line.unitPrice || 0
-                let displayAmt  = (line.quantity || 0) * unitPrice
-
-                try {
-                  if (line.notes) {
-                    const meta = JSON.parse(line.notes)
-                    if (meta.tierId) {
-                      displayQty = `${meta.packQty} ${meta.tierName}`
-                      unitPrice  = meta.wholesalePricePerPack
-                      displayAmt = meta.packQty * unitPrice
-                    }
-                  }
-                } catch { /* ok */ }
-
+                const p = getLinePricing(line)
                 return (
                   <div key={line.id} className="flex items-start">
-                    <span style={{ width: "28px", flexShrink: 0, fontWeight: 700 }}>{displayQty}</span>
-                    <span className="flex-1 px-1">{displayDesc}</span>
+                    <span style={{ width: "28px", flexShrink: 0, fontWeight: 700 }}>{p.displayQty}</span>
+                    <span className="flex-1 px-1">{p.displayDesc}</span>
                     <span style={{ width: "58px", textAlign: "right", flexShrink: 0, fontWeight: 700 }}>
-                      {unitPrice.toFixed(2)}
+                      {p.isWholesale ? (
+                        <>
+                          {p.retailPerPack > 0 && (
+                            <div style={{ fontSize: "9px", textDecoration: "line-through", opacity: 0.55, fontWeight: 500 }}>
+                              {p.retailPerPack.toFixed(2)}
+                            </div>
+                          )}
+                          <div>{p.wholesalePerPack.toFixed(2)}</div>
+                        </>
+                      ) : (
+                        p.retailUnitPrice.toFixed(2)
+                      )}
                     </span>
                     <span style={{ width: "62px", textAlign: "right", flexShrink: 0, fontWeight: 700 }}>
-                      {displayAmt.toFixed(2)}
+                      {p.displayAmt.toFixed(2)}
                     </span>
                   </div>
                 )
@@ -486,6 +534,8 @@ export default function SimpleReceiptPage() {
               <div className="text-gray-500 mt-1" style={{ fontSize: "10px" }}>
                 {salesOrder.orderNumber} - {new Date(salesOrder.createdAt).toLocaleDateString()}
               </div>
+              <div className="mt-3 w-10 h-10 bg-gray-100 rounded mx-auto flex items-center justify-center text-gray-400"
+                style={{ fontSize: "7px" }}>QR CODE</div>
             </div>
           </div>
         </div>
