@@ -85,34 +85,32 @@ function buildReceiptHTML(order: any, paperSize: PaperSize): string {
   const cashierName = order.createdBy?.name?.split(" ")[0]?.toUpperCase() || "CASHIER"
 
   // ── Items rows HTML ──────────────────────────────────────────────────────
-  // Modern two-line-per-item layout: item name + total align on one line
-  // (safe at any width), with a small breakdown line underneath only when
-  // it's actually needed — clearly labeled WHOLESALE so it's unmistakable,
-  // or a plain "qty × price" for retail lines bought more than once.
+  // Back to the QTY | DESC | PRICE | AMT column layout — but fixed this time:
+  // QTY always stays a plain short number (never the tier name, which is what
+  // caused "Half"/"Box" to wrap onto broken lines before). The tier name lives
+  // as a small subtitle under the item name instead, and the PRICE column
+  // shows the retail price struck through above the wholesale price for
+  // wholesale lines.
   const itemRows = (order.lines ?? []).map((line: any) => {
     const p = getLinePricing(line)
 
-    let breakdown = ""
-    if (p.isWholesale) {
-      const wasNote = p.retailPerPack > 0
-        ? ` <span style="text-decoration:line-through;opacity:0.5;">GHS${p.retailPerPack.toFixed(2)}</span>`
-        : ""
-      breakdown = `<span style="font-weight:800;">WHOLESALE</span> · ${p.displayQty} × ${p.tierLabel || "pack"}${wasNote}`
-    } else if (p.displayQty !== 1) {
-      breakdown = `${p.displayQty} × GHS${p.retailUnitPrice.toFixed(2)}`
-    }
+    const priceCell = p.isWholesale
+      ? (p.retailPerPack > 0
+          ? `<div style="font-size:9px;line-height:1.15;text-decoration:line-through;opacity:0.55;">${p.retailPerPack.toFixed(2)}</div><div>${p.wholesalePerPack.toFixed(2)}</div>`
+          : `${p.wholesalePerPack.toFixed(2)}`)
+      : `${p.retailUnitPrice.toFixed(2)}`
 
-    const nameRow = `
+    const descCell = p.isWholesale
+      ? `${p.displayDesc}<div style="font-size:9px;opacity:0.65;font-weight:500;margin-top:1px;"><span style="font-weight:800;">WHOLESALE</span> · ${p.tierLabel || "pack"}</div>`
+      : p.displayDesc
+
+    return `
       <tr>
-        <td style="padding:4px 6px 0 0;font-weight:800;word-break:break-word;">${p.displayDesc}</td>
-        <td style="text-align:right;padding:4px 0 0;font-weight:800;white-space:nowrap;">GHS${p.displayAmt.toFixed(2)}</td>
+        <td style="padding:3px 0;vertical-align:top;width:24px;white-space:nowrap;">${p.displayQty}</td>
+        <td style="padding:3px 3px;vertical-align:top;word-break:break-word;">${descCell}</td>
+        <td style="padding:3px 3px;vertical-align:top;text-align:right;white-space:nowrap;width:58px;">${priceCell}</td>
+        <td style="padding:3px 0 3px 3px;vertical-align:top;text-align:right;white-space:nowrap;width:62px;">${p.displayAmt.toFixed(2)}</td>
       </tr>`
-
-    const breakdownRow = breakdown
-      ? `<tr><td colspan="2" style="padding:0 0 3px;font-size:10px;opacity:0.65;">${breakdown}</td></tr>`
-      : `<tr><td colspan="2" style="padding:0 0 2px;"></td></tr>`
-
-    return nameRow + breakdownRow
   }).join("")
 
   // ── Totals rows ──────────────────────────────────────────────────────────
@@ -233,16 +231,16 @@ function buildReceiptHTML(order: any, paperSize: PaperSize): string {
 
   <!-- Column headers -->
   <table style="border-top:2.5px solid #000;border-bottom:1.5px solid #000;margin:6px 0;font-size:13px;table-layout:fixed;">
-    <colgroup><col><col style="width:80px;"></colgroup>
     <tr>
-      <td style="padding:4px 0;">ITEM</td>
-      <td style="padding:4px 0;text-align:right;">AMOUNT</td>
+      <td style="padding:4px 0;width:24px;">QTY</td>
+      <td style="padding:4px 3px;">DESC</td>
+      <td style="padding:4px 3px;text-align:right;width:58px;">PRICE</td>
+      <td style="padding:4px 0 4px 3px;text-align:right;width:62px;">AMT</td>
     </tr>
   </table>
 
   <!-- Items -->
   <table style="margin-bottom:6px;font-size:13px;table-layout:fixed;">
-    <colgroup><col><col style="width:80px;"></colgroup>
     ${itemRows}
   </table>
 
@@ -473,44 +471,50 @@ export default function SimpleReceiptPage() {
 
             {/* Column headers */}
             <div className="flex justify-between border-t-2 border-b border-black py-1.5 mb-2" style={{ fontWeight: 800, fontSize: "13px" }}>
-              <span>ITEM</span>
-              <span>AMOUNT</span>
+              <span style={{ width: "24px", flexShrink: 0 }}>QTY</span>
+              <span className="flex-1 px-1">DESC</span>
+              <span style={{ width: "58px", textAlign: "right", flexShrink: 0 }}>PRICE</span>
+              <span style={{ width: "62px", textAlign: "right", flexShrink: 0 }}>AMT</span>
             </div>
 
-            {/* Line items — modern layout: name + total on one line (always fits),
-                a small breakdown line underneath only when needed */}
-            <div className="mb-3" style={{ fontSize: "13px" }}>
+            {/* Line items */}
+            <div className="space-y-1.5 mb-3" style={{ fontSize: "13px" }}>
               {salesOrder.lines?.map((line: any) => {
                 const p = getLinePricing(line)
-                const showBreakdown = p.isWholesale || p.displayQty !== 1
                 return (
-                  <div key={line.id} className="mb-2">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <span style={{ fontWeight: 800 }}>{p.displayDesc}</span>
-                      <span style={{ fontWeight: 800, whiteSpace: "nowrap" }}>GHS{p.displayAmt.toFixed(2)}</span>
-                    </div>
-                    {showBreakdown && (
-                      <div style={{ fontSize: "10px", opacity: 0.65, marginTop: "1px" }}>
-                        {p.isWholesale ? (
-                          <>
-                            <span
-                              className="inline-block rounded px-1 mr-1"
-                              style={{ fontWeight: 800, fontSize: "9px", background: "#fff1f2", color: "#e11d48" }}
-                            >
-                              WHOLESALE
-                            </span>
-                            {p.displayQty} × {p.tierLabel || "pack"}
-                            {p.retailPerPack > 0 && (
-                              <span style={{ textDecoration: "line-through", opacity: 0.7, marginLeft: "4px" }}>
-                                GHS{p.retailPerPack.toFixed(2)}
-                              </span>
-                            )}
-                          </>
-                        ) : (
-                          <>{p.displayQty} × GHS{p.retailUnitPrice.toFixed(2)}</>
-                        )}
-                      </div>
-                    )}
+                  <div key={line.id} className="flex items-start">
+                    <span style={{ width: "24px", flexShrink: 0, fontWeight: 700 }}>{p.displayQty}</span>
+                    <span className="flex-1 px-1">
+                      {p.displayDesc}
+                      {p.isWholesale && (
+                        <div style={{ fontSize: "9px", marginTop: "1px" }}>
+                          <span
+                            className="inline-block rounded px-1 mr-1"
+                            style={{ fontWeight: 800, fontSize: "9px", background: "#fff1f2", color: "#e11d48" }}
+                          >
+                            WHOLESALE
+                          </span>
+                          <span style={{ opacity: 0.65, fontWeight: 500 }}>{p.tierLabel || "pack"}</span>
+                        </div>
+                      )}
+                    </span>
+                    <span style={{ width: "58px", textAlign: "right", flexShrink: 0, fontWeight: 700 }}>
+                      {p.isWholesale ? (
+                        <>
+                          {p.retailPerPack > 0 && (
+                            <div style={{ fontSize: "9px", textDecoration: "line-through", opacity: 0.55, fontWeight: 500 }}>
+                              {p.retailPerPack.toFixed(2)}
+                            </div>
+                          )}
+                          <div>{p.wholesalePerPack.toFixed(2)}</div>
+                        </>
+                      ) : (
+                        p.retailUnitPrice.toFixed(2)
+                      )}
+                    </span>
+                    <span style={{ width: "62px", textAlign: "right", flexShrink: 0, fontWeight: 700 }}>
+                      {p.displayAmt.toFixed(2)}
+                    </span>
                   </div>
                 )
               })}
