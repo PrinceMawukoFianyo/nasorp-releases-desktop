@@ -1,7 +1,7 @@
 // lib/auth.ts
 import { getServerSession } from "next-auth/next";
 import { redirect } from "next/navigation";
-import { Role, User } from "@prisma/client";
+import { Role, User } from "@/generated/prisma-client";
 import { authOptions } from "./auth";
 
 // Type for authenticated user with permissions

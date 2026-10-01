@@ -33,5 +33,5 @@
     ".next/types/**/*.ts",
     "react.d.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "prisma/db-local.ts", "lib/sync-engine.ts", "electron"]
 }

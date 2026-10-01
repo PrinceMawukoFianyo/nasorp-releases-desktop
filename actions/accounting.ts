@@ -2,7 +2,8 @@
 // actions/accounting.ts
 // Expense and PayrollEntry models exist in schema.prisma — DB calls are active.
 
-import { db }                   from "@/prisma/db";
+import { getDb } from "@/lib/get-db";
+const db = getDb();
 import { getAuthenticatedUser } from "@/config/useAuth";
 import { revalidatePath }       from "next/cache";
 
@@ -71,6 +72,7 @@ export async function createExpense(data: ExpenseCreateInput): Promise<{
         recordedBy:  user.name ?? user.email ?? "Staff",
         isPayroll:   data.isPayroll ?? data.category === "Payroll",
         notes:       data.notes ?? null,
+        syncStatus:  "pending",
       },
     });
     revalidatePath("/dashboard/accounting");
@@ -151,6 +153,7 @@ export async function createPayrollEntry(data: PayrollCreateInput): Promise<{
         date:         data.date ? new Date(data.date) : new Date(),
         status:       data.status ?? "PENDING",
         notes:        data.notes ?? null,
+        syncStatus:  "pending",
       },
     });
     revalidatePath("/dashboard/accounting");

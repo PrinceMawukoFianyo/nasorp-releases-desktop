@@ -2,7 +2,8 @@
 "use server"
 
 import { getAuthenticatedUser } from "@/config/useAuth"
-import { db } from "@/prisma/db"
+import { getDb } from "@/lib/get-db"
+const db = getDb()
 import { revalidatePath } from "next/cache"
 
 interface POSLineItem {
@@ -171,6 +172,7 @@ export async function createPOSSale(data: CreatePOSSaleData) {
         notes:        data.notes        || "",
         orgId:        user.orgId,
         createdById:  user.id,
+        syncStatus:   "pending",        // ← add this line
         lines: { create: lineItems },
       },
       include: {
@@ -618,6 +620,7 @@ export async function createQuickCustomer(data: {
         phone: data.phone || null,
         orgId: user.orgId,
         isActive: true,
+        syncStatus: "pending",
       },
     })
 

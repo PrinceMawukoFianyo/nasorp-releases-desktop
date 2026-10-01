@@ -1,12 +1,9 @@
 "use server";
 import { getAuthenticatedUser } from "@/config/useAuth";
-import { db } from "@/prisma/db";
-import { BriefItemDTO, ItemCreateProps, ProductResponse, ProductData} from "@/types/item";
-import { LocationCreateProps, LocationResponse } from "@/types/location";
+import { getDb } from "@/lib/get-db";
+const db = getDb();
+import {  ProductData} from "@/types/item";
 import { CustomerCreateProps, CustomerResponse } from "@/types/customer";
-import { LocationType } from "@prisma/client";
-import axios from "axios";
-import { truncate, truncateSync } from "fs";
 import { revalidatePath } from "next/cache";
 
 
@@ -58,7 +55,8 @@ export async function createCustomer(data: CustomerCreateProps) {
     const customer = await db.customer.create({
       data: {
         ...data,
-        orgId
+        orgId,
+        syncStatus: "pending",
       },
     });
 

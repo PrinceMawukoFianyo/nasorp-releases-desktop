@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
-import { Saving } from "@prisma/client";
+import { Saving } from "@/generated/prisma-client";
 import { SavingProps } from "@/types/types";
 import FormHeader from "./FormHeader";
 import TextInput from "../FormInputs/TextInput";

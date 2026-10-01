@@ -27,7 +27,6 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { toast } from "sonner"
 import {
   getPOSItems,
-  searchPOSItems,
   getPOSCategories,
   getPOSCustomers,
   getPOSLocations,
@@ -160,6 +159,96 @@ function ScanOverlay({ fb }: { fb: ScanFeedback }) {
     </div>
   )
 }
+
+type ReceiptLine = { name: string; qty: number; unitPrice: number; total: number }
+type ReceiptOrderData = {
+  orderNumber: string
+  date: string
+  customerName: string
+  paymentMethod: string
+  lines: ReceiptLine[]
+  subtotal: number
+  tax: number
+  discount: number
+  shipping: number
+  total: number
+}
+
+function ReceiptOverlay({
+    open, onClose, order, orgName = "HABIFAZZY ENTERPRISE",
+  }: {
+    open: boolean
+    onClose: () => void
+    order: ReceiptOrderData | null
+    orgName?: string
+  }) {
+    if (!open || !order) return null
+
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center">
+        {/* Blurred backdrop — the POS behind fades and blurs */}
+        <div
+          className="absolute inset-0 bg-black/30 backdrop-blur-sm no-print"
+          onClick={onClose}
+        />
+
+        {/* Receipt card */}
+        <div
+          id="receipt-print-area"
+          className="relative z-10 bg-white w-[340px] max-h-[85vh] overflow-y-auto rounded-xl shadow-2xl p-6 font-mono text-xs animate-in zoom-in-95 fade-in duration-150"
+        >
+          <div className="text-center mb-4">
+            <p className="font-bold text-sm">{orgName}</p>
+            <p className="text-[10px] text-slate-500">Sales Receipt</p>
+          </div>
+
+          <div className="flex justify-between text-[10px] mb-1">
+            <span>Receipt #</span><span>{order.orderNumber}</span>
+          </div>
+          <div className="flex justify-between text-[10px] mb-1">
+            <span>Date</span><span>{order.date}</span>
+          </div>
+          <div className="flex justify-between text-[10px] mb-3">
+            <span>Customer</span><span>{order.customerName}</span>
+          </div>
+
+          <div className="border-t border-dashed border-slate-300 my-2" />
+
+          {order.lines.map((l, i) => (
+            <div key={i} className="mb-1">
+              <div className="flex justify-between">
+                <span className="truncate max-w-[180px]">{l.name}</span>
+                <span>{l.total.toFixed(2)}</span>
+              </div>
+              <div className="text-[9px] text-slate-400">{l.qty} × {l.unitPrice.toFixed(2)}</div>
+            </div>
+          ))}
+
+          <div className="border-t border-dashed border-slate-300 my-2" />
+
+          <div className="flex justify-between text-[10px]"><span>Subtotal</span><span>{order.subtotal.toFixed(2)}</span></div>
+          {order.tax > 0 && <div className="flex justify-between text-[10px]"><span>Tax</span><span>{order.tax.toFixed(2)}</span></div>}
+          {order.discount > 0 && <div className="flex justify-between text-[10px]"><span>Discount</span><span>-{order.discount.toFixed(2)}</span></div>}
+          {order.shipping > 0 && <div className="flex justify-between text-[10px]"><span>Shipping</span><span>{order.shipping.toFixed(2)}</span></div>}
+
+          <div className="flex justify-between font-bold text-sm border-t border-slate-400 pt-2 mt-2">
+            <span>TOTAL</span><span>GHS {order.total.toFixed(2)}</span>
+          </div>
+          <p className="text-center text-[9px] text-slate-400 mt-1">Paid via {order.paymentMethod}</p>
+          <p className="text-center text-[9px] text-slate-400 mt-4">Thank you for your business!</p>
+
+          <div className="flex gap-2 mt-5 no-print">
+            <Button variant="outline" className="flex-1 h-9 text-xs" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button className="flex-1 h-9 text-xs bg-blue-600 hover:bg-blue-700" onClick={() => window.print()}>
+              <Receipt className="w-3.5 h-3.5 mr-1" /> Print
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -416,6 +505,9 @@ export default function POSPage() {
 
   const [categories,       setCategories]       = useState<any[]>([])
   const [items,            setItems]            = useState<any[]>([])
+  // NEW: full unfiltered catalog for the currently-loaded location, kept in
+  // memory so search can filter instantly without hitting the server.
+  const [allItemsCache,    setAllItemsCache]    = useState<any[]>([])
   const [customers,        setCustomers]        = useState<any[]>([])
   const [locations,        setLocations]        = useState<any[]>([])
   const [tiersMap,         setTiersMap]         = useState<Record<string, PricingTierRecord[]>>({})
@@ -469,6 +561,7 @@ export default function POSPage() {
 
   const [newCustomer,     setNewCustomer]     = useState({ name: "", email: "", phone: "" })
   const [lastOrderId,     setLastOrderId]     = useState("")
+  const [receiptData, setReceiptData] = useState<ReceiptOrderData | null>(null)
   const [lastOrderNumber, setLastOrderNumber] = useState("")
 
   const [isLoading,        setIsLoading]        = useState(true)
@@ -493,12 +586,41 @@ export default function POSPage() {
   useEffect(() => {
     if (selectedLocation === "") return // no location chosen yet — show nothing
 
+    // Hydrate instantly from localStorage (if present) so the grid isn't
+    // empty while the network request is in flight, and so browsing/search
+    // still works if the connection is down. loadItems() below refreshes
+    // this in the background whenever it succeeds.
+    const cacheKey = `pos-items-${selectedLocation}`
+    try {
+      const cached = localStorage.getItem(cacheKey)
+      if (cached) {
+        const parsed = JSON.parse(cached)
+        setItems(parsed)
+        setAllItemsCache(parsed)
+        buildTiersMap(parsed)
+      }
+    } catch { /* ignore corrupt cache */ }
+
     const locId = selectedLocation === "ALL" ? undefined : selectedLocation
     loadItems(locId)
 
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedLocation])
+
+  // NEW: the instant the success modal appears, open the receipt in a new
+  // tab with ?autoprint=1 so the browser print dialog (Print / Cancel) pops
+  // up on its own — no extra clicks needed. If the browser blocks this
+  // (first-time popup policy), the "Print Receipt Again" button in the
+  // modal is the manual fallback.
+  //useEffect(() => {
+  //  if (showInvoiceModal && lastOrderId) {
+  //    const t = setTimeout(() => {
+  //      window.open(`/dashboard/sales/orders/${lastOrderId}/simple-receipt?autoprint=1`, "_blank")
+  //    }, 250)
+  //    return () => clearTimeout(t)
+  //  }
+  //}, [showInvoiceModal, lastOrderId])
   // ──────────────────────────────────────────────────────────────────────────
 
   const loadData = async () => {
@@ -535,8 +657,14 @@ export default function POSPage() {
           }
         })
         setItems(normalised)
+        setAllItemsCache(normalised) // keep the full unfiltered list for instant search
         buildTiersMap(normalised)
         setSearchQuery("")
+
+        // Mirror to localStorage so next load (or offline) starts warm.
+        try {
+          localStorage.setItem(`pos-items-${locationId ?? "ALL"}`, JSON.stringify(normalised))
+        } catch { /* quota exceeded — non-fatal, just skip caching */ }
       }
     } catch (err) { console.error(err) }
   }
@@ -815,6 +943,16 @@ export default function POSPage() {
       })
 
       if (result.success && result.orderId && result.orderNumber) {
+        setReceiptData({
+          orderNumber: result.orderNumber,
+          date: new Date().toLocaleString("en-GH"),
+          customerName: selectedCustomerData?.name ?? "Walk-in Customer",
+          paymentMethod,
+          lines: cart.map(l => ({
+            name: l.name, qty: l.totalUnits, unitPrice: l.lineUnitPrice, total: l.lineTotal,
+          })),
+          subtotal, tax: totalTax, discount, shipping, total: grandTotal,
+        })
         setLastOrderId(result.orderId)
         setLastOrderNumber(result.orderNumber)
         setShowPaymentModal(false)
@@ -854,7 +992,7 @@ export default function POSPage() {
   const resetPOS = () => {
     setCart([]); setSelectedCustomer(""); setDiscount(0); setShipping(0)
     setShowInvoiceModal(false); setLastOrderId(""); setLastOrderNumber("")
-    setLastScanValue(null)
+    setLastScanValue(null); setReceiptData(null)
   }
 
   const selectedCustomerData = customers.find(c => c.id === selectedCustomer)
@@ -885,6 +1023,18 @@ export default function POSPage() {
       <div className="bg-white border-b shadow-sm">
         <div className="px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                if (cart.length > 0 && !confirm("Leave POS? Current cart items will be lost.")) return
+                router.push("/dashboard")
+              }}
+              className="h-9 w-9 sm:h-10 sm:w-10 shrink-0 text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+              title="Back to Dashboard"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
             <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg shrink-0">
               <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
@@ -970,7 +1120,7 @@ export default function POSPage() {
 
             {lastOrderId && (
               <div className="flex items-center gap-2 bg-blue-50 rounded-lg p-2 border border-blue-200">
-                <Button onClick={() => window.open(`/dashboard/sales/orders/${lastOrderId}/simple-receipt`, "_blank")}
+                <Button onClick={() => window.open(`/dashboard/sales/orders/${lastOrderId}/simple-receipt?autoprint=1`, "_blank")}
                   size="sm" variant="ghost" className="h-8 gap-1 px-2 text-blue-700 hover:bg-blue-100" title="Simple Receipt">
                   <Receipt className="w-3 h-3" /> <span className="hidden sm:inline">Simple Receipt</span>
                 </Button>
@@ -1041,26 +1191,27 @@ export default function POSPage() {
               <Input placeholder="Search product code or name… (or just scan!)"
                 value={searchQuery}
                 onChange={e => {
+                  // Instant, client-side filtering against the in-memory
+                  // catalog — no network round-trip, works offline, no
+                  // debounce needed since there's nothing to wait on.
                   const q = e.target.value
                   setSearchQuery(q)
-                  clearTimeout((window as any).__posSearchTimer)
-                  ;(window as any).__posSearchTimer = setTimeout(async () => {
-                    try {
-                      // Convert "ALL" → undefined so the backend returns all items.
-                      // Passing the literal string "ALL" would be treated as a real
-                      // location ID, match nothing, and return an empty list.
-                      const locId = (!selectedLocation || selectedLocation === "ALL")
-                        ? undefined
-                        : selectedLocation
-                      const res = q.trim()
-                        ? await searchPOSItems(q.trim(), locId)
-                        : await getPOSItems(locId)
-                      if (res.success && res.data) {
-                        setItems(res.data)
-                        buildTiersMap(res.data)
-                      }
-                    } catch (err) { console.error("POS search error:", err) }
-                  }, 300)
+
+                  if (!q.trim()) {
+                    setItems(allItemsCache)
+                    buildTiersMap(allItemsCache)
+                    return
+                  }
+
+                  const lq = q.trim().toLowerCase()
+                  const filtered = allItemsCache.filter(item =>
+                    item.name?.toLowerCase().includes(lq) ||
+                    item.sku?.toLowerCase().includes(lq) ||
+                    item.barcode?.toLowerCase().includes(lq) ||
+                    item.description?.toLowerCase().includes(lq)
+                  )
+                  setItems(filtered)
+                  buildTiersMap(filtered)
                 }}
                 className="pl-11 h-11" />
             </div>
@@ -1542,23 +1693,34 @@ export default function POSPage() {
       </Dialog>
 
       {/* Success */}
-      <Dialog open={showInvoiceModal} onOpenChange={setShowInvoiceModal}>
+      {/* Receipt — blurred backdrop, print or cancel */}
+        <ReceiptOverlay
+          open={showInvoiceModal}
+          order={receiptData}
+          onClose={() => {
+            setShowInvoiceModal(false)
+            resetPOS()
+          }}
+        />
+      {/*<Dialog open={showInvoiceModal} onOpenChange={setShowInvoiceModal}>
         <DialogContent className="sm:max-w-[450px]">
           <div className="p-6 text-center">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Check className="w-8 h-8 text-green-600" />
             </div>
             <h3 className="font-bold text-xl mb-2">Payment Successful!</h3>
-            <p className="text-slate-600 mb-4">Your transaction has been completed</p>
+            <p className="text-slate-600 mb-4">
+              Your transaction has been completed — the receipt should be opening to print automatically.
+            </p>
             <div className="bg-slate-50 rounded-lg p-4 mb-6">
               <p className="text-sm text-slate-600 mb-1">Receipt Number</p>
               <p className="font-bold text-lg text-slate-900">{lastOrderNumber}</p>
               <p className="text-sm text-slate-500 mt-2">{new Date().toLocaleString()}</p>
             </div>
             <div className="space-y-3">
-              <Button onClick={() => window.open(`/dashboard/sales/orders/${lastOrderId}/simple-receipt`, "_blank")}
+              <Button onClick={() => window.open(`/dashboard/sales/orders/${lastOrderId}/simple-receipt?autoprint=1`, "_blank")}
                 className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700">
-                <Receipt className="w-4 h-4 mr-2" /> View Simple Receipt
+                <Receipt className="w-4 h-4 mr-2" /> Print Receipt Again
               </Button>
               <Button onClick={() => window.open(`/dashboard/sales/orders/${lastOrderId}/invoice`, "_blank")}
                 variant="outline" className="w-full">
@@ -1570,7 +1732,7 @@ export default function POSPage() {
             </div>
           </div>
         </DialogContent>
-      </Dialog>
+      </Dialog>*/}
     </div>
   )
 }

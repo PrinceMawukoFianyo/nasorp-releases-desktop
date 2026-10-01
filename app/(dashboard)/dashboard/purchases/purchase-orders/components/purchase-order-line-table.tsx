@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import PurchaseOrderLineItem from "../create/purchase-order-line-item"
 import { formatCurrency } from "../po-utils"
-import { Decimal } from "@prisma/client/runtime/library"
+import { Decimal } from "@/generated/prisma-client/runtime/library"
 import { useSession } from "next-auth/react"
 
 interface LineItemData {

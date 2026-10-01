@@ -1,5 +1,7 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+  output   = "../generated/prisma-client"
 }
 
 datasource db {
@@ -22,6 +24,8 @@ model Account {
   id_token          String?
   session_state     String?
   user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  syncStatus String    @default("pending")
+  syncedAt   DateTime?
 
   @@unique([provider, providerAccountId])
 }
@@ -487,6 +491,8 @@ model Customer {
   salesOrders  SalesOrder[]
   salesReturns SalesReturn[]
   ManualDebt   ManualDebt[]
+  syncStatus String    @default("pending")
+  syncedAt   DateTime?
 
   @@index([email])
   @@index([phone])
@@ -520,6 +526,8 @@ model SalesOrder {
   lines         SalesOrderLine[]
   salesReturns  SalesReturn[]
   payments      SalesOrderPayment[]
+  syncStatus String    @default("pending")
+  syncedAt   DateTime?
 
   @@index([orderNumber])
   @@index([customerId])
@@ -542,6 +550,7 @@ model SalesOrderLine {
   updatedAt     DateTime   @updatedAt
   item          Item       @relation(fields: [itemId], references: [id])
   salesOrders   SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  
 
   @@index([salesOrderId])
   @@index([itemId])
@@ -907,6 +916,8 @@ model Expense {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   org         Organisation @relation(fields: [orgId], references: [id])
+  syncStatus String    @default("pending")
+  syncedAt   DateTime?
 }
 
 model PayrollEntry {
@@ -922,6 +933,8 @@ model PayrollEntry {
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
   org          Organisation @relation(fields: [orgId], references: [id])
+  syncStatus String    @default("pending")
+  syncedAt   DateTime?
 }
 
 model SupplierPayment {

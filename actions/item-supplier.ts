@@ -2,7 +2,7 @@
 
 import { db } from "@/prisma/db";
 import { revalidatePath } from 'next/cache';
-import { Decimal } from '@prisma/client/runtime/library';
+import { Decimal } from '@/generated/prisma-client/runtime/library';
 
 /**
  * Server action to create item suppliers

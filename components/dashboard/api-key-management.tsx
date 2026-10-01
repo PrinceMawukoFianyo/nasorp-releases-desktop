@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Eye, EyeOff, Copy, Check, Plus, X, Trash2, Edit2, Ban, RotateCcw, Key } from "lucide-react"
 import { toast } from "sonner"
 import { timeAgo } from "@/lib/timeAgo"
-import { ApiKey } from "@prisma/client"
+import { ApiKey } from "@/generated/prisma-client"
 import { createAPIKey, deleteAPIKey, revokeAPIKey, reactivateAPIKey } from "@/actions/apiKeys"
 
 // Extended type to track visibility state locally

@@ -7,7 +7,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { RoleFormData } from "@/types/types";
 import toast from "react-hot-toast";
-import { Role } from "@prisma/client";
+import { Role } from "@/generated/prisma-client";
 import FormFooter from "./FormFooter";
 import TextInput from "../FormInputs/TextInput";
 import { Checkbox } from "@/components/ui/checkbox";

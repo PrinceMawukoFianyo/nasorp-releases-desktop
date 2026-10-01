@@ -1,10 +1,11 @@
 // actions/sales-orders.ts - FIXED: Credit sales now always deduct stock
 "use server"
 
-import { db } from "@/prisma/db"
+import { getDb } from "@/lib/get-db"
+const db = getDb()
 import { getAuthenticatedUser } from "@/config/useAuth"
 import { revalidatePath } from "next/cache"
-import { SalesOrderStatus, PaymentStatus } from "@prisma/client"
+import { SalesOrderStatus, PaymentStatus } from "@/generated/prisma-client"
 import { Resend } from 'resend'
 import SalesOrderEmail, { SalesOrderEmailProps } from "@/components/email-templates/sales-order-email"
 
@@ -126,6 +127,7 @@ export async function createSalesOrder(data: {
           taxAmount:     data.taxAmount,
           orgId:         user.orgId,
           createdById:   user.id,
+          syncStatus:    "pending",
           lines: { create: data.lines.create },
         },
         include: {
@@ -1090,7 +1092,7 @@ export async function sendSOToCustomer(orderNumber: string): Promise<{ success: 
     if (!emailData.customer.email) throw new Error("Customer email address is not available")
 
     await resend.emails.send({
-      from: "Business Inventory <noreply@habifazzyenterprise .inventpmf.com>",
+      from: "Business Inventory <noreply@habifazzyenterprise.inventpmf.com>",
       to: emailData.customer.email ?? "",
       subject: `Credit Sales Confirmation ${emailData.salesOrder.orderNumber}`,
       react: SalesOrderEmail(emailData),

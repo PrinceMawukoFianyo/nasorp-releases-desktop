@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { User as PrismaUser } from "@prisma/client";
+import { User as PrismaUser } from "@/generated/prisma-client";
 
 import TextInput from "../FormInputs/TextInput";
 import FormFooter from "./FormFooter";

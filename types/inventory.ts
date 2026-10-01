@@ -1,4 +1,4 @@
-import { Location as PrismaLocation, Inventory as PrismaInventory, Item as PrismaItem, Category as PrismaCategory } from "@prisma/client"
+import { Location as PrismaLocation, Inventory as PrismaInventory, Item as PrismaItem, Category as PrismaCategory } from "@/generated/prisma-client"
 
 export interface LocationStock {
   id: string

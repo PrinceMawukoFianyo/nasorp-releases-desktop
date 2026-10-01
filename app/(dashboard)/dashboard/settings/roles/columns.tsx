@@ -5,7 +5,7 @@ import { Checkbox }        from "@/components/ui/checkbox";
 import DateColumn          from "@/components/DataTableColumns/DateColumn";
 import SortableColumn      from "@/components/DataTableColumns/SortableColumn";
 import { ColumnDef }       from "@tanstack/react-table";
-import { Role }            from "@prisma/client";
+import { Role }            from "@/generated/prisma-client";
 import { Button }          from "@/components/ui/button";
 import { Pencil, Trash2 }  from "lucide-react";
 import { useRouter }       from "next/navigation";

@@ -4,7 +4,7 @@ import { db } from "@/prisma/db"
 import { getAuthenticatedUser } from "@/config/useAuth"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
-import { PaymentStatus } from "@prisma/client"
+import { PaymentStatus } from "@/generated/prisma-client"
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 

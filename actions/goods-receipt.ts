@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { db } from '@/prisma/db'
-import { PurchaseOrderStatus, GoodsReceiptStatus } from '@prisma/client'
+import { PurchaseOrderStatus, GoodsReceiptStatus } from '@/generated/prisma-client'
 import { 
   CreateGoodsReceiptRequest, 
   UpdateGoodsReceiptStatusRequest, 

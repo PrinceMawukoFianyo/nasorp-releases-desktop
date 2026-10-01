@@ -1,7 +1,7 @@
 "use client"
 
 import UpdateCard from "./update-customer"
-import { Customer } from "@prisma/client"
+import { Customer } from "@/generated/prisma-client"
 import { updateCustomerById } from "@/actions/customers"
 import { toast } from "sonner"
 import ImageUploadField from "./image-upload-field"

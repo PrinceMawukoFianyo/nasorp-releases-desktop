@@ -3,7 +3,7 @@
 import Image from "next/image"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Customer } from "@prisma/client"
+import { Customer } from "@/generated/prisma-client"
 import { Building2, Mail, Phone } from "lucide-react"
 
 interface CustomerPreviewHeaderProps {

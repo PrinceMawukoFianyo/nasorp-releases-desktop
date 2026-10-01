@@ -6,7 +6,7 @@ const generateAPIKey = (): string => {
 import { adminPermissions, managerPermissions, userPermissions } from "../config/permissions";
 import { db } from "./db";
 import bcrypt from "bcryptjs";
-import { AdjustmentStatus, AdjustmentType, PaymentStatus, PurchaseOrderStatus, SalesOrderStatus, TransferStatus } from "@prisma/client";
+import { AdjustmentStatus, AdjustmentType, PaymentStatus, PurchaseOrderStatus, SalesOrderStatus, TransferStatus } from "@/generated/prisma-client";
 
 // Get current year for password generation
 const currentYear = new Date().getFullYear();

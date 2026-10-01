@@ -1,7 +1,7 @@
 "use server"
 
 import { db } from "@/prisma/db"
-import { PurchaseOrderStatus } from "@prisma/client"
+import { PurchaseOrderStatus } from "@/generated/prisma-client"
 import { getAuthenticatedUser } from "@/config/useAuth"
 import { revalidatePath } from "next/cache"
 import { Resend } from "resend"

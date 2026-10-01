@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trash2, Plus, Package, MapPin, Zap, Info } from "lucide-react";
 import ItemSelector from "./item-selector";
 import { formatCurrency } from "../po-utils";
-import { Decimal } from "@prisma/client/runtime/library";
+import { Decimal } from "@/generated/prisma-client/runtime/library";
 import {
   Select,
   SelectContent,

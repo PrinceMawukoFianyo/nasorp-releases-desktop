@@ -21,7 +21,7 @@ import {
   Options,
   SelectValue,
 } from "react-tailwindcss-select/dist/components/type";
-import { Role, User } from "@prisma/client";
+import { Role, User } from "@/generated/prisma-client";
 import FormFooter from "./FormFooter";
 import { createUser } from "@/actions/users";
 import { Lock } from "lucide-react";

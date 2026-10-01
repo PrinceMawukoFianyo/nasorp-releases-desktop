@@ -5,7 +5,7 @@ import { getAuthenticatedUser } from "@/config/useAuth";
 import { db } from "@/prisma/db";
 import { BriefItemDTO, ItemCreateProps, ProductResponse, ProductData} from "@/types/item";
 import { LocationCreateProps, LocationResponse } from "@/types/location";
-import { LocationType } from "@prisma/client";
+import { LocationType } from "@/generated/prisma-client";
 import axios from "axios";
 import { truncate, truncateSync } from "fs";
 import { revalidatePath } from "next/cache";

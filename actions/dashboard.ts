@@ -2,7 +2,8 @@
 'use server';
 
 import { getAuthenticatedUser } from "@/config/useAuth";
-import { db } from "@/prisma/db";
+import { getDb } from "@/lib/get-db";
+const db = getDb();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DATE RANGE HELPER — unchanged

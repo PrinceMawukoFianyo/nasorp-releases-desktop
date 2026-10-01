@@ -7,7 +7,7 @@ import SupplierPreviewHeader from "./supplier-preview-header"
 import BasicInfoTab from "./tabs/basic-info-tab"
 import { Spinner } from "@/components/ui/spinner"
 import { getSupplierById } from "@/actions/suppliers"
-import { Supplier } from "@prisma/client"
+import { Supplier } from "@/generated/prisma-client"
 
 export default function SupplierUpdatePage({
   params,

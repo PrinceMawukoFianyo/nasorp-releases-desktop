@@ -1,6 +1,7 @@
 "use server"
 
-import { db } from "@/prisma/db"
+import { getDb } from "@/lib/get-db"
+const db = getDb()
 import { Item, InventoryItem, LocationStock } from "@/types/inventory"
 
 // Clamp any DB value to minimum 0 to handle corrupted/negative data

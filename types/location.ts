@@ -1,4 +1,4 @@
-import { LocationType } from "@prisma/client";
+import { LocationType } from "@/generated/prisma-client";
 
 export type LocationCreateProps = {
   

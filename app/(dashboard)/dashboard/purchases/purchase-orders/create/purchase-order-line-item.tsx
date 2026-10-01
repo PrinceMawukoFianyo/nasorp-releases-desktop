@@ -2,7 +2,7 @@
 "use client"
 
 import { formatCurrency, formatDate } from "../po-utils"
-import { Decimal } from "@prisma/client/runtime/library"
+import { Decimal } from "@/generated/prisma-client/runtime/library"
 
 interface PurchaseOrderLineItemData {
   id: string

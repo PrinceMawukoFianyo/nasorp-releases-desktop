@@ -2,7 +2,8 @@
 
 import { getAuthenticatedApi } from "@/config/axios";
 import { getAuthenticatedUser } from "@/config/useAuth";
-import { db } from "@/prisma/db";
+import { getDb } from "@/lib/get-db"
+const db = getDb()
 import { BriefItemDTO, ItemCreateProps, ProductResponse, ProductData } from "@/types/item";
 import axios from "axios";
 import { revalidatePath } from "next/cache";

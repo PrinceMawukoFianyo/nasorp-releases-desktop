@@ -30,7 +30,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateLocation, useDeleteLocation, useOrgLocations, useUpdateLocation } from "@/hooks/useLocationQueries";
 import { LocationCreateProps, LocationResponse } from "@/types/location";
-import { LocationType } from "@prisma/client";
+import { LocationType } from "@/generated/prisma-client";
 
 interface LocationListingProps {
   title: string;

@@ -1,7 +1,7 @@
 "use client"
 
 import UpdateCard from "./update-card"
-import { Supplier } from "@prisma/client"
+import { Supplier } from "@/generated/prisma-client"
 import { updateSupplierById } from "@/actions/suppliers"
 import { toast } from "sonner"
 

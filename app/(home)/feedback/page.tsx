@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Bug, Lightbulb, ThumbsUp, MessagesSquare, Plus } from "lucide-react";
 import { getFeedback } from "@/actions/feedback";
-import { Feedback, FeedbackType } from "@prisma/client";
+import { Feedback, FeedbackType } from "@/generated/prisma-client";
 
 import DeleteFeedback from "@/components/action-btns/delete-feedback";
 import ApproveFeedback from "@/components/action-btns/approve-feedback";

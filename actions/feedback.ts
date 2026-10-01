@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/prisma/db";
-import { FeedbackType } from "@prisma/client";
+import { FeedbackType } from "@/generated/prisma-client";
 import { revalidatePath } from "next/cache";
 
 export async function createChangelog(data: {

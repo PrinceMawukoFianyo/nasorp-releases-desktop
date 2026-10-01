@@ -20,11 +20,16 @@ interface UserInvitationProps {
   orgLogo?: string; // Optional logo URL
 }
 
+// Base URL for resolving relative asset paths (logo, etc.)
+// Set NEXT_PUBLIC_APP_URL in your .env / Vercel project settings, e.g.
+// NEXT_PUBLIC_APP_URL=https://inventpmf.com
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://inventpmf.com';
+
 export const UserInvitation = ({
   roleName,
   orgName,
   linkUrl,
-  orgLogo = "/logo.svg", // Default to your logo
+  orgLogo = "/afkberimah_logo.svg", // Default to your logo
 }: UserInvitationProps) => (
   <Html>
     <Head />
@@ -34,7 +39,7 @@ export const UserInvitation = ({
         <Section style={box}>
           {/* Using your logo */}
           <Img
-            src={orgLogo.startsWith('http') ? orgLogo : `https://yourdomain.com${orgLogo}`}
+            src={orgLogo.startsWith('http') ? orgLogo : `${APP_URL}${orgLogo}`}
             width="180"
             height="60"
             alt={orgName}
@@ -145,4 +150,4 @@ const heroText = {
   lineHeight: '24px',
   marginBottom: '20px',
   color: '#333',
-};
+}

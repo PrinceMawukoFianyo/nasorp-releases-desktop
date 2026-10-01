@@ -1,18 +1,33 @@
-import { AuthOptions, NextAuthOptions } from "next-auth";
+import type { NextAuthOptions } from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import GoogleProvider from "next-auth/providers/google";
 import GitHubProvider from "next-auth/providers/github";
 import type { Adapter } from "next-auth/adapters";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
-import { db } from "@/prisma/db";
+import { authDb as db } from "@/prisma/auth-db";
+
+// Find the default org or create it once (avoids duplicate-slug errors)
+async function getOrCreateDefaultOrg() {
+  const existing = await db.organisation.findFirst({
+    where: { slug: "default-organization" },
+  });
+  if (existing) return existing;
+
+  return db.organisation.create({
+    data: {
+      name: "Default Organization",
+      slug: "default-organization",
+    },
+  });
+}
 
 // Helper function to get user with roles and permissions
 async function getUserWithRoles(userId: string) {
   const user = await db.user.findUnique({
     where: { id: userId },
     include: {
-      roles: true, // Include roles relation
+      roles: true,
     },
   });
 
@@ -31,10 +46,11 @@ async function getUserWithRoles(userId: string) {
 }
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(db) as Adapter,
+  adapter: PrismaAdapter(db as any) as unknown as Adapter,
   secret: process.env.NEXTAUTH_SECRET,
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days — cashier stays logged in across offline periods
   },
   pages: {
     signIn: "/login",
@@ -42,16 +58,10 @@ export const authOptions: NextAuthOptions = {
   providers: [
     GitHubProvider({
       async profile(profile) {
-        // Find or create default role
         const defaultRole = await db.role.findFirst({
           where: { roleName: "user" },
         });
-        const org = await db.organisation.create({
-        data: {
-          name: "Default Organization",
-          slug: "default-organization",
-        },
-      });
+        const org = await getOrCreateDefaultOrg();
 
         return {
           id: profile.id.toString(),
@@ -64,7 +74,7 @@ export const authOptions: NextAuthOptions = {
           orgId: org.id,
           orgName: org.name,
           roles: defaultRole ? [defaultRole] : [],
-          permissions: defaultRole ? defaultRole.permissions : [], // Include permissions from default role
+          permissions: defaultRole ? defaultRole.permissions : [],
         };
       },
       clientId: process.env.GITHUB_CLIENT_ID || "",
@@ -72,16 +82,10 @@ export const authOptions: NextAuthOptions = {
     }),
     GoogleProvider({
       async profile(profile) {
-        // Find or create default role
         const defaultRole = await db.role.findFirst({
           where: { roleName: "user" },
         });
-        const org = await db.organisation.create({
-        data: {
-          name: "Default Organization",
-          slug: "default-organization",
-        },
-      });
+        const org = await getOrCreateDefaultOrg();
 
         return {
           id: profile.sub,
@@ -94,7 +98,7 @@ export const authOptions: NextAuthOptions = {
           orgId: org.id,
           orgName: org.name,
           roles: defaultRole ? [defaultRole] : [],
-          permissions: defaultRole ? defaultRole.permissions : [], // Include permissions from default role
+          permissions: defaultRole ? defaultRole.permissions : [],
         };
       },
       clientId: process.env.GOOGLE_CLIENT_ID || "",
@@ -116,7 +120,7 @@ export const authOptions: NextAuthOptions = {
             where: { email: credentials.email },
             include: {
               roles: true,
-              organisation: true, 
+              organisation: true,
             },
           });
 
@@ -125,8 +129,8 @@ export const authOptions: NextAuthOptions = {
           }
 
           // Check password first
-          let passwordMatch: boolean = false;
-          if (existingUser && existingUser.password) {
+          let passwordMatch = false;
+          if (existingUser.password) {
             passwordMatch = await compare(
               credentials.password,
               existingUser.password
@@ -137,10 +141,10 @@ export const authOptions: NextAuthOptions = {
             throw { error: "Password Incorrect", status: 401 };
           }
 
-          // Check verification status after password
-          {/*if (!existingUser.isVerfied) {
-            throw { error: "User Not Verified", status: 401 };
-          }*/}
+          // Verification check (disabled for now)
+          // if (!existingUser.isVerfied) {
+          //   throw { error: "User Not Verified", status: 401 };
+          // }
 
           // Get all permissions from user's roles
           const permissions = existingUser.roles.flatMap(
@@ -175,22 +179,22 @@ export const authOptions: NextAuthOptions = {
       // For OAuth providers, assign default role if user is new
       if (
         account &&
-        (account.provider === "google" || account.provider === "github")
+        (account.provider === "google" || account.provider === "github") &&
+        user.email
       ) {
         const existingUser = await db.user.findUnique({
-          where: { email: user.email! },
+          where: { email: user.email },
           include: { roles: true },
         });
 
-        if (!existingUser?.roles?.length) {
-          // Assign default user role
+        if (existingUser && !existingUser.roles.length) {
           const defaultRole = await db.role.findFirst({
             where: { roleName: "user" },
           });
 
           if (defaultRole) {
             await db.user.update({
-              where: { email: user.email! },
+              where: { email: user.email },
               data: {
                 roles: {
                   connect: { id: defaultRole.id },
@@ -204,7 +208,7 @@ export const authOptions: NextAuthOptions = {
     },
     async jwt({ token, user }) {
       if (user) {
-        // For initial sign in
+        // Initial sign in — first login of a session always needs connectivity.
         token.id = user.id;
         token.name = user.name;
         token.email = user.email;
@@ -216,14 +220,23 @@ export const authOptions: NextAuthOptions = {
         token.orgId = user.orgId;
         token.orgName = user.orgName;
         token.permissions = user.permissions;
-      } else {
-        // For subsequent requests, refresh roles and permissions
-        const userData = await getUserWithRoles(token.id);
-        if (userData) {
-          token.roles = userData.roles;
-          token.permissions = userData.permissions;
-          token.orgId = userData.orgId;
-          token.orgName = userData.orgName;
+      } else if (token.id) {
+        // Subsequent requests — try to refresh roles/permissions, but if
+        // the DB is unreachable (offline), keep the cached values in the
+        // token instead of throwing. This keeps a logged-in user working offline.
+        try {
+          const userData = await getUserWithRoles(token.id);
+          if (userData) {
+            token.roles = userData.roles;
+            token.permissions = userData.permissions;
+            token.orgId = userData.orgId;
+            token.orgName = userData.orgName;
+          }
+        } catch (err) {
+          console.warn(
+            "Permission refresh skipped (offline or DB unreachable):",
+            err
+          );
         }
       }
       return token;
@@ -246,4 +259,3 @@ export const authOptions: NextAuthOptions = {
     },
   },
 };
-
