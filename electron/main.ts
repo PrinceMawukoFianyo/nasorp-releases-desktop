@@ -4,6 +4,7 @@ import { spawn, ChildProcess, execSync } from "child_process";
 import path from "path";
 import { startLocalPostgres, stopLocalPostgres } from "../prisma/db-local";
 import { pushPendingSalesToCloud, pullChangesFromCloud } from "../lib/sync-engine";
+import { autoUpdater } from "electron-updater";
 
 console.log("[env check] cloud sync:", cloudConfigured ? "configured" : "not configured (local-only)");
 if (process.env.DATABASE_URL?.includes("localhost")) {
@@ -154,6 +155,7 @@ app.whenReady().then(async () => {
   });
   mainWindow.loadURL(`http://localhost:${NEXT_PORT}`);
   startSyncLoop();
+  setupAutoUpdate();
 });
 
 app.on("window-all-closed", () => {
@@ -165,5 +167,31 @@ app.on("before-quit", (event) => {
   if (shuttingDown) return;
   event.preventDefault();
   shuttingDown = true;
-  shutdown().finally(() => app.exit(0));
+  shutdown().finally(() => app.quit());
 });
+
+function setupAutoUpdate() {
+  if (!app.isPackaged) return;
+
+  autoUpdater.on("error", (err) => console.error("[update] error:", err?.message ?? err));
+  autoUpdater.on("update-available", (i) => console.log("[update] downloading", i.version));
+  autoUpdater.on("update-downloaded", async (info) => {
+    const { response } = await dialog.showMessageBox(mainWindow, {
+      type: "info",
+      buttons: ["Restart now", "Later"],
+      defaultId: 0,
+      message: `Version ${info.version} is ready to install.`,
+      detail: "The app will close and reopen. Finish any sale in progress first.",
+    });
+    if (response === 0) {
+      shuttingDown = true;
+      await shutdown(); // stop Postgres and Next first so the installer can replace files
+      autoUpdater.quitAndInstall(true, true);
+    }
+  });
+
+  const check = () =>
+    autoUpdater.checkForUpdates().catch(() => console.log("[update] check skipped (offline?)"));
+  check();
+  setInterval(check, 4 * 60 * 60 * 1000);
+}
