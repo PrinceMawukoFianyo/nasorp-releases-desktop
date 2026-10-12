@@ -1,12 +1,7 @@
-// lib/get-db.ts
-import { db as neonDb } from "@/prisma/db";
-import { getLocalDb } from "@/prisma/db-local";
+import { db } from "@/prisma/db";
 
+// prisma/db.ts already returns the local database when running as the desktop app
+// and Neon everywhere else, so every caller gets the right one.
 export function getDb() {
-  // Set by Electron's main.ts when it spawns the Next.js process.
-  // Absent entirely when running as the normal web app (Vercel, npm run dev).
-  if (process.env.IS_DESKTOP_APP === "true") {
-    return getLocalDb();
-  }
-  return neonDb;
+  return db;
 }

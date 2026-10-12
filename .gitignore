@@ -18,7 +18,9 @@
 /out/
 
 # production
-/build
+/build/*
+!/build/icon.ico
+!/build/installer.nsh
 
 # misc
 .DS_Store

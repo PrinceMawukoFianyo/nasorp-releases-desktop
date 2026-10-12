@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Download, Printer, Search } from "lucide-react";
+import { ChevronDown, ChevronUp, Download, Printer, Search } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import type { SalesByItem, SalesSummary } from "@/actions/sales-reports";
 import { toast } from "sonner";
+import ItemTransactionStatement from "./Itemtransactionstatement";
 
 interface SalesByItemReportProps {
   data: {
@@ -30,6 +31,9 @@ export default function SalesByItemReport({ data }: SalesByItemReportProps) {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [sortBy, setSortBy] = useState("revenue");
   const [dateRange, setDateRange] = useState("30");
+  const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
+  const toggleItem = (id: string) =>
+    setExpandedItemId((cur) => (cur === id ? null : id));
 
   // Get unique categories
   const categories = Array.from(new Set(items.map(item => item.category).filter(Boolean)));
@@ -326,6 +330,7 @@ export default function SalesByItemReport({ data }: SalesByItemReportProps) {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b">
+                      <th className="w-12 p-3" />
                       <th className="text-left p-3 text-sm font-semibold">Item</th>
                       <th className="text-left p-3 text-sm font-semibold">Category</th>
                       <th className="text-right p-3 text-sm font-semibold">Qty Sold</th>
@@ -335,29 +340,64 @@ export default function SalesByItemReport({ data }: SalesByItemReportProps) {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredItems.map((item) => (
-                      <tr key={item.itemId} className="border-b hover:bg-muted/50">
-                        <td className="p-3">
-                          <div>
-                            <p className="font-medium">{item.itemName}</p>
-                            <p className="text-xs text-muted-foreground">{item.sku}</p>
-                          </div>
-                        </td>
-                        <td className="p-3">
-                          {item.category && (
-                            <Badge variant="outline">{item.category}</Badge>
+                    {filteredItems.map((item) => {
+                      const isOpen = expandedItemId === item.itemId;
+                      return (
+                        <Fragment key={item.itemId}>
+                          <tr
+                            className="border-b hover:bg-muted/50 cursor-pointer"
+                            onClick={() => toggleItem(item.itemId)}
+                          >
+                            <td className="p-3">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8"
+                                aria-label={isOpen ? "Hide statement" : "Show statement"}
+                                aria-expanded={isOpen}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleItem(item.itemId);
+                                }}
+                              >
+                                {isOpen ? (
+                                  <ChevronUp className="h-4 w-4" />
+                                ) : (
+                                  <ChevronDown className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </td>
+                            <td className="p-3">
+                              <div>
+                                <p className="font-medium">{item.itemName}</p>
+                                <p className="text-xs text-muted-foreground">{item.sku}</p>
+                              </div>
+                            </td>
+                            <td className="p-3">
+                              {item.category && (
+                                <Badge variant="outline">{item.category}</Badge>
+                              )}
+                            </td>
+                            <td className="text-right p-3 font-semibold">
+                              {item.totalQuantitySold.toLocaleString()}
+                            </td>
+                            <td className="text-right p-3 font-semibold text-green-600">
+                              {formatCurrency(item.totalRevenue)}
+                            </td>
+                            <td className="text-right p-3">{formatCurrency(item.averagePrice)}</td>
+                            <td className="text-right p-3">{item.totalOrders}</td>
+                          </tr>
+                          {isOpen && (
+                            <tr className="border-b">
+                              <td colSpan={7} className="p-0">
+                                <ItemTransactionStatement itemId={item.itemId} />
+                              </td>
+                            </tr>
                           )}
-                        </td>
-                        <td className="text-right p-3 font-semibold">
-                          {item.totalQuantitySold.toLocaleString()}
-                        </td>
-                        <td className="text-right p-3 font-semibold text-green-600">
-                          {formatCurrency(item.totalRevenue)}
-                        </td>
-                        <td className="text-right p-3">{formatCurrency(item.averagePrice)}</td>
-                        <td className="text-right p-3">{item.totalOrders}</td>
-                      </tr>
-                    ))}
+                        </Fragment>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

@@ -279,7 +279,7 @@ export async function getSalesOrderById(id: string) {
         lines: {
           include: {
             item: {
-              select: { id: true, name: true, sku: true, description: true, unit: true },
+              select: { id: true, name: true, sku: true, description: true, unit: true, sellingPrice: true  },
             },
           },
           orderBy: { createdAt: "asc" },

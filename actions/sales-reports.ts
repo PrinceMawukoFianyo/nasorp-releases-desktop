@@ -598,3 +598,163 @@ export async function getSalesSummaryReport(days = 30, fromDate?: Date, toDate?:
 export async function getSalesReportWithDateRange(fromDate?: Date, toDate?: Date) {
   return getSalesReport(30, fromDate, toDate);
 }
+
+// ============================================
+// ITEM TRANSACTION STATEMENT (drop-down + print)
+// ============================================
+
+export interface ItemStatementLine {
+  orderId:       string;
+  orderNumber:   string;
+  date:          string;   // "6 Oct 2026"
+  time:          string;   // "14:32"
+  customerName:  string;
+  soldBy:        string;
+  locationName:  string;
+  saleType:      "SINGLE" | "WHOLESALE";
+  tierName:      string | null;
+  packQuantity:  number;
+  unitsPerPack:  number;
+  quantity:      number;   // actual units deducted from stock
+  unitPrice:     number;   // price per unit charged
+  lineTotal:     number;
+  paymentStatus: string;
+}
+
+export interface ItemStatement {
+  item: {
+    id:           string;
+    name:         string;
+    sku:          string;
+    category?:    string;
+    costPrice:    number;
+    sellingPrice: number;
+    dateAdded:    string;   // when the item was first inputted
+  };
+  lines: ItemStatementLine[];
+  totals: {
+    orders:           number;
+    totalQuantity:    number;
+    singleQuantity:   number;
+    wholesaleQuantity: number;
+    totalRevenue:     number;
+    singleRevenue:    number;
+    wholesaleRevenue: number;
+    firstSale:        string | null;
+    lastSale:         string | null;
+  };
+  rangeLabel: string;
+}
+
+/**
+ * Full sales record for ONE item.
+ * days = null  → all time
+ */
+export async function getItemTransactionStatement(
+  itemId: string,
+  days: number | null = 30
+): Promise<ItemStatement | null> {
+  const user  = await getAuthenticatedUser();
+  const orgId = user.orgId;
+
+  const item = await db.item.findFirst({
+    where: { id: itemId, orgId },
+    include: { category: true },
+  });
+  if (!item) return null;
+
+  const startDate = days ? startOfDay(subDays(new Date(), days)) : undefined;
+
+  const orders = await db.salesOrder.findMany({
+    where: {
+      orgId,
+      status: { not: "CANCELLED" },
+      ...(startDate ? { createdAt: { gte: startDate } } : {}),
+      lines: { some: { itemId } },
+    },
+    include: {
+      customer: true,
+      location: { select: { name: true } },
+      // ⚠️ "Sold by" — rename `createdBy` if your SalesOrder uses a different
+      // relation name (e.g. `user`, `soldBy`, `cashier`).
+      createdBy: { select: { name: true } },
+      // only this item's lines
+      lines: { where: { itemId } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const lines: ItemStatementLine[] = [];
+
+  for (const order of orders as any[]) {
+    for (const line of order.lines as any[]) {
+      let tierName: string | null = null;
+      let tierId:   string | null = null;
+      let packQty      = 1;
+      let unitsPerPack = 1;
+      let packPrice    = line.unitPrice as number;
+
+      try {
+        if (line.notes) {
+          const meta = JSON.parse(line.notes as string);
+          tierName     = meta.tierName              ?? null;
+          tierId       = meta.tierId                ?? null;
+          packQty      = meta.packQty               ?? 1;
+          unitsPerPack = meta.unitsPerPack          ?? 1;
+          packPrice    = meta.wholesalePricePerPack ?? line.unitPrice;
+        }
+      } catch { /* plain-text notes → single sale */ }
+
+      const isWholesale = !!tierId;
+
+      lines.push({
+        orderId:       order.id,
+        orderNumber:   order.orderNumber || order.id,
+        date:          format(order.createdAt, "d MMM yyyy"),
+        time:          format(order.createdAt, "HH:mm"),
+        customerName:  order.customer?.name || "Walk-in",
+        soldBy:        order.createdBy?.name || "—",
+        locationName:  order.location?.name || "N/A",
+        saleType:      isWholesale ? "WHOLESALE" : "SINGLE",
+        tierName:      isWholesale ? tierName : null,
+        packQuantity:  isWholesale ? packQty : line.quantity,
+        unitsPerPack:  isWholesale ? unitsPerPack : 1,
+        quantity:      line.quantity,
+        unitPrice:     isWholesale ? packPrice / unitsPerPack : line.unitPrice,
+        lineTotal:     line.total ?? line.quantity * line.unitPrice,
+        paymentStatus: order.paymentStatus,
+      });
+    }
+  }
+
+  const sum = (arr: ItemStatementLine[], k: "quantity" | "lineTotal") =>
+    arr.reduce((s, l) => s + l[k], 0);
+
+  const single    = lines.filter((l) => l.saleType === "SINGLE");
+  const wholesale = lines.filter((l) => l.saleType === "WHOLESALE");
+
+  return {
+    item: {
+      id:           item.id,
+      name:         item.name,
+      sku:          item.sku,
+      category:     (item as any).category?.title,
+      costPrice:    ((item as any).costPrice as number) ?? 0,
+      sellingPrice: ((item as any).sellingPrice as number) ?? 0,
+      dateAdded:    format((item as any).createdAt, "d MMM yyyy, HH:mm"),
+    },
+    lines,
+    totals: {
+      orders:            new Set(lines.map((l) => l.orderId)).size,
+      totalQuantity:     sum(lines, "quantity"),
+      singleQuantity:    sum(single, "quantity"),
+      wholesaleQuantity: sum(wholesale, "quantity"),
+      totalRevenue:      sum(lines, "lineTotal"),
+      singleRevenue:     sum(single, "lineTotal"),
+      wholesaleRevenue:  sum(wholesale, "lineTotal"),
+      firstSale:         lines.length ? lines[lines.length - 1].date : null,
+      lastSale:          lines.length ? lines[0].date : null,
+    },
+    rangeLabel: days ? `Last ${days} days` : "All time",
+  };
+}

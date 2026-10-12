@@ -1,7 +1,7 @@
 // app/dashboard/sales/pos/page.tsx
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef} from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -28,9 +28,10 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { Spinner } from "@/components/ui/spinner"
-import { getSalesOrders } from "@/actions/sales-orders"
 import { formatCurrency, formatDate } from "../orders/so-utils"
 import type { SalesOrder } from "@/types/sales-order"
+import { getPOSTransactionsBatch } from "@/actions/pos"
+import { getSalesOrderById } from "@/actions/sales-orders"
 import POSDetailView from "./components/details/pos-detail-view"
 
 // Date filter options
@@ -141,45 +142,78 @@ const POSTransactionCard = ({
 
 export default function POSPage() {
   const router = useRouter()
-  const [isLoading, setIsLoading] = useState(true)
-  const [isExporting, setIsExporting] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)           
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false)
   const [posTransactions, setPosTransactions] = useState<SalesOrder[]>([])
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedTransaction, setSelectedTransaction] = useState<SalesOrder | null>(null)
+  const loadRun = useRef(0)
+  const selectRun = useRef(0)
+  const selectedIdRef = useRef<string | null>(null)
+  const [isExporting, setIsExporting] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [paymentMethodFilter, setPaymentMethodFilter] = useState("ALL")
   const [dateFilter, setDateFilter] = useState("ALL")
 
   useEffect(() => {
-    loadPOSTransactions()
-  }, [])
+  loadPOSTransactions()
+  return () => { loadRun.current++ }          // stops background loading if you leave the page
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [])
+
+const selectTransaction = async (id: string) => {
+  const run = ++selectRun.current
+  selectedIdRef.current = id
+  setSelectedId(id)
+  setIsLoadingDetail(true)
+  try {
+    const full = await getSalesOrderById(id)
+    if (run !== selectRun.current) return
+    if (full) setSelectedTransaction(full as unknown as SalesOrder)
+    else toast.error("Transaction not found")
+  } catch {
+    if (run === selectRun.current) toast.error("Failed to load transaction details")
+  } finally {
+    if (run === selectRun.current) setIsLoadingDetail(false)
+  }
+}
 
   const loadPOSTransactions = async () => {
+    const run = ++loadRun.current
+    let cursor: string | undefined
+    let first = true
     try {
-      setIsLoading(true)
-      const orders = await getSalesOrders()
-      
-      const posOnly = orders.filter((order: any) => 
-        order.orderNumber.startsWith("POS-")
-      )
-      
-      setPosTransactions(posOnly as unknown as SalesOrder[])
-      
-      if (posOnly.length > 0 && !selectedTransaction) {
-        setSelectedTransaction(posOnly[0] as unknown as SalesOrder)
-      }
-      
-      if (selectedTransaction) {
-        const updatedTransaction = posOnly.find((o: any) => o.id === selectedTransaction.id)
-        if (updatedTransaction) {
-          setSelectedTransaction(updatedTransaction as unknown as SalesOrder)
+      while (run === loadRun.current) {
+        const res = await getPOSTransactionsBatch(cursor, first ? 20 : 100)
+        if (run !== loadRun.current) return
+        if (!res.success) { toast.error("Failed to load POS transactions"); break }
+
+        const items = res.items as unknown as SalesOrder[]
+        setPosTransactions(prev => (first ? items : [...prev, ...items]))
+
+        if (first) {
+          setIsLoading(false)                                   // page opens now
+          if (items.length > 0 && !selectedIdRef.current) selectTransaction(items[0].id)
+          first = false
         }
+        if (!res.nextCursor) break
+        cursor = res.nextCursor
+        setIsLoadingMore(true)
       }
     } catch (error) {
       console.error("Failed to load POS transactions:", error)
       toast.error("Failed to load POS transactions")
     } finally {
-      setIsLoading(false)
+      if (run === loadRun.current) { setIsLoading(false); setIsLoadingMore(false) }
     }
+  }
+
+  // Used by the detail view's refresh button: reload the list in the background
+  // and re-fetch just the selected transaction.
+  const handleRefresh = async () => {
+    loadPOSTransactions()
+    if (selectedIdRef.current) await selectTransaction(selectedIdRef.current)
   }
 
   const handleViewDetails = (transaction: SalesOrder) => {
@@ -400,7 +434,7 @@ export default function POSPage() {
               <div className="lg:col-span-1 xl:col-span-2 flex flex-col lg:h-full lg:overflow-hidden">
                 <div className="flex items-center justify-between mb-4 flex-shrink-0">
                   <h2 className="font-semibold text-sm text-muted-foreground">
-                    {filteredTransactions.length} Transaction{filteredTransactions.length !== 1 ? 's' : ''}
+                    {filteredTransactions.length}{isLoadingMore ? "+" : ""} Transaction{filteredTransactions.length !== 1 ? 's' : ''}
                   </h2>
                   {(paymentMethodFilter !== "ALL" || searchTerm || dateFilter !== "ALL") && (
                     <Button
@@ -455,11 +489,17 @@ export default function POSPage() {
                           <POSTransactionCard
                             key={transaction.id}
                             transaction={transaction}
-                            isSelected={selectedTransaction?.id === transaction.id}
-                            onClick={() => setSelectedTransaction(transaction)}
+                            isSelected={selectedId === transaction.id}
+                            onClick={() => selectTransaction(transaction.id)}
                             onViewDetails={() => handleViewDetails(transaction)}
                           />
                         ))
+                      )}
+
+                      {isLoadingMore && (
+                        <div className="py-3 text-center text-xs text-muted-foreground">
+                          Loading older transactions…
+                        </div>
                       )}
                     </div>
                   </ScrollArea>
@@ -468,14 +508,18 @@ export default function POSPage() {
 
               {/* Detail View */}
               <div className="lg:col-span-3 xl:col-span-3 lg:h-full lg:overflow-hidden mt-6 lg:mt-0">
-                {selectedTransaction ? (
+                {isLoadingDetail && selectedTransaction?.id !== selectedId ? (
+                  <div className="h-full flex items-center justify-center border rounded-lg bg-background">
+                    <Spinner className="size-6" />
+                  </div>
+                ) : selectedTransaction ? (
                   <div className="h-full flex flex-col">
                     <div className="h-full overflow-hidden border rounded-lg shadow-sm bg-background">
                       <POSDetailView
                         transaction={selectedTransaction}
                         onPrint={handlePrint}
                         onExport={handleExport}
-                        onRefresh={loadPOSTransactions}
+                        onRefresh={handleRefresh}                                 
                       />
                     </div>
                   </div>

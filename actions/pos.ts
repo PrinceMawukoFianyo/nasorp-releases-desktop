@@ -692,6 +692,48 @@ export async function getRecentPOSTransactions(limit: number = 10) {
     return { success: false, error: error.message || "Failed to fetch transactions" }
   }
 }
+
+/**
+ * Light, paginated POS list. No lines/payments/returns, so it's fast.
+ * Full details are loaded separately with getSalesOrderById when a row is selected.
+ */
+export async function getPOSTransactionsBatch(cursor?: string, take: number = 50) {
+  try {
+    const user = await getAuthenticatedUser()
+
+    const rows = await db.salesOrder.findMany({
+      where: { orgId: user.orgId, orderNumber: { startsWith: "POS-" } },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: take + 1,                                  // one extra = "is there more?"
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      select: {
+        id: true,
+        orderNumber: true,
+        createdAt: true,
+        status: true,
+        paymentStatus: true,
+        paymentMethod: true,
+        subtotal: true,
+        taxAmount: true,
+        shippingCost: true,
+        discount: true,
+        customer: { select: { id: true, name: true } },
+        createdBy: { select: { id: true, name: true, email: true } },
+      },
+    })
+
+    const hasMore = rows.length > take
+    const items = hasMore ? rows.slice(0, take) : rows
+    return {
+      success: true as const,
+      items,
+      nextCursor: hasMore ? items[items.length - 1].id : null,
+    }
+  } catch (error: any) {
+    console.error("Error fetching POS batch:", error)
+    return { success: false as const, items: [], nextCursor: null, error: error.message }
+  }
+}
 /**
  * Get summary stats for the POS page header — respects date range.
  * dateRange supports: '7d' | '30d' | 'today' | 'YYYY-MM-DD' | 'YYYY-MM-DD_YYYY-MM-DD'

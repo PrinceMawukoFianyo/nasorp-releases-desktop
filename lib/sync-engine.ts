@@ -159,12 +159,14 @@ function writeState(state: Record<string, string>) {
   fs.writeFileSync(file, JSON.stringify(state));
 }
 
+const reportedFailures = new Set<string>();
+
 export async function pullChangesFromCloud() {
   const localDb = getLocalDb();
 
   // Never touch stock while local sales are waiting to be pushed.
   const pending = await localDb.salesOrder.count({ where: { syncStatus: "pending" } });
-  if (pending > 0) return { skipped: true, pulled: 0 };
+  if (pending > 0) return { skipped: true, pulled: 0, failed: [] as string[] };
 
   // A fresh local database has no organisation yet: copy it down from Neon first.
   let orgId = (await localDb.organisation.findFirst())?.id;
@@ -181,9 +183,24 @@ export async function pullChangesFromCloud() {
   const state = readState();
   const seen = (name: string) => new Date(new Date(state[name] ?? 0).getTime() - OVERLAP_MS);
   let pulled = 0;
+  const failed: string[] = [];
 
-  // `field` is the timestamp column the query filters on, so the saved marker
-  // always matches what the next query compares against.
+  // One failing table must not stop the others (especially users: login depends on them).
+  async function step(name: string, fn: () => Promise<void>) {
+    try {
+      await fn();
+    } catch (err: any) {
+      failed.push(name);
+      const last = String(err?.message ?? err).split("\n").map((s) => s.trim()).filter(Boolean).pop();
+      const msg = `${name}: ${err?.code ?? ""} ${last}`;
+      if (!reportedFailures.has(msg)) {
+        reportedFailures.add(msg);
+        console.error("[sync] step failed -", msg);
+      }
+    }
+  }
+
+  // `field` is the timestamp column the query filters on.
   async function run(
     name: string,
     rows: any[],
@@ -196,84 +213,136 @@ export async function pullChangesFromCloud() {
       .reduce((m, r) => (r[field] > m ? r[field] : m), new Date(0))
       .toISOString();
     pulled += rows.length;
+    writeState(state); // save progress after each table
+    if (rows.length > 50) console.log(`[sync] pulled ${name}: ${rows.length}`);
   }
 
   const upsertAll = (delegate: any) => async (rows: any[]) => {
     for (const r of rows) await delegate.upsert({ where: { id: r.id }, create: r, update: r });
   };
 
-  await run("location",
-    await neonDb.location.findMany({ where: { orgId, updatedAt: { gt: seen("location") } } }),
-    upsertAll(localDb.location));
+  // 1. Roles and users first, so login works as early as possible.
+  await step("users", async () => {
+    const cloudRoles = await neonDb.role.findMany();
+    await upsertAll(localDb.role)(cloudRoles);
+    pulled += cloudRoles.length;
 
-  await run("category",
+    const cloudUsers = await neonDb.user.findMany({
+      where: { orgId },
+      include: { roles: { select: { id: true } } },
+    });
+    for (const { roles, ...u } of cloudUsers) {
+      await localDb.user.upsert({ where: { id: u.id }, create: u, update: u });
+      await localDb.user.update({
+        where: { id: u.id },
+        data: { roles: { set: roles.map((r) => ({ id: r.id })) } },
+      });
+    }
+    pulled += cloudUsers.length;
+    if (!state.usersReady) {
+      state.usersReady = "1";
+      writeState(state);
+      console.log("[sync] users and roles ready, login is available");
+    }
+  });
+
+  // 2. Reference data
+  await step("location", async () => run("location",
+    await neonDb.location.findMany({ where: { orgId, updatedAt: { gt: seen("location") } } }),
+    upsertAll(localDb.location)));
+
+  await step("category", async () => run("category",
     await neonDb.category.findMany({ where: { orgId, updatedAt: { gt: seen("category") } } }),
     async (rows) => {
       await upsertAll(localDb.category)(rows.map((r) => ({ ...r, parentId: null })));
       for (const r of rows.filter((r) => r.parentId)) {
         await localDb.category.update({ where: { id: r.id }, data: { parentId: r.parentId } });
       }
-    });
+    }));
 
-  await run("brand",
+  await step("brand", async () => run("brand",
     await neonDb.brand.findMany({ where: { orgId, updatedAt: { gt: seen("brand") } } }),
-    upsertAll(localDb.brand));
-  await run("unit",
+    upsertAll(localDb.brand)));
+  await step("unit", async () => run("unit",
     await neonDb.unit.findMany({ where: { orgId, updatedAt: { gt: seen("unit") } } }),
-    upsertAll(localDb.unit));
-  await run("taxRate",
+    upsertAll(localDb.unit)));
+  await step("taxRate", async () => run("taxRate",
     await neonDb.taxRate.findMany({ where: { orgId, updatedAt: { gt: seen("taxRate") } } }),
-    upsertAll(localDb.taxRate));
-  await run("packagingUnit",
+    upsertAll(localDb.taxRate)));
+  await step("packagingUnit", async () => run("packagingUnit",
     await neonDb.packagingUnit.findMany({ where: { orgId, updatedAt: { gt: seen("packagingUnit") } } }),
-    upsertAll(localDb.packagingUnit));
-  await run("item",
+    upsertAll(localDb.packagingUnit)));
+  await step("item", async () => run("item",
     await neonDb.item.findMany({ where: { orgId, updatedAt: { gt: seen("item") } } }),
-    upsertAll(localDb.item));
-  await run("pricingTier",
+    upsertAll(localDb.item)));
+  await step("pricingTier", async () => run("pricingTier",
     await neonDb.itemPricingTier.findMany({ where: { item: { orgId }, updatedAt: { gt: seen("pricingTier") } } }),
-    upsertAll(localDb.itemPricingTier));
-  await run("inventory",
+    upsertAll(localDb.itemPricingTier)));
+  await step("inventory", async () => run("inventory",
     await neonDb.inventory.findMany({ where: { orgId, updatedAt: { gt: seen("inventory") } } }),
-    upsertAll(localDb.inventory));
+    upsertAll(localDb.inventory)));
 
-  const pendingCustomerIds = new Set(
-    (await localDb.customer.findMany({ where: { syncStatus: "pending" }, select: { id: true } })).map((c) => c.id)
-  );
-  await run("customer",
-    (await neonDb.customer.findMany({ where: { orgId, updatedAt: { gt: seen("customer") } } }))
-      .filter((c) => !pendingCustomerIds.has(c.id))
-      .map((c) => ({ ...c, syncStatus: "synced", syncedAt: new Date() })),
-    upsertAll(localDb.customer));
-
-  await run("expense",
-    await neonDb.expense.findMany({ where: { orgId, date: { gt: seen("expense") } } }),
-    upsertAll(localDb.expense),
-    "date");
-
-  await run("payrollEntry",
-    await neonDb.payrollEntry.findMany({ where: { orgId, date: { gt: seen("payrollEntry") } } }),
-    upsertAll(localDb.payrollEntry),
-    "date");
-
-  // Users and roles are small, so pull them in full every cycle (login works offline).
-  const cloudRoles = await neonDb.role.findMany();
-  await upsertAll(localDb.role)(cloudRoles);
-  pulled += cloudRoles.length;
-
-  const cloudUsers = await neonDb.user.findMany({
-    where: { orgId },
-    include: { roles: { select: { id: true } } },
+  // 3. Customers, expenses, payroll
+  await step("customer", async () => {
+    const pendingCustomerIds = new Set(
+      (await localDb.customer.findMany({ where: { syncStatus: "pending" }, select: { id: true } })).map((c) => c.id)
+    );
+    await run("customer",
+      (await neonDb.customer.findMany({ where: { orgId, updatedAt: { gt: seen("customer") } } }))
+        .filter((c) => !pendingCustomerIds.has(c.id))
+        .map((c) => ({ ...c, syncStatus: "synced", syncedAt: new Date() })),
+      upsertAll(localDb.customer));
   });
-  for (const { roles, ...u } of cloudUsers) {
-    await localDb.user.upsert({ where: { id: u.id }, create: u, update: u });
-    await localDb.user.update({
-      where: { id: u.id },
-      data: { roles: { set: roles.map((r) => ({ id: r.id })) } },
-    });
-  }
-  pulled += cloudUsers.length;
+
+  await step("expense", async () => run("expense",
+    (await neonDb.expense.findMany({ where: { orgId, date: { gt: seen("expense") } } }))
+      .map((r) => ({ ...r, syncStatus: "synced", syncedAt: new Date() })),
+    upsertAll(localDb.expense),
+    "date"));
+
+  await step("payrollEntry", async () => run("payrollEntry",
+    (await neonDb.payrollEntry.findMany({ where: { orgId, date: { gt: seen("payrollEntry") } } }))
+      .map((r) => ({ ...r, syncStatus: "synced", syncedAt: new Date() })),
+    upsertAll(localDb.payrollEntry),
+    "date"));
+
+  // 4. Sales history, last: it depends on users, customers and locations.
+  const HISTORY_DAYS = 365;
+  const salesSince = new Date(
+    Math.max(seen("salesOrder").getTime(), Date.now() - HISTORY_DAYS * 86_400_000)
+  );
+
+  await step("salesOrder", async () => run("salesOrder",
+    await neonDb.salesOrder.findMany({
+      where: { orgId, updatedAt: { gt: salesSince } },
+      include: { lines: true },
+      orderBy: { updatedAt: "asc" },
+      take: 500,
+    }),
+    async (rows) => {
+      // Copy any creator who isn't local yet (for example a user from another organisation).
+      const wanted = [...new Set(rows.map((r) => r.createdById).filter(Boolean))] as string[];
+      const have = new Set(
+        (await localDb.user.findMany({ where: { id: { in: wanted } }, select: { id: true } })).map((u) => u.id)
+      );
+      const missing = wanted.filter((id) => !have.has(id));
+      if (missing.length) {
+        const users = await neonDb.user.findMany({ where: { id: { in: missing } } });
+        const orgIds = [...new Set(users.map((u) => u.orgId).filter(Boolean))] as string[];
+        const orgs = await neonDb.organisation.findMany({ where: { id: { in: orgIds } } });
+        await upsertAll(localDb.organisation)(orgs);
+        await upsertAll(localDb.user)(users);
+      }
+
+      for (const { lines, ...o } of rows) {
+        const data = { ...o, syncStatus: "synced", syncedAt: new Date() };
+        await localDb.salesOrder.upsert({ where: { id: o.id }, create: data, update: data });
+        for (const l of lines) {
+          await localDb.salesOrderLine.upsert({ where: { id: l.id }, create: l, update: l });
+        }
+      }
+    }));
 
   writeState(state);
-  return { skipped: false, pulled };
+  return { skipped: false, pulled, failed };
 }

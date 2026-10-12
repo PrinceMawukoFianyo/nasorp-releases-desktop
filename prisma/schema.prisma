@@ -532,6 +532,7 @@ model SalesOrder {
   @@index([orderNumber])
   @@index([customerId])
   @@index([paymentStatus])
+  @@index([orgId, createdAt])
 }
 
 model SalesOrderLine {

@@ -78,8 +78,16 @@ export async function startLocalPostgres(): Promise<string> {
       persistent: true,
     });
 
-    const dataDirExists = fs.existsSync(path.join(resolveDataDir(), "PG_VERSION"));
-    if (!dataDirExists) {
+    const dataDir = resolveDataDir();
+    const hasCluster = fs.existsSync(path.join(dataDir, "PG_VERSION"));
+    if (!hasCluster) {
+      // A failed first start can leave a half-built folder, and initdb refuses to use it.
+      // Without PG_VERSION there is no usable database in there, so clear it.
+      if (path.basename(dataDir) === "postgres-data") {
+        for (const entry of fs.readdirSync(dataDir)) {
+          fs.rmSync(path.join(dataDir, entry), { recursive: true, force: true });
+        }
+      }
       await globalThis.localPg.initialise();
     }
     await globalThis.localPg.start();

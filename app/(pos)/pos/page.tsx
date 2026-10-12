@@ -41,6 +41,9 @@ import { usePermission } from "@/hooks/usePermissions"
 import { useOrderTabs } from "@/hooks/use-order-tabs"
 import { OrderTabsBar } from "@/components/details/order-tabs-bar"
 import { PhoneScannerManager } from "@/components/details/phone-scanner-manager"
+import { buildReceiptHTML, printHTML } from "@/lib/receipt-print"
+
+
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -175,80 +178,66 @@ type ReceiptOrderData = {
 }
 
 function ReceiptOverlay({
-    open, onClose, order, orgName = "HABIFAZZY ENTERPRISE",
-  }: {
-    open: boolean
-    onClose: () => void
-    order: ReceiptOrderData | null
-    orgName?: string
-  }) {
-    if (!open || !order) return null
+  open, onClose, fullOrder,
+}: {
+  open: boolean
+  onClose: () => void
+  order?: ReceiptOrderData | null      // no longer used, leave your existing prop in place
+  fullOrder: any | null
+}) {
+  const [isPrinting, setIsPrinting] = useState(false)
+  const [frameHeight, setFrameHeight] = useState(520)
 
-    return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center">
-        {/* Blurred backdrop — the POS behind fades and blurs */}
-        <div
-          className="absolute inset-0 bg-black/30 backdrop-blur-sm no-print"
-          onClick={onClose}
+  const html = fullOrder ? buildReceiptHTML(fullOrder, "thermal80mm") : ""
+
+  const handlePrint = async () => {
+    if (!fullOrder) { toast.error("Receipt data not ready"); return }
+    setIsPrinting(true)
+    try {
+      await printHTML(html)
+    } catch {
+      toast.error("Failed to print receipt")
+    } finally {
+      setIsPrinting(false)
+    }
+  }
+
+  if (!open || !fullOrder) return null
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center">
+      {/* Blurred backdrop */}
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+
+      {/* Receipt card */}
+      <div className="relative z-10 bg-white w-[340px] max-h-[90vh] overflow-y-auto rounded-xl shadow-2xl p-3 animate-in zoom-in-95 fade-in duration-150">
+        <iframe
+          title="Receipt preview"
+          srcDoc={html}
+          className="w-full border-0 bg-white"
+          style={{ height: frameHeight }}
+          onLoad={(e) => {
+            const doc = e.currentTarget.contentDocument
+            if (doc?.body) setFrameHeight(doc.body.scrollHeight + 24)
+          }}
         />
 
-        {/* Receipt card */}
-        <div
-          id="receipt-print-area"
-          className="relative z-10 bg-white w-[340px] max-h-[85vh] overflow-y-auto rounded-xl shadow-2xl p-6 font-mono text-xs animate-in zoom-in-95 fade-in duration-150"
-        >
-          <div className="text-center mb-4">
-            <p className="font-bold text-sm">{orgName}</p>
-            <p className="text-[10px] text-slate-500">Sales Receipt</p>
-          </div>
-
-          <div className="flex justify-between text-[10px] mb-1">
-            <span>Receipt #</span><span>{order.orderNumber}</span>
-          </div>
-          <div className="flex justify-between text-[10px] mb-1">
-            <span>Date</span><span>{order.date}</span>
-          </div>
-          <div className="flex justify-between text-[10px] mb-3">
-            <span>Customer</span><span>{order.customerName}</span>
-          </div>
-
-          <div className="border-t border-dashed border-slate-300 my-2" />
-
-          {order.lines.map((l, i) => (
-            <div key={i} className="mb-1">
-              <div className="flex justify-between">
-                <span className="truncate max-w-[180px]">{l.name}</span>
-                <span>{l.total.toFixed(2)}</span>
-              </div>
-              <div className="text-[9px] text-slate-400">{l.qty} × {l.unitPrice.toFixed(2)}</div>
-            </div>
-          ))}
-
-          <div className="border-t border-dashed border-slate-300 my-2" />
-
-          <div className="flex justify-between text-[10px]"><span>Subtotal</span><span>{order.subtotal.toFixed(2)}</span></div>
-          {order.tax > 0 && <div className="flex justify-between text-[10px]"><span>Tax</span><span>{order.tax.toFixed(2)}</span></div>}
-          {order.discount > 0 && <div className="flex justify-between text-[10px]"><span>Discount</span><span>-{order.discount.toFixed(2)}</span></div>}
-          {order.shipping > 0 && <div className="flex justify-between text-[10px]"><span>Shipping</span><span>{order.shipping.toFixed(2)}</span></div>}
-
-          <div className="flex justify-between font-bold text-sm border-t border-slate-400 pt-2 mt-2">
-            <span>TOTAL</span><span>GHS {order.total.toFixed(2)}</span>
-          </div>
-          <p className="text-center text-[9px] text-slate-400 mt-1">Paid via {order.paymentMethod}</p>
-          <p className="text-center text-[9px] text-slate-400 mt-4">Thank you for your business!</p>
-
-          <div className="flex gap-2 mt-5 no-print">
-            <Button variant="outline" className="flex-1 h-9 text-xs" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button className="flex-1 h-9 text-xs bg-blue-600 hover:bg-blue-700" onClick={() => window.print()}>
-              <Receipt className="w-3.5 h-3.5 mr-1" /> Print
-            </Button>
-          </div>
+        <div className="flex gap-2 mt-3">
+          <Button variant="outline" className="flex-1 h-9 text-xs" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            className="flex-1 h-9 text-xs bg-blue-600 hover:bg-blue-700"
+            onClick={handlePrint}
+            disabled={isPrinting}
+          >
+            <Receipt className="w-3.5 h-3.5 mr-1" /> {isPrinting ? "Printing…" : "Print"}
+          </Button>
         </div>
       </div>
-    )
-  }
+    </div>
+  )
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -562,6 +551,7 @@ export default function POSPage() {
   const [newCustomer,     setNewCustomer]     = useState({ name: "", email: "", phone: "" })
   const [lastOrderId,     setLastOrderId]     = useState("")
   const [receiptData, setReceiptData] = useState<ReceiptOrderData | null>(null)
+  const [receiptOrder, setReceiptOrder] = useState<any>(null)
   const [lastOrderNumber, setLastOrderNumber] = useState("")
 
   const [isLoading,        setIsLoading]        = useState(true)
@@ -954,6 +944,7 @@ export default function POSPage() {
           subtotal, tax: totalTax, discount, shipping, total: grandTotal,
         })
         setLastOrderId(result.orderId)
+        setReceiptOrder(result.data)
         setLastOrderNumber(result.orderNumber)
         setShowPaymentModal(false)
         setShowInvoiceModal(true)
@@ -993,6 +984,8 @@ export default function POSPage() {
     setCart([]); setSelectedCustomer(""); setDiscount(0); setShipping(0)
     setShowInvoiceModal(false); setLastOrderId(""); setLastOrderNumber("")
     setLastScanValue(null); setReceiptData(null)
+    setReceiptOrder(null) 
+
   }
 
   const selectedCustomerData = customers.find(c => c.id === selectedCustomer)
@@ -1697,6 +1690,7 @@ export default function POSPage() {
         <ReceiptOverlay
           open={showInvoiceModal}
           order={receiptData}
+          fullOrder={receiptOrder}        // ← add
           onClose={() => {
             setShowInvoiceModal(false)
             resetPOS()

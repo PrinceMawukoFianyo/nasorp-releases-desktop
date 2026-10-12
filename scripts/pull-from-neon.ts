@@ -51,6 +51,45 @@ async function main() {
   await copy("Items", await neonDb.item.findMany({ where: { orgId } }), localDb.item);
   await copy("PricingTiers", await neonDb.itemPricingTier.findMany({ where: { item: { orgId } } }), localDb.itemPricingTier);
   await copy("Inventory", await neonDb.inventory.findMany({ where: { orgId } }), localDb.inventory);
+    await copy("Suppliers", await neonDb.supplier.findMany({ where: { orgId } }), localDb.supplier);
+
+  const purchaseOrders = await neonDb.purchaseOrder.findMany({ where: { orgId }, include: { lines: true } });
+  for (const { lines, ...po } of purchaseOrders) {
+    await localDb.purchaseOrder.upsert({ where: { id: po.id }, create: po, update: po });
+    for (const line of lines) {
+      await localDb.purchaseOrderLine.upsert({ where: { id: line.id }, create: line, update: line });
+    }
+  }
+  console.log("PurchaseOrders:", purchaseOrders.length);
+
+  const manualDebts = await neonDb.manualDebt.findMany({ where: { orgId }, include: { payments: true } });
+  for (const { payments, ...debt } of manualDebts) {
+    await localDb.manualDebt.upsert({ where: { id: debt.id }, create: debt, update: debt });
+    for (const p of payments) {
+      await localDb.manualDebtPayment.upsert({ where: { id: p.id }, create: p, update: p });
+    }
+  }
+  console.log("ManualDebts:", manualDebts.length);
+
+  const manualSupplierDebts = await neonDb.manualSupplierDebt.findMany({ where: { orgId }, include: { payments: true } });
+  for (const { payments, ...debt } of manualSupplierDebts) {
+    await localDb.manualSupplierDebt.upsert({ where: { id: debt.id }, create: debt, update: debt });
+    for (const p of payments) {
+      await localDb.manualSupplierDebtPayment.upsert({ where: { id: p.id }, create: p, update: p });
+    }
+  }
+  console.log("ManualSupplierDebts:", manualSupplierDebts.length);
+
+  await copy("SupplierPayments", await neonDb.supplierPayment.findMany({ where: { orgId } }), localDb.supplierPayment);
+
+  const goodsReceipts = await neonDb.goodsReceipt.findMany({ where: { orgId }, include: { lines: true } });
+  for (const { lines, ...gr } of goodsReceipts) {
+    await localDb.goodsReceipt.upsert({ where: { id: gr.id }, create: gr, update: gr });
+    for (const line of lines) {
+      await localDb.goodsReceiptLine.upsert({ where: { id: line.id }, create: line, update: line });
+    }
+  }
+  console.log("GoodsReceipts:", goodsReceipts.length);
 
   // Customers: skip any created locally and not yet pushed; mark pulled ones as synced.
   const pendingIds = new Set(
@@ -61,8 +100,6 @@ async function main() {
     .map((c) => ({ ...c, syncStatus: "synced", syncedAt: new Date() }));
   await copy("Customers", customers, localDb.customer);
 }
-
-main().catch(console.error).finally(() => process.exit());
 
 main()
   .catch(console.error)
