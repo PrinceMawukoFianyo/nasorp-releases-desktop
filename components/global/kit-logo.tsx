@@ -43,7 +43,7 @@ const HubStackLogo = ({
           fontSize="40"
           fill={colors.textPrimary}
         >
-        HABIFAZZY
+        NASORP
           <tspan fill={colors.textSecondary}>ENT.</tspan>
         </text>
 
